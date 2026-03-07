@@ -90,6 +90,24 @@ export default function UsersPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const createUser = useMutation({
+    mutationFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await supabase.functions.invoke("create-user", {
+        body: newUser,
+      });
+      if (res.error) throw new Error(res.error.message);
+      if (res.data?.error) throw new Error(res.data.error);
+    },
+    onSuccess: () => {
+      toast.success("User created successfully");
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      setCreateOpen(false);
+      setNewUser({ email: "", password: "", first_name: "", last_name: "", phone: "", role: "user" });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   const openEdit = (user: Profile & { roles: string[] }) => {
     setEditUser(user);
     setEditForm({ first_name: user.first_name, last_name: user.last_name, phone: user.phone, bio: user.bio || "" });
@@ -103,9 +121,14 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Users</h1>
-        <p className="text-muted-foreground mt-1">Manage platform users ({users.length} total)</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Users</h1>
+          <p className="text-muted-foreground mt-1">Manage platform users ({users.length} total)</p>
+        </div>
+        <Button className="gap-2" onClick={() => setCreateOpen(true)}>
+          <UserPlus className="h-4 w-4" /> Add User
+        </Button>
       </div>
 
       <Card>
