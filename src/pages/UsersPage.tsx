@@ -128,7 +128,8 @@ export default function UsersPage() {
 
   const filtered = users.filter((u) =>
     `${u.first_name} ${u.last_name}`.toLowerCase().includes(search.toLowerCase()) ||
-    u.phone.toLowerCase().includes(search.toLowerCase())
+    u.phone.toLowerCase().includes(search.toLowerCase()) ||
+    (u.email && u.email.toLowerCase().includes(search.toLowerCase()))
   );
 
   return (
@@ -158,10 +159,12 @@ export default function UsersPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Events</TableHead>
                   <TableHead>Joined</TableHead>
+                  <TableHead>Last Login</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
@@ -169,6 +172,7 @@ export default function UsersPage() {
                 {filtered.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">{user.first_name} {user.last_name}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{user.email}</TableCell>
                     <TableCell className="text-muted-foreground">{user.phone || "—"}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
@@ -178,7 +182,8 @@ export default function UsersPage() {
                       </div>
                     </TableCell>
                     <TableCell>{regCounts[user.id] || 0}</TableCell>
-                    <TableCell className="text-muted-foreground">{new Date(user.created_at).toLocaleDateString()}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{new Date(user.created_at).toLocaleDateString()}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString() : "Never"}</TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -197,7 +202,7 @@ export default function UsersPage() {
                   </TableRow>
                 ))}
                 {filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No users found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No users found</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
