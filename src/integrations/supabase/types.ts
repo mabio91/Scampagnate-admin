@@ -252,6 +252,7 @@ export type Database = {
           organizer_name: string
           payment_type: Database["public"]["Enums"]["payment_type"]
           price: number
+          reserved_spots: number
           spots_taken: number
           spots_total: number
           status: Database["public"]["Enums"]["event_status"]
@@ -280,6 +281,7 @@ export type Database = {
           organizer_name?: string
           payment_type?: Database["public"]["Enums"]["payment_type"]
           price?: number
+          reserved_spots?: number
           spots_taken?: number
           spots_total?: number
           status?: Database["public"]["Enums"]["event_status"]
@@ -308,6 +310,7 @@ export type Database = {
           organizer_name?: string
           payment_type?: Database["public"]["Enums"]["payment_type"]
           price?: number
+          reserved_spots?: number
           spots_taken?: number
           spots_total?: number
           status?: Database["public"]["Enums"]["event_status"]
@@ -374,6 +377,47 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "issues_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          event_id: string | null
+          id: string
+          message: string
+          read: boolean
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          message?: string
+          read?: boolean
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          message?: string
+          read?: boolean
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "events"
@@ -512,7 +556,7 @@ export type Database = {
     Enums: {
       app_role: "admin" | "organizer" | "user"
       event_status: "available" | "full" | "closed"
-      payment_type: "free" | "paid" | "deposit"
+      payment_type: "free" | "paid" | "deposit" | "location"
       registration_status: "registered" | "paid" | "waitlist" | "cancelled"
     }
     CompositeTypes: {
@@ -643,7 +687,7 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "organizer", "user"],
       event_status: ["available", "full", "closed"],
-      payment_type: ["free", "paid", "deposit"],
+      payment_type: ["free", "paid", "deposit", "location"],
       registration_status: ["registered", "paid", "waitlist", "cancelled"],
     },
   },
