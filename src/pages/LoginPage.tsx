@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Shield } from "lucide-react";
+import logo from "@/assets/logo.png";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -39,8 +39,8 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <div className="mx-auto p-3 rounded-full bg-primary/10 w-fit mb-2">
-            <Shield className="h-6 w-6 text-primary" />
+          <div className="mx-auto w-fit mb-2">
+            <img src={logo} alt="Logo" className="h-16 w-auto" />
           </div>
           <CardTitle className="text-xl">Super Admin Login</CardTitle>
           <p className="text-sm text-muted-foreground">Sign in to access the dashboard</p>
