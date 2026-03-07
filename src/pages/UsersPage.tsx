@@ -32,9 +32,21 @@ export default function UsersPage() {
       const { data: profiles, error } = await supabase.from("profiles").select("*").order("created_at", { ascending: false });
       if (error) throw error;
       const { data: roles } = await supabase.from("user_roles").select("user_id, role");
+
+      // Fetch auth user data (email, last_sign_in_at)
+      let authUsers: { id: string; email: string; last_sign_in_at: string | null; created_at: string }[] = [];
+      try {
+        const res = await supabase.functions.invoke("list-users");
+        if (res.data && !res.data.error) authUsers = res.data;
+      } catch {}
+
+      const authMap = new Map(authUsers.map((u) => [u.id, u]));
+
       return (profiles || []).map((p) => ({
         ...p,
         roles: (roles || []).filter((r) => r.user_id === p.id).map((r) => r.role),
+        email: authMap.get(p.id)?.email || "—",
+        last_sign_in_at: authMap.get(p.id)?.last_sign_in_at || null,
       }));
     },
   });
