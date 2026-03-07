@@ -1,4 +1,4 @@
-import { Users, Building2, Tags, Calendar, AlertTriangle, LayoutDashboard, Shield } from "lucide-react";
+import { Users, Building2, Tags, Calendar, AlertTriangle, LayoutDashboard, Shield, Package } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import logo from "@/assets/logo.png";
@@ -23,6 +23,7 @@ const navItems = [
   { title: "Organizers", url: "/organizers", icon: Building2 },
   { title: "Event Categories", url: "/categories", icon: Tags },
   { title: "Events", url: "/events", icon: Calendar },
+  { title: "Equipment Templates", url: "/equipment-templates", icon: Package },
   { title: "Issues", url: "/issues", icon: AlertTriangle },
 ];
 
