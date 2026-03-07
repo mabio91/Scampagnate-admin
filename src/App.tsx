@@ -25,7 +25,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
-          <Route element={<AuthGuard><AdminLayout /></AuthGuard>}>
+          <Route element={<AuthGuardLayout />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/users" element={<UsersPage />} />
             <Route path="/organizers" element={<OrganizersPage />} />
