@@ -22,6 +22,8 @@ export default function UsersPage() {
   const [editUser, setEditUser] = useState<(Profile & { roles: string[] }) | null>(null);
   const [editForm, setEditForm] = useState({ first_name: "", last_name: "", phone: "", bio: "" });
   const [editRole, setEditRole] = useState("user");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newUser, setNewUser] = useState({ email: "", password: "", first_name: "", last_name: "", phone: "", role: "user" });
   const queryClient = useQueryClient();
 
   const { data: users = [], isLoading } = useQuery({
