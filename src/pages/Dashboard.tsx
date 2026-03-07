@@ -2,71 +2,24 @@ import { Users, Building2, Calendar, AlertTriangle, TrendingUp, Activity } from 
 import { StatCard } from "@/components/StatCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
-
-const userGrowthData = [
-  { month: "Sep", users: 1820 },
-  { month: "Oct", users: 2010 },
-  { month: "Nov", users: 2180 },
-  { month: "Dec", users: 2340 },
-  { month: "Jan", users: 2580 },
-  { month: "Feb", users: 2720 },
-  { month: "Mar", users: 2847 },
-];
-
-const eventsByMonth = [
-  { month: "Sep", events: 28, registrations: 420 },
-  { month: "Oct", events: 35, registrations: 510 },
-  { month: "Nov", events: 42, registrations: 680 },
-  { month: "Dec", events: 30, registrations: 490 },
-  { month: "Jan", events: 48, registrations: 720 },
-  { month: "Feb", events: 52, registrations: 810 },
-  { month: "Mar", events: 55, registrations: 860 },
-];
-
-const categoryDistribution = [
-  { name: "Hiking", value: 35 },
-  { name: "Cycling", value: 25 },
-  { name: "Running", value: 20 },
-  { name: "Skiing", value: 12 },
-  { name: "Other", value: 8 },
-];
-
-const issuesTrend = [
-  { week: "W1", opened: 5, resolved: 4 },
-  { week: "W2", opened: 3, resolved: 5 },
-  { week: "W3", opened: 7, resolved: 6 },
-  { week: "W4", opened: 2, resolved: 4 },
-  { week: "W5", opened: 4, resolved: 3 },
-  { week: "W6", opened: 1, resolved: 3 },
-];
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { format, subMonths, startOfMonth } from "date-fns";
 
 const PIE_COLORS = [
-  "hsl(150, 40%, 20%)",   // primary
-  "hsl(30, 50%, 55%)",    // secondary
-  "hsl(25, 70%, 50%)",    // accent
-  "hsl(140, 50%, 40%)",   // success
-  "hsl(40, 15%, 60%)",    // muted
+  "hsl(150, 40%, 20%)",
+  "hsl(30, 50%, 55%)",
+  "hsl(25, 70%, 50%)",
+  "hsl(140, 50%, 40%)",
+  "hsl(40, 15%, 60%)",
+  "hsl(200, 50%, 50%)",
+  "hsl(280, 40%, 50%)",
 ];
-
-const recentActivity = [
-  { action: "New user registered", user: "Marco Rossi", time: "2 min ago", type: "user" },
-  { action: "Event created", user: "Luca Bianchi", time: "15 min ago", type: "event" },
-  { action: "Issue reported", user: "Anna Verdi", time: "1h ago", type: "issue" },
-  { action: "Organizer approved", user: "Festival Milano", time: "2h ago", type: "organizer" },
-  { action: "Category added", user: "System", time: "3h ago", type: "category" },
-];
-
-const typeColors: Record<string, string> = {
-  user: "bg-primary/10 text-primary",
-  event: "bg-secondary/20 text-secondary",
-  issue: "bg-destructive/10 text-destructive",
-  organizer: "bg-accent/20 text-accent",
-  category: "bg-muted text-muted-foreground",
-};
 
 const chartTooltipStyle = {
   contentStyle: {
@@ -78,6 +31,133 @@ const chartTooltipStyle = {
 };
 
 export default function Dashboard() {
+  // Stats queries
+  const { data: totalUsers = 0, isLoading: loadingUsers } = useQuery({
+    queryKey: ["stats-users"],
+    queryFn: async () => {
+      const { count } = await supabase.from("profiles").select("*", { count: "exact", head: true });
+      return count || 0;
+    },
+  });
+
+  const { data: totalOrganizers = 0, isLoading: loadingOrgs } = useQuery({
+    queryKey: ["stats-organizers"],
+    queryFn: async () => {
+      const { count } = await supabase.from("user_roles").select("*", { count: "exact", head: true }).eq("role", "organizer");
+      return count || 0;
+    },
+  });
+
+  const { data: totalEvents = 0, isLoading: loadingEvents } = useQuery({
+    queryKey: ["stats-events"],
+    queryFn: async () => {
+      const { count } = await supabase.from("events").select("*", { count: "exact", head: true });
+      return count || 0;
+    },
+  });
+
+  const { data: openIssues = 0, isLoading: loadingIssues } = useQuery({
+    queryKey: ["stats-issues"],
+    queryFn: async () => {
+      const { count } = await supabase.from("issues").select("*", { count: "exact", head: true }).in("status", ["open", "in_progress"]);
+      return count || 0;
+    },
+  });
+
+  // Category distribution for pie chart
+  const { data: categoryData = [] } = useQuery({
+    queryKey: ["stats-categories"],
+    queryFn: async () => {
+      const { data: categories } = await supabase.from("event_categories").select("id, name");
+      const { data: events } = await supabase.from("events").select("category_id");
+      if (!categories) return [];
+      return categories.map((cat) => ({
+        name: cat.name,
+        value: events?.filter((e) => e.category_id === cat.id).length || 0,
+      })).filter((c) => c.value > 0);
+    },
+  });
+
+  // Events by month
+  const { data: eventsByMonth = [] } = useQuery({
+    queryKey: ["stats-events-month"],
+    queryFn: async () => {
+      const { data: events } = await supabase.from("events").select("date, id");
+      const { data: regs } = await supabase.from("event_registrations").select("created_at");
+      const months: { month: string; events: number; registrations: number }[] = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = subMonths(new Date(), i);
+        const label = format(d, "MMM");
+        const start = format(startOfMonth(d), "yyyy-MM-dd");
+        const end = format(startOfMonth(subMonths(d, -1)), "yyyy-MM-dd");
+        months.push({
+          month: label,
+          events: events?.filter((e) => e.date >= start && e.date < end).length || 0,
+          registrations: regs?.filter((r) => r.created_at >= start && r.created_at < end).length || 0,
+        });
+      }
+      return months;
+    },
+  });
+
+  // Issues trend
+  const { data: issuesTrend = [] } = useQuery({
+    queryKey: ["stats-issues-trend"],
+    queryFn: async () => {
+      const { data: issues } = await supabase.from("issues").select("created_at, status, resolved_at");
+      const weeks: { week: string; opened: number; resolved: number }[] = [];
+      for (let i = 5; i >= 0; i--) {
+        const start = new Date();
+        start.setDate(start.getDate() - (i + 1) * 7);
+        const end = new Date();
+        end.setDate(end.getDate() - i * 7);
+        weeks.push({
+          week: `W${6 - i}`,
+          opened: issues?.filter((is) => new Date(is.created_at) >= start && new Date(is.created_at) < end).length || 0,
+          resolved: issues?.filter((is) => is.resolved_at && new Date(is.resolved_at) >= start && new Date(is.resolved_at) < end).length || 0,
+        });
+      }
+      return weeks;
+    },
+  });
+
+  // Recent activity
+  const { data: recentActivity = [] } = useQuery({
+    queryKey: ["stats-recent"],
+    queryFn: async () => {
+      const activities: { action: string; detail: string; time: string; type: string }[] = [];
+      
+      const { data: recentUsers } = await supabase.from("profiles").select("first_name, last_name, created_at").order("created_at", { ascending: false }).limit(3);
+      recentUsers?.forEach((u) => activities.push({ action: "New user registered", detail: `${u.first_name} ${u.last_name}`, time: u.created_at, type: "user" }));
+
+      const { data: recentEvents } = await supabase.from("events").select("title, created_at").order("created_at", { ascending: false }).limit(3);
+      recentEvents?.forEach((e) => activities.push({ action: "Event created", detail: e.title, time: e.created_at, type: "event" }));
+
+      const { data: recentIssues } = await supabase.from("issues").select("title, created_at").order("created_at", { ascending: false }).limit(3);
+      recentIssues?.forEach((is) => activities.push({ action: "Issue reported", detail: is.title, time: is.created_at, type: "issue" }));
+
+      return activities.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 6);
+    },
+  });
+
+  const typeColors: Record<string, string> = {
+    user: "bg-primary/10 text-primary",
+    event: "bg-secondary/20 text-secondary",
+    issue: "bg-destructive/10 text-destructive",
+    organizer: "bg-accent/20 text-accent",
+  };
+
+  const isLoading = loadingUsers || loadingOrgs || loadingEvents || loadingIssues;
+
+  const timeAgo = (dateStr: string) => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -86,40 +166,19 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Total Users" value="2,847" icon={Users} change="+12% this month" changeType="positive" />
-        <StatCard title="Organizers" value="184" icon={Building2} change="+5 pending" changeType="neutral" />
-        <StatCard title="Active Events" value="342" icon={Calendar} change="+28 this week" changeType="positive" />
-        <StatCard title="Open Issues" value="7" icon={AlertTriangle} change="-3 resolved" changeType="positive" />
+        {isLoading ? (
+          Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)
+        ) : (
+          <>
+            <StatCard title="Total Users" value={totalUsers.toLocaleString()} icon={Users} />
+            <StatCard title="Organizers" value={totalOrganizers.toLocaleString()} icon={Building2} />
+            <StatCard title="Total Events" value={totalEvents.toLocaleString()} icon={Calendar} />
+            <StatCard title="Open Issues" value={openIssues.toLocaleString()} icon={AlertTriangle} changeType={openIssues > 0 ? "negative" : "positive"} change={openIssues === 0 ? "All clear" : `${openIssues} need attention`} />
+          </>
+        )}
       </div>
 
-      {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <TrendingUp className="h-5 w-5 text-accent" />
-              User Growth
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={260}>
-              <AreaChart data={userGrowthData}>
-                <defs>
-                  <linearGradient id="userGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(150, 40%, 20%)" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="hsl(150, 40%, 20%)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(40, 15%, 87%)" />
-                <XAxis dataKey="month" tick={{ fontSize: 12, fill: "hsl(150, 10%, 45%)" }} />
-                <YAxis tick={{ fontSize: 12, fill: "hsl(150, 10%, 45%)" }} />
-                <Tooltip {...chartTooltipStyle} />
-                <Area type="monotone" dataKey="users" stroke="hsl(150, 40%, 20%)" fill="url(#userGrad)" strokeWidth={2} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
@@ -141,28 +200,31 @@ export default function Dashboard() {
             </ResponsiveContainer>
           </CardContent>
         </Card>
-      </div>
 
-      {/* Charts Row 2 */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Category Distribution</CardTitle>
           </CardHeader>
           <CardContent className="flex justify-center">
-            <ResponsiveContainer width="100%" height={240}>
-              <PieChart>
-                <Pie data={categoryDistribution} cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={3} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                  {categoryDistribution.map((_, i) => (
-                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip {...chartTooltipStyle} />
-              </PieChart>
-            </ResponsiveContainer>
+            {categoryData.length === 0 ? (
+              <p className="text-muted-foreground text-sm py-16">No events with categories yet</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={260}>
+                <PieChart>
+                  <Pie data={categoryData} cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={3} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                    {categoryData.map((_, i) => (
+                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip {...chartTooltipStyle} />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
+      </div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Issues Trend</CardTitle>
@@ -182,7 +244,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <Activity className="h-5 w-5 text-accent" />
@@ -191,18 +253,22 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {recentActivity.map((item, i) => (
-                <div key={i} className="flex items-center justify-between py-1.5 border-b last:border-0">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className={`text-[10px] ${typeColors[item.type]}`}>{item.type}</Badge>
-                    <div>
-                      <p className="text-xs font-medium">{item.action}</p>
-                      <p className="text-[10px] text-muted-foreground">{item.user}</p>
+              {recentActivity.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4">No recent activity</p>
+              ) : (
+                recentActivity.map((item, i) => (
+                  <div key={i} className="flex items-center justify-between py-1.5 border-b last:border-0">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className={`text-[10px] ${typeColors[item.type] || ""}`}>{item.type}</Badge>
+                      <div>
+                        <p className="text-xs font-medium">{item.action}</p>
+                        <p className="text-[10px] text-muted-foreground">{item.detail}</p>
+                      </div>
                     </div>
+                    <span className="text-[10px] text-muted-foreground whitespace-nowrap">{timeAgo(item.time)}</span>
                   </div>
-                  <span className="text-[10px] text-muted-foreground whitespace-nowrap">{item.time}</span>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </CardContent>
         </Card>
