@@ -30,30 +30,32 @@ function ProtectedLayout() {
 }
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
-          <Route element={<ProtectedLayout />}>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/users" element={<UsersPage />} />
-            <Route path="/organizers" element={<OrganizersPage />} />
-            <Route path="/categories" element={<CategoriesPage />} />
-            <Route path="/events" element={<EventsPage />} />
-            <Route path="/issues" element={<IssuesPage />} />
-            <Route path="/equipment-templates" element={<EquipmentTemplatesPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route element={<ProtectedLayout />}>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/users" element={<UsersPage />} />
+              <Route path="/organizers" element={<OrganizersPage />} />
+              <Route path="/categories" element={<CategoriesPage />} />
+              <Route path="/events" element={<EventsPage />} />
+              <Route path="/issues" element={<IssuesPage />} />
+              <Route path="/equipment-templates" element={<EquipmentTemplatesPage />} />
+              <Route path="/profile" element={<ProfilePage />} />
+            </Route>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </ThemeProvider>
 );
 
 export default App;

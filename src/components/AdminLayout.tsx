@@ -57,6 +57,7 @@ export function AdminLayout() {
           <header className="h-14 flex items-center border-b bg-card px-4 gap-3">
             <SidebarTrigger />
             <div className="flex items-center gap-2 ml-auto">
+              <ThemeSwitcher />
               <div className="flex items-center gap-2 bg-primary/10 text-primary px-3 py-1.5 rounded-full text-xs font-semibold">
                 <Shield className="h-3.5 w-3.5" />
                 Super Admin
