@@ -5,6 +5,7 @@ import { Shield } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import {
   DropdownMenu,
   DropdownMenuContent,
