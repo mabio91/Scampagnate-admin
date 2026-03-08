@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { ArrowLeft, Mail } from "lucide-react";
 import logo from "@/assets/logo.png";
+import { AuthPageWrapper } from "@/components/AuthPageWrapper";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -32,8 +33,8 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-sm">
+    <AuthPageWrapper>
+      <Card className="w-full max-w-sm border-border/50 shadow-xl backdrop-blur-sm bg-card/80">
         <CardHeader className="text-center">
           <div className="mx-auto w-fit mb-2">
             <img src={logo} alt="Logo" className="h-16 w-auto" />
@@ -82,6 +83,6 @@ export default function ForgotPasswordPage() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </AuthPageWrapper>
   );
 }
