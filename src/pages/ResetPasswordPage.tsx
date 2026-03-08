@@ -103,6 +103,6 @@ export default function ResetPasswordPage() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </AuthPageWrapper>
   );
 }

@@ -83,6 +83,6 @@ export default function ForgotPasswordPage() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </AuthPageWrapper>
   );
 }
