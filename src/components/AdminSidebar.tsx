@@ -1,7 +1,8 @@
-import { Users, Building2, Tags, Calendar, AlertTriangle, LayoutDashboard, Shield, Package } from "lucide-react";
+import { Users, Building2, Tags, Calendar, AlertTriangle, LayoutDashboard, Package, User, LogOut } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import logo from "@/assets/logo.png";
+import { supabase } from "@/integrations/supabase/client";
 
 import {
   Sidebar,
