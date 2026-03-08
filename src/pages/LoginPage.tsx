@@ -78,24 +78,47 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="text-center">
-          <div className="mx-auto w-fit mb-2">
-            <img src={logo} alt="Logo" className="h-16 w-auto" />
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
+      style={{
+        background: `
+          radial-gradient(ellipse at 20% 50%, hsl(150 40% 20% / 0.08) 0%, transparent 50%),
+          radial-gradient(ellipse at 80% 20%, hsl(25 70% 50% / 0.06) 0%, transparent 50%),
+          radial-gradient(ellipse at 50% 100%, hsl(38 60% 55% / 0.05) 0%, transparent 50%),
+          linear-gradient(160deg, hsl(40 20% 97%) 0%, hsl(40 25% 93%) 50%, hsl(150 15% 92%) 100%)
+        `,
+      }}
+    >
+      {/* Decorative shapes */}
+      <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full opacity-[0.04]" style={{ background: 'hsl(150 40% 20%)' }} />
+      <div className="absolute -bottom-32 -left-32 w-[30rem] h-[30rem] rounded-full opacity-[0.03]" style={{ background: 'hsl(25 70% 50%)' }} />
+
+      <Card className="w-full max-w-sm border-border/50 shadow-xl backdrop-blur-sm bg-card/80">
+        <CardHeader className="text-center pb-2">
+          <div className="mx-auto w-fit mb-3">
+            <div className="rounded-full p-1 shadow-lg" style={{ background: 'linear-gradient(135deg, hsl(150 40% 20% / 0.1), hsl(25 70% 50% / 0.1))' }}>
+              <img src={logo} alt="Logo" className="h-18 w-auto rounded-full" />
+            </div>
           </div>
-          <CardTitle className="text-xl">Super Admin Login</CardTitle>
+          <CardTitle className="text-2xl tracking-tight">Super Admin</CardTitle>
           <p className="text-sm text-muted-foreground">Sign in to access the dashboard</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
-            <div><Label>Email</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
-            <div><Label>Password</Label><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required /></div>
+            <div className="space-y-1.5">
+              <Label>Email</Label>
+              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="bg-background/60" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Password</Label>
+              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="bg-background/60" />
+            </div>
             <div className="flex items-center gap-2">
               <Checkbox id="remember" checked={rememberMe} onCheckedChange={(checked) => setRememberMe(checked === true)} />
               <Label htmlFor="remember" className="text-sm font-normal cursor-pointer">Remember me</Label>
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>{loading ? "Signing in..." : "Sign In"}</Button>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Signing in...</> : "Sign In"}
+            </Button>
             <div className="text-center">
               <Link to="/forgot-password" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                 Forgot password?
