@@ -90,7 +90,7 @@ export default function LoginPage() {
           <p className="text-sm text-muted-foreground">Sign in to access the dashboard</p>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-5">
             <div className="space-y-1.5">
               <Label>Email</Label>
               <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="bg-background/60" />

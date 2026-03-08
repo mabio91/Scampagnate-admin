@@ -60,8 +60,8 @@ export default function ForgotPasswordPage() {
               </Link>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="space-y-1.5">
                 <Label>Email</Label>
                 <Input
                   type="email"
@@ -69,6 +69,7 @@ export default function ForgotPasswordPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
                   required
+                  className="bg-background/60"
                 />
               </div>
               <Button type="submit" className="w-full" disabled={loading}>

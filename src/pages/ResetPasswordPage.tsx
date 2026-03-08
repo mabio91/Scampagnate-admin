@@ -71,8 +71,8 @@ export default function ResetPasswordPage() {
         </CardHeader>
         <CardContent>
           {ready ? (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="space-y-1.5">
                 <Label>New Password</Label>
                 <Input
                   type="password"
@@ -80,9 +80,10 @@ export default function ResetPasswordPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Min. 6 characters"
                   required
+                  className="bg-background/60"
                 />
               </div>
-              <div>
+              <div className="space-y-1.5">
                 <Label>Confirm Password</Label>
                 <Input
                   type="password"
@@ -90,6 +91,7 @@ export default function ResetPasswordPage() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Re-enter password"
                   required
+                  className="bg-background/60"
                 />
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
