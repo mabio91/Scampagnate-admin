@@ -15,7 +15,24 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        supabase.from("user_roles").select("role").eq("user_id", session.user.id).eq("role", "admin").then(({ data: roles }) => {
+          if (roles?.length) {
+            navigate("/");
+            return;
+          }
+          setCheckingAuth(false);
+        });
+      } else {
+        setCheckingAuth(false);
+      }
+    });
+  }, [navigate]);
 
   useEffect(() => {
     const saved = localStorage.getItem("rememberedEmail");
