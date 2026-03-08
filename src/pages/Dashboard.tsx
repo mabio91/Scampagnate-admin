@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Users, Building2, Calendar, AlertTriangle, Activity, ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -96,6 +97,13 @@ function ChartCard({ title, icon: Icon, children, className }: { title: string; 
 }
 
 export default function Dashboard() {
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(interval);
+  }, []);
+
   // Stats queries
   const { data: totalUsers = 0, isLoading: loadingUsers } = useQuery({
     queryKey: ["stats-users"],
@@ -224,7 +232,7 @@ export default function Dashboard() {
           <h1 className="text-3xl font-bold mt-1">Dashboard</h1>
         </div>
         <p className="text-sm text-muted-foreground">
-          {format(new Date(), "EEEE, MMMM d, yyyy · h:mm a")}
+          {format(now, "EEEE, MMMM d, yyyy · h:mm a")}
         </p>
       </div>
 
