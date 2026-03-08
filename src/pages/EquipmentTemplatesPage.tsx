@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, Package, GripVertical } from "lucide-react";
+import { Plus, Pencil, Trash2, Package, GripVertical, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface TemplateItem {
