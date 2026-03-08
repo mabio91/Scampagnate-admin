@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import logo from "@/assets/logo.png";
+import { AuthPageWrapper } from "@/components/AuthPageWrapper";
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState("");
