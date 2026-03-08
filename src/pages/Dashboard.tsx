@@ -224,7 +224,7 @@ export default function Dashboard() {
           <h1 className="text-3xl font-bold mt-1">Dashboard</h1>
         </div>
         <p className="text-sm text-muted-foreground">
-          {format(new Date(), "EEEE, MMMM d, yyyy")}
+          {format(new Date(), "EEEE, MMMM d, yyyy · h:mm a")}
         </p>
       </div>
 
