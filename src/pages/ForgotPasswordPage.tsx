@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { ArrowLeft, Mail } from "lucide-react";
 import logo from "@/assets/logo.png";
+import { AuthPageWrapper } from "@/components/AuthPageWrapper";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
