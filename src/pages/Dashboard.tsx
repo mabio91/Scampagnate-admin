@@ -97,6 +97,13 @@ function ChartCard({ title, icon: Icon, children, className }: { title: string; 
 }
 
 export default function Dashboard() {
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(interval);
+  }, []);
+
   // Stats queries
   const { data: totalUsers = 0, isLoading: loadingUsers } = useQuery({
     queryKey: ["stats-users"],
