@@ -94,10 +94,8 @@ export default function LoginPage() {
 
       <Card className="w-full max-w-sm border-border/50 shadow-xl backdrop-blur-sm bg-card/80">
         <CardHeader className="text-center pb-2">
-          <div className="mx-auto w-fit mb-3">
-            <div className="rounded-full p-1 shadow-lg" style={{ background: 'linear-gradient(135deg, hsl(150 40% 20% / 0.1), hsl(25 70% 50% / 0.1))' }}>
-              <img src={logo} alt="Logo" className="h-18 w-auto rounded-full" />
-            </div>
+          <div className="mx-auto w-fit mb-2">
+            <img src={logo} alt="Logo" className="h-16 w-auto" />
           </div>
           <CardTitle className="text-2xl tracking-tight">Super Admin</CardTitle>
           <p className="text-sm text-muted-foreground">Sign in to access the dashboard</p>
