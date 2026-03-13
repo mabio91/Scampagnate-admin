@@ -145,7 +145,8 @@ export default function UsersPage() {
 
   const filtered = users.filter((u) => {
     const matchesSearch = `${u.first_name} ${u.last_name}`.toLowerCase().includes(search.toLowerCase()) ||
-      u.phone.toLowerCase().includes(search.toLowerCase());
+      u.phone.toLowerCase().includes(search.toLowerCase()) ||
+      (u.email || "").toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === "All" || u.account_status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -191,8 +192,9 @@ export default function UsersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Phone</TableHead>
+                   <TableHead>Name</TableHead>
+                   <TableHead>Email</TableHead>
+                   <TableHead>Phone</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Events</TableHead>
@@ -203,7 +205,8 @@ export default function UsersPage() {
               <TableBody>
                 {filtered.map((user) => (
                   <TableRow key={user.id}>
-                    <TableCell className="font-medium">{user.first_name} {user.last_name}</TableCell>
+                     <TableCell className="font-medium">{user.first_name} {user.last_name}</TableCell>
+                    <TableCell className="text-muted-foreground">{user.email || "—"}</TableCell>
                     <TableCell className="text-muted-foreground">{user.phone || "—"}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">

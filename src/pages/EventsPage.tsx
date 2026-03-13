@@ -24,10 +24,17 @@ const statusColors: Record<string, string> = {
   closed: "text-destructive border-destructive/30",
 };
 
+const visibilityColors: Record<string, string> = {
+  public: "text-success border-success/30",
+  private: "text-primary border-primary/30",
+  hidden: "text-muted-foreground border-muted-foreground/30",
+};
+
 const emptyEvent = {
   title: "", description: "", location: "", date: "", time: "09:00",
   spots_total: 20, price: 0, payment_type: "free" as const,
-  status: "available" as const, organizer_name: "", category_id: null as string | null,
+  status: "available" as const, visibility: "public" as const, 
+  organizer_name: "", category_id: null as string | null,
 };
 
 export default function EventsPage() {
@@ -117,9 +124,10 @@ export default function EventsPage() {
                   <TableHead>Event</TableHead>
                   <TableHead>Organizer</TableHead>
                   <TableHead>Category</TableHead>
-                  <TableHead>Date</TableHead>
+                   <TableHead>Date</TableHead>
                   <TableHead>Spots</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Visibility</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
@@ -131,8 +139,11 @@ export default function EventsPage() {
                     <TableCell><Badge variant="secondary">{getCategoryName(event.category_id)}</Badge></TableCell>
                     <TableCell className="text-muted-foreground">{event.date}</TableCell>
                     <TableCell>{event.spots_taken}/{event.spots_total}</TableCell>
-                    <TableCell>
+                     <TableCell>
                       <Badge variant="outline" className={statusColors[event.status] || ""}>{event.status}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={visibilityColors[event.visibility] || ""}>{event.visibility}</Badge>
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
@@ -169,8 +180,9 @@ export default function EventsPage() {
               <p><strong>Date:</strong> {viewEvent.date} at {viewEvent.time}</p>
               <p><strong>Organizer:</strong> {viewEvent.organizer_name}</p>
               <p><strong>Spots:</strong> {viewEvent.spots_taken}/{viewEvent.spots_total}</p>
-              <p><strong>Price:</strong> {viewEvent.price > 0 ? `€${viewEvent.price}` : "Free"}</p>
+               <p><strong>Price:</strong> {viewEvent.price > 0 ? `€${viewEvent.price}` : "Free"}</p>
               <p><strong>Status:</strong> {viewEvent.status}</p>
+              <p><strong>Visibility:</strong> {viewEvent.visibility}</p>
               <p><strong>Description:</strong> {viewEvent.description || "—"}</p>
             </div>
           )}
@@ -206,7 +218,7 @@ export default function EventsPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
+                 <div>
                   <Label>Category</Label>
                   <Select value={editEvent.category_id || "none"} onValueChange={(v) => setEditEvent({ ...editEvent, category_id: v === "none" ? null : v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
@@ -216,6 +228,17 @@ export default function EventsPage() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+              <div>
+                <Label>Visibility</Label>
+                <Select value={editEvent.visibility || "public"} onValueChange={(v) => setEditEvent({ ...editEvent, visibility: v as any })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="public">Public</SelectItem>
+                    <SelectItem value="private">Private</SelectItem>
+                    <SelectItem value="hidden">Hidden</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div><Label>Description</Label><Textarea value={editEvent.description || ""} onChange={(e) => setEditEvent({ ...editEvent, description: e.target.value })} rows={3} /></div>
             </div>
