@@ -1,4 +1,4 @@
-import { Users, Building2, Tags, Calendar, AlertTriangle, LayoutDashboard, Shield } from "lucide-react";
+import { Users, Building2, Tags, Calendar, AlertTriangle, LayoutDashboard, Shield, IdCard } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import logo from "@/assets/logo.png";
@@ -20,6 +20,7 @@ import {
 const navItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Users", url: "/users", icon: Users },
+  { title: "Members", url: "/members", icon: IdCard },
   { title: "Organizers", url: "/organizers", icon: Building2 },
   { title: "Event Categories", url: "/categories", icon: Tags },
   { title: "Events", url: "/events", icon: Calendar },

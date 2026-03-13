@@ -12,6 +12,7 @@ import CategoriesPage from "@/pages/CategoriesPage";
 import EventsPage from "@/pages/EventsPage";
 import IssuesPage from "@/pages/IssuesPage";
 import ProfilePage from "@/pages/ProfilePage";
+import MembersPage from "@/pages/MembersPage";
 import LoginPage from "@/pages/LoginPage";
 import NotFound from "./pages/NotFound";
 
@@ -40,6 +41,7 @@ const App = () => (
             <Route path="/categories" element={<CategoriesPage />} />
             <Route path="/events" element={<EventsPage />} />
             <Route path="/issues" element={<IssuesPage />} />
+            <Route path="/members" element={<MembersPage />} />
             <Route path="/profile" element={<ProfilePage />} />
           </Route>
           <Route path="*" element={<NotFound />} />

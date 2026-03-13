@@ -44,6 +44,76 @@ export type Database = {
         }
         Relationships: []
       }
+      equipment_template_items: {
+        Row: {
+          id: string
+          is_mandatory: boolean
+          name: string
+          notes: string | null
+          sort_order: number
+          template_id: string
+        }
+        Insert: {
+          id?: string
+          is_mandatory?: boolean
+          name: string
+          notes?: string | null
+          sort_order?: number
+          template_id: string
+        }
+        Update: {
+          id?: string
+          is_mandatory?: boolean
+          name?: string
+          notes?: string | null
+          sort_order?: number
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_template_items_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipment_templates: {
+        Row: {
+          category_id: string | null
+          created_at: string
+          description: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_templates_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "event_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_categories: {
         Row: {
           created_at: string
@@ -158,6 +228,13 @@ export type Database = {
             referencedRelation: "event_meeting_points"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "event_registrations_user_id_profiles_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       events: {
@@ -182,6 +259,7 @@ export type Database = {
           organizer_name: string
           payment_type: Database["public"]["Enums"]["payment_type"]
           price: number
+          reserved_spots: number
           spots_taken: number
           spots_total: number
           status: Database["public"]["Enums"]["event_status"]
@@ -210,6 +288,7 @@ export type Database = {
           organizer_name?: string
           payment_type?: Database["public"]["Enums"]["payment_type"]
           price?: number
+          reserved_spots?: number
           spots_taken?: number
           spots_total?: number
           status?: Database["public"]["Enums"]["event_status"]
@@ -238,6 +317,7 @@ export type Database = {
           organizer_name?: string
           payment_type?: Database["public"]["Enums"]["payment_type"]
           price?: number
+          reserved_spots?: number
           spots_taken?: number
           spots_total?: number
           status?: Database["public"]["Enums"]["event_status"]
@@ -311,42 +391,131 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          created_at: string
+          event_id: string | null
+          id: string
+          message: string
+          read: boolean
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          message?: string
+          read?: boolean
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          message?: string
+          read?: boolean
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
+          activity_frequency: string | null
           avatar_url: string | null
           bio: string | null
           created_at: string
+          experience_grade: number | null
           first_name: string
           id: string
           last_name: string
+          membership_id: number | null
+          membership_registration_date: string | null
+          membership_status: string | null
+          membership_year: number | null
           phone: string
           preferences: Json | null
           total_points: number
+          trekking_experience: string | null
           updated_at: string
         }
         Insert: {
+          activity_frequency?: string | null
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
+          experience_grade?: number | null
           first_name?: string
           id: string
           last_name?: string
+          membership_id?: number | null
+          membership_registration_date?: string | null
+          membership_status?: string | null
+          membership_year?: number | null
           phone?: string
           preferences?: Json | null
           total_points?: number
+          trekking_experience?: string | null
           updated_at?: string
         }
         Update: {
+          activity_frequency?: string | null
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
+          experience_grade?: number | null
           first_name?: string
           id?: string
           last_name?: string
+          membership_id?: number | null
+          membership_registration_date?: string | null
+          membership_status?: string | null
+          membership_year?: number | null
           phone?: string
           preferences?: Json | null
           total_points?: number
+          trekking_experience?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -431,6 +600,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      activate_membership: {
+        Args: { user_id_param: string }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -442,8 +615,13 @@ export type Database = {
     Enums: {
       app_role: "admin" | "organizer" | "user"
       event_status: "available" | "full" | "closed"
-      payment_type: "free" | "paid" | "deposit"
-      registration_status: "registered" | "paid" | "waitlist" | "cancelled"
+      payment_type: "free" | "paid" | "deposit" | "location"
+      registration_status:
+        | "registered"
+        | "paid"
+        | "waitlist"
+        | "cancelled"
+        | "pending_approval"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -573,8 +751,14 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "organizer", "user"],
       event_status: ["available", "full", "closed"],
-      payment_type: ["free", "paid", "deposit"],
-      registration_status: ["registered", "paid", "waitlist", "cancelled"],
+      payment_type: ["free", "paid", "deposit", "location"],
+      registration_status: [
+        "registered",
+        "paid",
+        "waitlist",
+        "cancelled",
+        "pending_approval",
+      ],
     },
   },
 } as const
