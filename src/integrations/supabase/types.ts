@@ -252,6 +252,7 @@ export type Database = {
           elevation: string | null
           equipment_list: Json | null
           featured: boolean
+          gallery_images: Json | null
           id: string
           image_url: string | null
           location: string
@@ -282,6 +283,7 @@ export type Database = {
           elevation?: string | null
           equipment_list?: Json | null
           featured?: boolean
+          gallery_images?: Json | null
           id?: string
           image_url?: string | null
           location: string
@@ -312,6 +314,7 @@ export type Database = {
           elevation?: string | null
           equipment_list?: Json | null
           featured?: boolean
+          gallery_images?: Json | null
           id?: string
           image_url?: string | null
           location?: string
