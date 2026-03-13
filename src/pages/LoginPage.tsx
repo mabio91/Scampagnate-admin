@@ -21,6 +21,20 @@ export default function LoginPage() {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
 
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("account_status")
+        .eq("id", data.user.id)
+        .single();
+
+      if (profileError) throw profileError;
+
+      if (profile.account_status === "Suspended" || profile.account_status === "Banned") {
+        await supabase.auth.signOut();
+        toast.error(`Access denied. Your account is ${profile.account_status.toLowerCase()}.`);
+        return;
+      }
+
       const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", data.user.id).eq("role", "admin");
       if (!roles?.length) {
         await supabase.auth.signOut();

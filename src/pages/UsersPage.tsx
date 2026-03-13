@@ -13,14 +13,21 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import type { Tables } from "@/integrations/supabase/types";
+import type { Tables, Database } from "@/integrations/supabase/types";
 
 type Profile = Tables<"profiles">;
 
 export default function UsersPage() {
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("All");
   const [editUser, setEditUser] = useState<(Profile & { roles: string[] }) | null>(null);
-  const [editForm, setEditForm] = useState({ first_name: "", last_name: "", phone: "", bio: "" });
+  const [editForm, setEditForm] = useState({ 
+    first_name: "", 
+    last_name: "", 
+    phone: "", 
+    bio: "",
+    account_status: "Active" as Database["public"]["Enums"]["account_status"]
+  });
   const [editRole, setEditRole] = useState("user");
   const [createOpen, setCreateOpen] = useState(false);
   const [newUser, setNewUser] = useState({ email: "", password: "", first_name: "", last_name: "", phone: "", role: "user" });
@@ -57,6 +64,7 @@ export default function UsersPage() {
         last_name: editForm.last_name,
         phone: editForm.phone,
         bio: editForm.bio,
+        account_status: editForm.account_status,
         updated_at: new Date().toISOString(),
       }).eq("id", editUser.id);
       if (error) throw error;
@@ -72,6 +80,21 @@ export default function UsersPage() {
       toast.success("User updated");
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
       setEditUser(null);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const updateStatus = useMutation({
+    mutationFn: async ({ userId, status }: { userId: string; status: Database["public"]["Enums"]["account_status"] }) => {
+      const { error } = await supabase.from("profiles").update({
+        account_status: status,
+        updated_at: new Date().toISOString(),
+      }).eq("id", userId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("User status updated");
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -110,14 +133,22 @@ export default function UsersPage() {
 
   const openEdit = (user: Profile & { roles: string[] }) => {
     setEditUser(user);
-    setEditForm({ first_name: user.first_name, last_name: user.last_name, phone: user.phone, bio: user.bio || "" });
+    setEditForm({ 
+      first_name: user.first_name, 
+      last_name: user.last_name, 
+      phone: user.phone, 
+      bio: user.bio || "",
+      account_status: user.account_status || "Active"
+    });
     setEditRole(user.roles.includes("admin") ? "admin" : user.roles.includes("organizer") ? "organizer" : "user");
   };
 
-  const filtered = users.filter((u) =>
-    `${u.first_name} ${u.last_name}`.toLowerCase().includes(search.toLowerCase()) ||
-    u.phone.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = users.filter((u) => {
+    const matchesSearch = `${u.first_name} ${u.last_name}`.toLowerCase().includes(search.toLowerCase()) ||
+      u.phone.toLowerCase().includes(search.toLowerCase());
+    const matchesStatus = statusFilter === "All" || u.account_status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   return (
     <div className="space-y-6">
@@ -133,9 +164,24 @@ export default function UsersPage() {
 
       <Card>
         <CardHeader className="pb-3">
-          <div className="relative max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search users..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          <div className="flex flex-wrap gap-4">
+            <div className="relative max-w-sm flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Search users by name or phone..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+            </div>
+            <div className="w-[180px]">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All">All Statuses</SelectItem>
+                  <SelectItem value="Active">Active</SelectItem>
+                  <SelectItem value="Suspended">Suspended</SelectItem>
+                  <SelectItem value="Banned">Banned</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -148,6 +194,7 @@ export default function UsersPage() {
                   <TableHead>Name</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead>Role</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>Events</TableHead>
                   <TableHead>Joined</TableHead>
                   <TableHead className="w-10" />
@@ -165,6 +212,18 @@ export default function UsersPage() {
                         ))}
                       </div>
                     </TableCell>
+                    <TableCell>
+                      <Badge 
+                        variant={user.account_status === "Active" ? "outline" : "default"}
+                        className={
+                          user.account_status === "Active" ? "bg-green-500/10 text-green-500 hover:bg-green-500/20" :
+                          user.account_status === "Suspended" ? "bg-yellow-500 hover:bg-yellow-600" :
+                          "bg-destructive hover:bg-destructive/90"
+                        }
+                      >
+                        {user.account_status || "Active"}
+                      </Badge>
+                    </TableCell>
                     <TableCell>{regCounts[user.id] || 0}</TableCell>
                     <TableCell className="text-muted-foreground">{new Date(user.created_at).toLocaleDateString()}</TableCell>
                     <TableCell>
@@ -174,10 +233,28 @@ export default function UsersPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => openEdit(user)}>
-                            <Edit2 className="h-4 w-4 mr-2" /> Edit
+                            <Edit2 className="h-4 w-4 mr-2" /> Edit Details
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive" onClick={() => { if (confirm("Delete this user?")) deleteUser.mutate(user.id); }}>
-                            <Trash2 className="h-4 w-4 mr-2" /> Delete
+                          {user.account_status !== "Suspended" && (
+                            <DropdownMenuItem onClick={() => updateStatus.mutate({ userId: user.id, status: "Suspended" })}>
+                              <MoreHorizontal className="h-4 w-4 mr-2" /> Suspend Account
+                            </DropdownMenuItem>
+                          )}
+                          {user.account_status === "Suspended" && (
+                            <DropdownMenuItem onClick={() => updateStatus.mutate({ userId: user.id, status: "Active" })}>
+                              <Edit2 className="h-4 w-4 mr-2" /> Reactivate Account
+                            </DropdownMenuItem>
+                          )}
+                          {user.account_status !== "Banned" && (
+                            <DropdownMenuItem 
+                              className="text-destructive" 
+                              onClick={() => { if (confirm("Are you sure you want to BAN this user? This is permanent.")) updateStatus.mutate({ userId: user.id, status: "Banned" }); }}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" /> Ban User
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem className="text-destructive" onClick={() => { if (confirm("Delete this user's profile entirely?")) deleteUser.mutate(user.id); }}>
+                            <Trash2 className="h-4 w-4 mr-2" /> Delete Profile
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -212,6 +289,20 @@ export default function UsersPage() {
                   <SelectItem value="user">User</SelectItem>
                   <SelectItem value="organizer">Organizer</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Account Status</Label>
+              <Select 
+                value={editForm.account_status || "Active"} 
+                onValueChange={(v: any) => setEditForm({ ...editForm, account_status: v })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Active">Active</SelectItem>
+                  <SelectItem value="Suspended">Suspended</SelectItem>
+                  <SelectItem value="Banned">Banned</SelectItem>
                 </SelectContent>
               </Select>
             </div>

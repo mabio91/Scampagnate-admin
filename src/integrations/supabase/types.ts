@@ -434,6 +434,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          account_status: Database["public"]["Enums"]["account_status"] | null
           activity_frequency: string | null
           avatar_url: string | null
           bio: string | null
@@ -453,6 +454,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          account_status?: Database["public"]["Enums"]["account_status"] | null
           activity_frequency?: string | null
           avatar_url?: string | null
           bio?: string | null
@@ -472,6 +474,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          account_status?: Database["public"]["Enums"]["account_status"] | null
           activity_frequency?: string | null
           avatar_url?: string | null
           bio?: string | null
@@ -613,6 +616,7 @@ export type Database = {
       }
     }
     Enums: {
+      account_status: "Active" | "Suspended" | "Banned"
       app_role: "admin" | "organizer" | "user"
       event_status: "available" | "full" | "closed"
       payment_type: "free" | "paid" | "deposit" | "location"
@@ -749,6 +753,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      account_status: ["Active", "Suspended", "Banned"],
       app_role: ["admin", "organizer", "user"],
       event_status: ["available", "full", "closed"],
       payment_type: ["free", "paid", "deposit", "location"],

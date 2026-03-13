@@ -138,7 +138,8 @@ export default function MembersPage() {
                   <TableHead>Name</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead>Year</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Account Status</TableHead>
+                  <TableHead>Membership Status</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
@@ -153,6 +154,18 @@ export default function MembersPage() {
                     </TableCell>
                     <TableCell className="text-muted-foreground">{member.phone || "—"}</TableCell>
                     <TableCell>{member.membership_year || "—"}</TableCell>
+                    <TableCell>
+                      <Badge 
+                        variant={member.account_status === "Active" ? "outline" : "default"}
+                        className={
+                          member.account_status === "Active" ? "bg-green-500/10 text-green-500 hover:bg-green-500/20" :
+                          member.account_status === "Suspended" ? "bg-yellow-500 hover:bg-yellow-600" :
+                          "bg-destructive hover:bg-destructive/90"
+                        }
+                      >
+                        {member.account_status || "Active"}
+                      </Badge>
+                    </TableCell>
                     <TableCell>
                       <Badge
                         variant={member.membership_status === "Active" ? "default" : "secondary"}
