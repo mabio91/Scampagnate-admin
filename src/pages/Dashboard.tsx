@@ -310,18 +310,30 @@ export default function Dashboard() {
               <p className="text-muted-foreground text-sm">No events with categories yet</p>
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height={280}>
+            <ResponsiveContainer width="100%" height={320}>
               <PieChart>
                 <Pie
                   data={categoryData}
                   cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={95}
+                  cy="45%"
+                  innerRadius={50}
+                  outerRadius={80}
                   paddingAngle={4}
                   dataKey="value"
                   strokeWidth={0}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  label={({ name, percent, x, y, textAnchor }) => (
+                    <text
+                      x={x}
+                      y={y}
+                      textAnchor={textAnchor}
+                      dominantBaseline="central"
+                      fill="hsl(150, 10%, 35%)"
+                      fontSize={11}
+                      fontWeight={500}
+                    >
+                      {`${name} (${(percent * 100).toFixed(0)}%)`}
+                    </text>
+                  )}
                 >
                   {categoryData.map((_, i) => (
                     <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
