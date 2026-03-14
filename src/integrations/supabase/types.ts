@@ -654,6 +654,22 @@ export type Database = {
         Args: { user_id_param: string }
         Returns: undefined
       }
+      get_public_profile: {
+        Args: { profile_id: string }
+        Returns: {
+          avatar_url: string
+          first_name: string
+          id: string
+        }[]
+      }
+      get_public_profiles: {
+        Args: { profile_ids: string[] }
+        Returns: {
+          avatar_url: string
+          first_name: string
+          id: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -665,7 +681,14 @@ export type Database = {
     Enums: {
       account_status: "Active" | "Suspended" | "Banned"
       app_role: "admin" | "organizer" | "user"
-      event_status: "available" | "full" | "closed"
+      event_status:
+        | "available"
+        | "full"
+        | "closed"
+        | "draft"
+        | "published"
+        | "cancelled"
+        | "past"
       event_visibility: "public" | "private" | "hidden"
       payment_type: "free" | "paid" | "deposit" | "location"
       registration_status:
@@ -674,6 +697,8 @@ export type Database = {
         | "waitlist"
         | "cancelled"
         | "pending_approval"
+        | "attended"
+        | "no_show"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -803,7 +828,15 @@ export const Constants = {
     Enums: {
       account_status: ["Active", "Suspended", "Banned"],
       app_role: ["admin", "organizer", "user"],
-      event_status: ["available", "full", "closed"],
+      event_status: [
+        "available",
+        "full",
+        "closed",
+        "draft",
+        "published",
+        "cancelled",
+        "past",
+      ],
       event_visibility: ["public", "private", "hidden"],
       payment_type: ["free", "paid", "deposit", "location"],
       registration_status: [
@@ -812,6 +845,8 @@ export const Constants = {
         "waitlist",
         "cancelled",
         "pending_approval",
+        "attended",
+        "no_show",
       ],
     },
   },
