@@ -5,7 +5,8 @@ import { Shield } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ThemeSwitcher } from "@/components/ThemeSwitcher";
+import { useEffect } from "react";
+import { toast } from "sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,7 +32,7 @@ export function AdminLayout() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("first_name, last_name, avatar_url")
+        .select("first_name, last_name, avatar_url, account_status")
         .eq("id", userId!)
         .single();
       if (error) throw error;
@@ -43,6 +44,15 @@ export function AdminLayout() {
   const initials = profile
     ? `${profile.first_name?.[0] || ""}${profile.last_name?.[0] || ""}`.toUpperCase() || "SA"
     : "SA";
+
+  useEffect(() => {
+    if (profile?.account_status && profile.account_status !== "Active") {
+      supabase.auth.signOut().then(() => {
+        navigate("/login");
+        toast.error(`Your account has been ${profile.account_status.toLowerCase()}.`);
+      });
+    }
+  }, [profile?.account_status, navigate]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();

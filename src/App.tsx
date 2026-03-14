@@ -14,6 +14,7 @@ import EventsPage from "@/pages/EventsPage";
 import IssuesPage from "@/pages/IssuesPage";
 import EquipmentTemplatesPage from "@/pages/EquipmentTemplatesPage";
 import ProfilePage from "@/pages/ProfilePage";
+import MembersPage from "@/pages/MembersPage";
 import LoginPage from "@/pages/LoginPage";
 import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
@@ -30,32 +31,28 @@ function ProtectedLayout() {
 }
 
 const App = () => (
-  <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-            <Route path="/reset-password" element={<ResetPasswordPage />} />
-            <Route element={<ProtectedLayout />}>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/users" element={<UsersPage />} />
-              <Route path="/organizers" element={<OrganizersPage />} />
-              <Route path="/categories" element={<CategoriesPage />} />
-              <Route path="/events" element={<EventsPage />} />
-              <Route path="/issues" element={<IssuesPage />} />
-              <Route path="/equipment-templates" element={<EquipmentTemplatesPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
-  </ThemeProvider>
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route element={<ProtectedLayout />}>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/users" element={<UsersPage />} />
+            <Route path="/organizers" element={<OrganizersPage />} />
+            <Route path="/categories" element={<CategoriesPage />} />
+            <Route path="/events" element={<EventsPage />} />
+            <Route path="/issues" element={<IssuesPage />} />
+            <Route path="/members" element={<MembersPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+          </Route>
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
+    </TooltipProvider>
+  </QueryClientProvider>
 );
 
 export default App;
