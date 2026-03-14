@@ -186,9 +186,13 @@ export default function UsersPage() {
   };
 
   const filtered = users.filter((u) => {
-    const matchesSearch = `${u.first_name} ${u.last_name}`.toLowerCase().includes(search.toLowerCase()) ||
-      u.phone.toLowerCase().includes(search.toLowerCase()) ||
-      (u.email || "").toLowerCase().includes(search.toLowerCase());
+    const searchLower = search.toLowerCase();
+    const matchesSearch = 
+      `${u.first_name} ${u.last_name}`.toLowerCase().includes(searchLower) ||
+      (u.phone || "").toLowerCase().includes(searchLower) ||
+      (u.email || "").toLowerCase().includes(searchLower) ||
+      (u.membership_id ? String(u.membership_id).toLowerCase().includes(searchLower) : false);
+      
     const matchesStatus = statusFilter === "All" || u.account_status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -210,7 +214,7 @@ export default function UsersPage() {
           <div className="flex flex-wrap gap-4">
             <div className="relative max-w-sm flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search users by name or phone..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+              <Input placeholder="Search by name, email, phone, or member ID..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
             </div>
             <div className="w-[180px]">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
