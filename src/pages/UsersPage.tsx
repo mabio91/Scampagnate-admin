@@ -10,6 +10,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -20,6 +23,7 @@ type Profile = Tables<"profiles">;
 export default function UsersPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
+  const [viewUser, setViewUser] = useState<(Profile & { roles: string[] }) | null>(null);
   const [editUser, setEditUser] = useState<(Profile & { roles: string[] }) | null>(null);
   const [editForm, setEditForm] = useState({ 
     first_name: "", 
@@ -54,6 +58,32 @@ export default function UsersPage() {
       data?.forEach((r) => { counts[r.user_id] = (counts[r.user_id] || 0) + 1; });
       return counts;
     },
+  });
+
+  const { data: userActivity, isLoading: loadingActivity } = useQuery({
+    queryKey: ["admin-user-activity", viewUser?.id],
+    queryFn: async () => {
+      if (!viewUser?.id) return [];
+      const { data, error } = await supabase
+        .from("event_registrations")
+        .select(`
+          id,
+          status,
+          checked_in,
+          created_at,
+          events:event_id (
+            id,
+            title,
+            date
+          )
+        `)
+        .eq("user_id", viewUser.id)
+        .order("created_at", { ascending: false });
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!viewUser?.id,
   });
 
   const updateProfile = useMutation({
@@ -235,6 +265,9 @@ export default function UsersPage() {
                           <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => setViewUser(user)}>
+                            <Search className="h-4 w-4 mr-2" /> View Details & Activity
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => openEdit(user)}>
                             <Edit2 className="h-4 w-4 mr-2" /> Edit Details
                           </DropdownMenuItem>
@@ -272,6 +305,155 @@ export default function UsersPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* View User Activity Dialog */}
+      <Dialog open={!!viewUser} onOpenChange={(o) => !o && setViewUser(null)}>
+        <DialogContent className="max-w-3xl h-[80vh] flex flex-col pl-6 pr-2">
+          <DialogHeader className="pr-4">
+            <DialogTitle>User Details: {viewUser?.first_name} {viewUser?.last_name}</DialogTitle>
+          </DialogHeader>
+          
+          <ScrollArea className="flex-1 pr-4">
+            {viewUser && (
+              <Tabs defaultValue="profile" className="w-full mt-2">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="profile">Profile Overview</TabsTrigger>
+                  <TabsTrigger value="activity">Activity History</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="profile" className="space-y-4 mt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Email</p>
+                      <p className="font-medium">{viewUser.email || "—"}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Phone</p>
+                      <p className="font-medium">{viewUser.phone || "—"}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Joined Date</p>
+                      <p className="font-medium">{new Date(viewUser.created_at).toLocaleDateString()}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Account Status</p>
+                      <Badge variant={viewUser.account_status === "Active" ? "outline" : "default"}>
+                        {viewUser.account_status || "Active"}
+                      </Badge>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Roles</p>
+                      <div className="flex gap-1 flex-wrap">
+                        {viewUser.roles.map((r) => <Badge key={r} variant="secondary">{r}</Badge>)}
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Membership Status</p>
+                      <Badge variant={viewUser.membership_status === "Active" ? "outline" : "secondary"}>
+                        {viewUser.membership_status || "None"}
+                      </Badge>
+                    </div>
+                    {viewUser.membership_id && (
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Membership ID</p>
+                        <p className="font-medium font-mono text-sm">{viewUser.membership_id}</p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {viewUser.bio && (
+                    <div className="space-y-1 mt-4">
+                      <p className="text-sm text-muted-foreground">Bio</p>
+                      <p className="text-sm whitespace-pre-wrap bg-muted/30 p-3 rounded-md border">{viewUser.bio}</p>
+                    </div>
+                  )}
+                </TabsContent>
+                
+                <TabsContent value="activity" className="space-y-4 mt-4">
+                  <div className="grid grid-cols-4 gap-4 mb-4">
+                    <Card className="bg-primary/5 border-primary/20">
+                      <CardContent className="p-4 text-center">
+                        <div className="text-2xl font-bold text-primary">{userActivity?.filter(a => a.status === 'registered' || a.status === 'paid').length || 0}</div>
+                        <div className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Joined</div>
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-success/5 border-success/20">
+                      <CardContent className="p-4 text-center">
+                        <div className="text-2xl font-bold text-success">{userActivity?.filter(a => a.checked_in).length || 0}</div>
+                        <div className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Attended</div>
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-warning/5 border-warning/20">
+                      <CardContent className="p-4 text-center">
+                        <div className="text-2xl font-bold text-warning">{userActivity?.filter(a => a.status === 'waitlist').length || 0}</div>
+                        <div className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Waitlist</div>
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-destructive/5 border-destructive/20">
+                      <CardContent className="p-4 text-center">
+                        <div className="text-2xl font-bold text-destructive">{userActivity?.filter(a => a.status === 'cancelled').length || 0}</div>
+                        <div className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Cancelled</div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {loadingActivity ? (
+                    <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
+                  ) : !userActivity || userActivity.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground border rounded-lg bg-muted/10">
+                      No event activity found for this user.
+                    </div>
+                  ) : (
+                    <div className="border rounded-md">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Event</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Attendance</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {userActivity.map((activity: any) => {
+                            const eventDateStr = activity.events?.date;
+                            const isPast = eventDateStr ? new Date(eventDateStr) < new Date(new Date().setHours(0,0,0,0)) : false;
+                            const isNoShow = isPast && !activity.checked_in && (activity.status === 'registered' || activity.status === 'paid');
+
+                            return (
+                              <TableRow key={activity.id}>
+                                <TableCell className="font-medium">{activity.events?.title || "Unknown Event"}</TableCell>
+                                <TableCell className="text-muted-foreground">{eventDateStr ? new Date(eventDateStr).toLocaleDateString() : "—"}</TableCell>
+                                <TableCell>
+                                  <Badge variant={
+                                    activity.status === 'registered' || activity.status === 'paid' ? 'default' :
+                                    activity.status === 'waitlist' ? 'secondary' : 'outline'
+                                  }>
+                                    {activity.status}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  {activity.checked_in ? (
+                                    <Badge variant="outline" className="bg-success/10 text-success border-success/30">Present</Badge>
+                                  ) : isNoShow ? (
+                                    <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30">No Show</Badge>
+                                  ) : (
+                                    <span className="text-muted-foreground text-sm">—</span>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
+            )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Dialog */}
       <Dialog open={!!editUser} onOpenChange={(o) => !o && setEditUser(null)}>
