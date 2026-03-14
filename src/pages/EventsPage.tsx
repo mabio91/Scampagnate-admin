@@ -264,10 +264,10 @@ export default function EventsPage() {
 
       {/* View Dialog */}
       <Dialog open={!!viewEvent} onOpenChange={(o) => !o && setViewEvent(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
           <DialogHeader><DialogTitle>{viewEvent?.title}</DialogTitle></DialogHeader>
           {viewEvent && (
-            <div className="space-y-3 text-sm">
+            <div className="space-y-3 text-sm overflow-y-auto pr-1">
               <p><strong>Location:</strong> {viewEvent.location}</p>
               <p><strong>Date:</strong> {viewEvent.date} at {viewEvent.time}</p>
               <p><strong>Organizer:</strong> {viewEvent.organizer_name}</p>
