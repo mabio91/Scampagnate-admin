@@ -310,38 +310,62 @@ export default function Dashboard() {
               <p className="text-muted-foreground text-sm">No events with categories yet</p>
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height={320}>
-              <PieChart>
-                <Pie
-                  data={categoryData}
-                  cx="50%"
-                  cy="45%"
-                  innerRadius={50}
-                  outerRadius={80}
-                  paddingAngle={4}
-                  dataKey="value"
-                  strokeWidth={0}
-                  label={({ name, percent, x, y, textAnchor }) => (
-                    <text
-                      x={x}
-                      y={y}
-                      textAnchor={textAnchor}
-                      dominantBaseline="central"
-                      fill="hsl(150, 10%, 35%)"
-                      fontSize={11}
-                      fontWeight={500}
-                    >
-                      {`${name} (${(percent * 100).toFixed(0)}%)`}
-                    </text>
-                  )}
-                >
-                  {categoryData.map((_, i) => (
-                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip {...chartTooltipStyle} />
-              </PieChart>
-            </ResponsiveContainer>
+            <div>
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie
+                    data={categoryData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={45}
+                    outerRadius={75}
+                    paddingAngle={4}
+                    dataKey="value"
+                    strokeWidth={0}
+                    label={({ percent, cx: cxPos, cy: cyPos, midAngle, outerRadius: oR }) => {
+                      const RADIAN = Math.PI / 180;
+                      const radius = oR + 18;
+                      const x = cxPos + radius * Math.cos(-midAngle * RADIAN);
+                      const y = cyPos + radius * Math.sin(-midAngle * RADIAN);
+                      return (
+                        <text
+                          x={x}
+                          y={y}
+                          textAnchor={x > cxPos ? "start" : "end"}
+                          dominantBaseline="central"
+                          fill="hsl(150, 10%, 35%)"
+                          fontSize={11}
+                          fontWeight={600}
+                        >
+                          {`${(percent * 100).toFixed(0)}%`}
+                        </text>
+                      );
+                    }}
+                  >
+                    {categoryData.map((_, i) => (
+                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip {...chartTooltipStyle} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 mt-2 px-2">
+                {categoryData.map((entry, i) => {
+                  const total = categoryData.reduce((sum, d) => sum + d.value, 0);
+                  const pct = total > 0 ? ((entry.value / total) * 100).toFixed(0) : "0";
+                  return (
+                    <div key={i} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <span
+                        className="inline-block h-2.5 w-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }}
+                      />
+                      <span className="truncate max-w-[120px]">{entry.name}</span>
+                      <span className="font-semibold text-foreground">{pct}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           )}
         </ChartCard>
       </div>
