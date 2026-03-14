@@ -25,10 +25,10 @@ export default function UsersPage() {
   const [statusFilter, setStatusFilter] = useState<string>("All");
   const [viewUser, setViewUser] = useState<(Profile & { roles: string[] }) | null>(null);
   const [editUser, setEditUser] = useState<(Profile & { roles: string[] }) | null>(null);
-  const [editForm, setEditForm] = useState({ 
-    first_name: "", 
-    last_name: "", 
-    phone: "", 
+  const [editForm, setEditForm] = useState({
+    first_name: "",
+    last_name: "",
+    phone: "",
     bio: "",
     account_status: "Active" as Database["public"]["Enums"]["account_status"]
   });
@@ -43,9 +43,21 @@ export default function UsersPage() {
       const { data: profiles, error } = await supabase.from("profiles").select("*").order("created_at", { ascending: false });
       if (error) throw error;
       const { data: roles } = await supabase.from("user_roles").select("user_id, role");
+
+      // Fetch auth user data (email, last_sign_in_at)
+      let authUsers: { id: string; email: string; last_sign_in_at: string | null; created_at: string }[] = [];
+      try {
+        const res = await supabase.functions.invoke("list-users");
+        if (res.data && !res.data.error) authUsers = res.data;
+      } catch { }
+
+      const authMap = new Map(authUsers.map((u) => [u.id, u]));
+
       return (profiles || []).map((p) => ({
         ...p,
         roles: (roles || []).filter((r) => r.user_id === p.id).map((r) => r.role),
+        email: authMap.get(p.id)?.email || "—",
+        last_sign_in_at: authMap.get(p.id)?.last_sign_in_at || null,
       }));
     },
   });
@@ -79,7 +91,7 @@ export default function UsersPage() {
         `)
         .eq("user_id", viewUser.id)
         .order("created_at", { ascending: false });
-      
+
       if (error) throw error;
       return data || [];
     },
@@ -163,10 +175,10 @@ export default function UsersPage() {
 
   const openEdit = (user: Profile & { roles: string[] }) => {
     setEditUser(user);
-    setEditForm({ 
-      first_name: user.first_name, 
-      last_name: user.last_name, 
-      phone: user.phone, 
+    setEditForm({
+      first_name: user.first_name,
+      last_name: user.last_name,
+      phone: user.phone,
       bio: user.bio || "",
       account_status: user.account_status || "Active"
     });
@@ -222,20 +234,21 @@ export default function UsersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                   <TableHead>Name</TableHead>
-                   <TableHead>Email</TableHead>
-                   <TableHead>Phone</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Phone</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Events</TableHead>
                   <TableHead>Joined</TableHead>
+                  <TableHead>Last Login</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.map((user) => (
                   <TableRow key={user.id}>
-                     <TableCell className="font-medium">{user.first_name} {user.last_name}</TableCell>
+                    <TableCell className="font-medium">{user.first_name} {user.last_name}</TableCell>
                     <TableCell className="text-muted-foreground">{user.email || "—"}</TableCell>
                     <TableCell className="text-muted-foreground">{user.phone || "—"}</TableCell>
                     <TableCell>
@@ -246,19 +259,20 @@ export default function UsersPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge 
+                      <Badge
                         variant={user.account_status === "Active" ? "outline" : "default"}
                         className={
                           user.account_status === "Active" ? "bg-green-500/10 text-green-500 hover:bg-green-500/20" :
-                          user.account_status === "Suspended" ? "bg-yellow-500 hover:bg-yellow-600" :
-                          "bg-destructive hover:bg-destructive/90"
+                            user.account_status === "Suspended" ? "bg-yellow-500 hover:bg-yellow-600" :
+                              "bg-destructive hover:bg-destructive/90"
                         }
                       >
                         {user.account_status || "Active"}
                       </Badge>
                     </TableCell>
                     <TableCell>{regCounts[user.id] || 0}</TableCell>
-                    <TableCell className="text-muted-foreground">{new Date(user.created_at).toLocaleDateString()}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{new Date(user.created_at).toLocaleDateString()}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString() : "Never"}</TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -282,8 +296,8 @@ export default function UsersPage() {
                             </DropdownMenuItem>
                           )}
                           {user.account_status !== "Banned" && (
-                            <DropdownMenuItem 
-                              className="text-destructive" 
+                            <DropdownMenuItem
+                              className="text-destructive"
                               onClick={() => { if (confirm("Are you sure you want to BAN this user? This is permanent.")) updateStatus.mutate({ userId: user.id, status: "Banned" }); }}
                             >
                               <Trash2 className="h-4 w-4 mr-2" /> Ban User
@@ -298,7 +312,7 @@ export default function UsersPage() {
                   </TableRow>
                 ))}
                 {filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No users found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No users found</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -312,7 +326,7 @@ export default function UsersPage() {
           <DialogHeader className="pr-4">
             <DialogTitle>User Details: {viewUser?.first_name} {viewUser?.last_name}</DialogTitle>
           </DialogHeader>
-          
+
           <ScrollArea className="flex-1 pr-4">
             {viewUser && (
               <Tabs defaultValue="profile" className="w-full mt-2">
@@ -320,7 +334,7 @@ export default function UsersPage() {
                   <TabsTrigger value="profile">Profile Overview</TabsTrigger>
                   <TabsTrigger value="activity">Activity History</TabsTrigger>
                 </TabsList>
-                
+
                 <TabsContent value="profile" className="space-y-4 mt-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
@@ -360,7 +374,7 @@ export default function UsersPage() {
                       </div>
                     )}
                   </div>
-                  
+
                   {viewUser.bio && (
                     <div className="space-y-1 mt-4">
                       <p className="text-sm text-muted-foreground">Bio</p>
@@ -368,7 +382,7 @@ export default function UsersPage() {
                     </div>
                   )}
                 </TabsContent>
-                
+
                 <TabsContent value="activity" className="space-y-4 mt-4">
                   <div className="grid grid-cols-4 gap-4 mb-4">
                     <Card className="bg-primary/5 border-primary/20">
@@ -417,7 +431,7 @@ export default function UsersPage() {
                         <TableBody>
                           {userActivity.map((activity: any) => {
                             const eventDateStr = activity.events?.date;
-                            const isPast = eventDateStr ? new Date(eventDateStr) < new Date(new Date().setHours(0,0,0,0)) : false;
+                            const isPast = eventDateStr ? new Date(eventDateStr) < new Date(new Date().setHours(0, 0, 0, 0)) : false;
                             const isNoShow = isPast && !activity.checked_in && (activity.status === 'registered' || activity.status === 'paid');
 
                             return (
@@ -427,7 +441,7 @@ export default function UsersPage() {
                                 <TableCell>
                                   <Badge variant={
                                     activity.status === 'registered' || activity.status === 'paid' ? 'default' :
-                                    activity.status === 'waitlist' ? 'secondary' : 'outline'
+                                      activity.status === 'waitlist' ? 'secondary' : 'outline'
                                   }>
                                     {activity.status}
                                   </Badge>
@@ -479,8 +493,8 @@ export default function UsersPage() {
             </div>
             <div>
               <Label>Account Status</Label>
-              <Select 
-                value={editForm.account_status || "Active"} 
+              <Select
+                value={editForm.account_status || "Active"}
                 onValueChange={(v: any) => setEditForm({ ...editForm, account_status: v })}
               >
                 <SelectTrigger><SelectValue /></SelectTrigger>

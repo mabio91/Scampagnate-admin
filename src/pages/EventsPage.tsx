@@ -1,27 +1,30 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, MoreHorizontal, Eye, Edit2, Trash2, Plus, Upload, X, ArrowUp, ArrowDown, Image as ImageIcon, Loader2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Event = Tables<"events">;
+type EventWithCategory = Event & { event_categories: { name: string; icon: string } | null };
 
 const statusColors: Record<string, string> = {
-  available: "text-success border-success/30",
-  full: "text-warning border-warning/30",
-  closed: "text-destructive border-destructive/30",
+  available: "text-success border-success/30 bg-success/10",
+  full: "text-warning border-warning/30 bg-warning/10",
+  closed: "text-destructive border-destructive/30 bg-destructive/10",
 };
 
 const visibilityColors: Record<string, string> = {
@@ -33,7 +36,7 @@ const visibilityColors: Record<string, string> = {
 const emptyEvent = {
   title: "", description: "", location: "", date: "", time: "09:00",
   spots_total: 20, price: 0, payment_type: "free" as const,
-  status: "available" as const, visibility: "public" as const, 
+  status: "available" as const, visibility: "public" as const,
   organizer_name: "", category_id: null as string | null,
   image_url: "" as string,
   gallery_images: [] as string[],
@@ -41,7 +44,7 @@ const emptyEvent = {
 
 export default function EventsPage() {
   const [search, setSearch] = useState("");
-  const [viewEvent, setViewEvent] = useState<Event | null>(null);
+  const [viewEvent, setViewEvent] = useState<EventWithCategory | null>(null);
   const [editEvent, setEditEvent] = useState<(Partial<Event> & { isNew?: boolean }) | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const queryClient = useQueryClient();
@@ -49,9 +52,12 @@ export default function EventsPage() {
   const { data: events = [], isLoading } = useQuery({
     queryKey: ["admin-events"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("events").select("*").order("date", { ascending: false });
+      const { data, error } = await supabase
+        .from("events")
+        .select("*, event_categories(name, icon)")
+        .order("date", { ascending: false });
       if (error) throw error;
-      return data || [];
+      return (data || []) as EventWithCategory[];
     },
   });
 
@@ -63,21 +69,71 @@ export default function EventsPage() {
     },
   });
 
+  const { data: registrations = [] } = useQuery({
+    queryKey: ["event-registrations", viewEvent?.id],
+    enabled: !!viewEvent,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("event_registrations")
+        .select("id, status, checked_in")
+        .eq("event_id", viewEvent!.id);
+      return data || [];
+    },
+  });
+
+  const { data: meetingPoints = [] } = useQuery({
+    queryKey: ["event-meeting-points", viewEvent?.id],
+    enabled: !!viewEvent,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("event_meeting_points")
+        .select("*")
+        .eq("event_id", viewEvent!.id)
+        .order("sort_order");
+      return data || [];
+    },
+  });
+
+  const uploadImage = async (file: File, eventId: string): Promise<string> => {
+    const ext = file.name.split(".").pop();
+    const filePath = `${eventId}/${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("event-images").upload(filePath, file, { upsert: true });
+    if (error) throw error;
+    const { data: { publicUrl } } = supabase.storage.from("event-images").getPublicUrl(filePath);
+    return publicUrl;
+  };
+
   const saveMutation = useMutation({
     mutationFn: async (evt: any) => {
-      const { isNew, ...data } = evt;
+      const { isNew, event_categories, ...data } = evt;
+      let savedId = data.id;
+
       if (isNew) {
-        const { error } = await supabase.from("events").insert(data);
+        const { data: inserted, error } = await supabase.from("events").insert(data).select("id").single();
         if (error) throw error;
+        savedId = inserted.id;
       } else {
         const { error } = await supabase.from("events").update({ ...data, updated_at: new Date().toISOString() }).eq("id", data.id);
         if (error) throw error;
+      }
+
+      // Upload image if selected
+      if (imageFile && savedId) {
+        setUploading(true);
+        try {
+          const publicUrl = await uploadImage(imageFile, savedId);
+          await supabase.from("events").update({ image_url: publicUrl, updated_at: new Date().toISOString() }).eq("id", savedId);
+        } finally {
+          setUploading(false);
+        }
       }
     },
     onSuccess: () => {
       toast.success("Event saved");
       queryClient.invalidateQueries({ queryKey: ["admin-events"] });
       setEditEvent(null);
+      setImageFile(null);
+      setImagePreview(null);
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -160,7 +216,7 @@ export default function EventsPage() {
           <h1 className="text-3xl font-bold">Events</h1>
           <p className="text-muted-foreground mt-1">Manage all events ({events.length} total)</p>
         </div>
-        <Button className="gap-2" onClick={() => setEditEvent({ ...emptyEvent, isNew: true })}>
+        <Button className="gap-2" onClick={() => openEdit()}>
           <Plus className="h-4 w-4" /> Add Event
         </Button>
       </div>
@@ -174,7 +230,7 @@ export default function EventsPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12" />)}</div>
+            <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16" />)}</div>
           ) : (
             <Table>
               <TableHeader>
@@ -182,7 +238,7 @@ export default function EventsPage() {
                   <TableHead>Event</TableHead>
                   <TableHead>Organizer</TableHead>
                   <TableHead>Category</TableHead>
-                   <TableHead>Date</TableHead>
+                  <TableHead>Date</TableHead>
                   <TableHead>Spots</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Visibility</TableHead>
@@ -197,7 +253,7 @@ export default function EventsPage() {
                     <TableCell><Badge variant="secondary">{getCategoryName(event.category_id)}</Badge></TableCell>
                     <TableCell className="text-muted-foreground">{event.date}</TableCell>
                     <TableCell>{event.spots_taken}/{event.spots_total}</TableCell>
-                     <TableCell>
+                    <TableCell>
                       <Badge variant="outline" className={statusColors[event.status] || ""}>{event.status}</Badge>
                     </TableCell>
                     <TableCell>
@@ -238,11 +294,11 @@ export default function EventsPage() {
               <p><strong>Date:</strong> {viewEvent.date} at {viewEvent.time}</p>
               <p><strong>Organizer:</strong> {viewEvent.organizer_name}</p>
               <p><strong>Spots:</strong> {viewEvent.spots_taken}/{viewEvent.spots_total}</p>
-               <p><strong>Price:</strong> {viewEvent.price > 0 ? `€${viewEvent.price}` : "Free"}</p>
+              <p><strong>Price:</strong> {viewEvent.price > 0 ? `€${viewEvent.price}` : "Free"}</p>
               <p><strong>Status:</strong> {viewEvent.status}</p>
-               <p><strong>Visibility:</strong> {viewEvent.visibility}</p>
+              <p><strong>Visibility:</strong> {viewEvent.visibility}</p>
               <p><strong>Description:</strong> {viewEvent.description || "—"}</p>
-              
+
               <div className="space-y-4 pt-4">
                 <p><strong>Cover Image:</strong></p>
                 {viewEvent.image_url ? (
@@ -269,24 +325,73 @@ export default function EventsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit/Create Dialog */}
-      <Dialog open={!!editEvent} onOpenChange={(o) => !o && setEditEvent(null)}>
-        <DialogContent className="max-w-lg">
+      {/* Edit/Create Dialog - All Fields */}
+      <Dialog open={!!editEvent} onOpenChange={(o) => { if (!o) { setEditEvent(null); setImageFile(null); setImagePreview(null); } }}>
+        <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle>{editEvent?.isNew ? "Create Event" : "Edit Event"}</DialogTitle></DialogHeader>
           {editEvent && (
-            <div className="space-y-4 max-h-[60vh] overflow-y-auto">
-              <div><Label>Title</Label><Input value={editEvent.title || ""} onChange={(e) => setEditEvent({ ...editEvent, title: e.target.value })} /></div>
-              <div><Label>Location</Label><Input value={editEvent.location || ""} onChange={(e) => setEditEvent({ ...editEvent, location: e.target.value })} /></div>
+            <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
+              {/* Image Upload */}
+              <div>
+                <Label>Event Image</Label>
+                <input type="file" ref={fileInputRef} accept="image/*" className="hidden" onChange={handleFileSelect} />
+                {imagePreview ? (
+                  <div className="relative mt-2 rounded-lg overflow-hidden h-40 bg-muted">
+                    <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                    <div className="absolute top-2 right-2 flex gap-1">
+                      <Button size="icon" variant="secondary" className="h-8 w-8" onClick={() => fileInputRef.current?.click()}>
+                        <Upload className="h-4 w-4" />
+                      </Button>
+                      <Button size="icon" variant="destructive" className="h-8 w-8" onClick={removeImage}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    className="mt-2 border-2 border-dashed border-muted-foreground/25 rounded-lg h-32 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 transition-colors"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <ImageIcon className="h-8 w-8 text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground">Click to upload image</p>
+                    <p className="text-xs text-muted-foreground">Max 5MB</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Title */}
+              <div>
+                <Label>Title</Label>
+                <Input value={editEvent.title || ""} onChange={(e) => setEditEvent({ ...editEvent, title: e.target.value })} />
+              </div>
+
+              {/* Location */}
+              <div>
+                <Label>Location</Label>
+                <Input value={editEvent.location || ""} onChange={(e) => setEditEvent({ ...editEvent, location: e.target.value })} />
+              </div>
+
+              {/* Date & Time */}
               <div className="grid grid-cols-2 gap-4">
                 <div><Label>Date</Label><Input type="date" value={editEvent.date || ""} onChange={(e) => setEditEvent({ ...editEvent, date: e.target.value })} /></div>
                 <div><Label>Time</Label><Input type="time" value={editEvent.time || ""} onChange={(e) => setEditEvent({ ...editEvent, time: e.target.value })} /></div>
               </div>
-              <div><Label>Organizer Name</Label><Input value={editEvent.organizer_name || ""} onChange={(e) => setEditEvent({ ...editEvent, organizer_name: e.target.value })} /></div>
-              <div className="grid grid-cols-2 gap-4">
-                <div><Label>Total Spots</Label><Input type="number" value={editEvent.spots_total || 20} onChange={(e) => setEditEvent({ ...editEvent, spots_total: parseInt(e.target.value) })} /></div>
-                <div><Label>Price (€)</Label><Input type="number" value={editEvent.price || 0} onChange={(e) => setEditEvent({ ...editEvent, price: parseFloat(e.target.value) })} /></div>
+
+              {/* Organizer */}
+              <div>
+                <Label>Organizer Name</Label>
+                <Input value={editEvent.organizer_name || ""} onChange={(e) => setEditEvent({ ...editEvent, organizer_name: e.target.value })} />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+
+              {/* Spots & Price */}
+              <div className="grid grid-cols-3 gap-4">
+                <div><Label>Total Spots</Label><Input type="number" value={editEvent.spots_total ?? 20} onChange={(e) => setEditEvent({ ...editEvent, spots_total: parseInt(e.target.value) || 0 })} /></div>
+                <div><Label>Price (€)</Label><Input type="number" step="0.01" value={editEvent.price ?? 0} onChange={(e) => setEditEvent({ ...editEvent, price: parseFloat(e.target.value) || 0 })} /></div>
+                <div><Label>Deposit (€)</Label><Input type="number" step="0.01" value={editEvent.deposit ?? ""} onChange={(e) => setEditEvent({ ...editEvent, deposit: e.target.value ? parseFloat(e.target.value) : null })} placeholder="Optional" /></div>
+              </div>
+
+              {/* Status, Category, Payment Type */}
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <Label>Status</Label>
                   <Select value={editEvent.status || "available"} onValueChange={(v) => setEditEvent({ ...editEvent, status: v as any })}>
@@ -298,7 +403,7 @@ export default function EventsPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                 <div>
+                <div>
                   <Label>Category</Label>
                   <Select value={editEvent.category_id || "none"} onValueChange={(v) => setEditEvent({ ...editEvent, category_id: v === "none" ? null : v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
@@ -308,6 +413,60 @@ export default function EventsPage() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div>
+                  <Label>Payment Type</Label>
+                  <Select value={editEvent.payment_type || "free"} onValueChange={(v) => setEditEvent({ ...editEvent, payment_type: v as any })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="free">Free</SelectItem>
+                      <SelectItem value="paid">Paid</SelectItem>
+                      <SelectItem value="deposit">Deposit</SelectItem>
+                      <SelectItem value="location">Pay at location</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Trail Details */}
+              <Separator />
+              <h4 className="text-sm font-semibold">Trail Details (optional)</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Difficulty</Label>
+                  <Select value={editEvent.difficulty || "none"} onValueChange={(v) => setEditEvent({ ...editEvent, difficulty: v === "none" ? null : v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      <SelectItem value="facile">Facile</SelectItem>
+                      <SelectItem value="moderato">Moderato</SelectItem>
+                      <SelectItem value="impegnativo">Impegnativo</SelectItem>
+                      <SelectItem value="esperto">Esperto</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div><Label>Duration</Label><Input value={editEvent.duration || ""} onChange={(e) => setEditEvent({ ...editEvent, duration: e.target.value || null })} placeholder="e.g. 3h" /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><Label>Distance</Label><Input value={editEvent.distance || ""} onChange={(e) => setEditEvent({ ...editEvent, distance: e.target.value || null })} placeholder="e.g. 12 km" /></div>
+                <div><Label>Elevation</Label><Input value={editEvent.elevation || ""} onChange={(e) => setEditEvent({ ...editEvent, elevation: e.target.value || null })} placeholder="e.g. 500 m" /></div>
+              </div>
+
+              {/* Featured */}
+              <div className="flex items-center justify-between">
+                <Label>Featured Event</Label>
+                <Switch checked={editEvent.featured || false} onCheckedChange={(v) => setEditEvent({ ...editEvent, featured: v })} />
+              </div>
+
+              {/* Description */}
+              <div>
+                <Label>Description</Label>
+                <Textarea value={editEvent.description || ""} onChange={(e) => setEditEvent({ ...editEvent, description: e.target.value })} rows={4} />
+              </div>
+
+              {/* Cancellation Policy */}
+              <div>
+                <Label>Cancellation Policy</Label>
+                <Textarea value={editEvent.cancellation_policy || ""} onChange={(e) => setEditEvent({ ...editEvent, cancellation_policy: e.target.value || null })} rows={2} placeholder="Optional" />
               </div>
               <div>
                 <Label>Visibility</Label>
@@ -320,11 +479,11 @@ export default function EventsPage() {
                   </SelectContent>
                 </Select>
               </div>
-               <div><Label>Description</Label><Textarea value={editEvent.description || ""} onChange={(e) => setEditEvent({ ...editEvent, description: e.target.value })} rows={3} /></div>
+              <div><Label>Description</Label><Textarea value={editEvent.description || ""} onChange={(e) => setEditEvent({ ...editEvent, description: e.target.value })} rows={3} /></div>
 
               <div className="space-y-4 pt-2 border-t mt-4">
                 <h3 className="font-semibold text-sm">Media Settings</h3>
-                
+
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
                     Cover Image <span className="text-destructive font-bold">*</span>
@@ -334,8 +493,8 @@ export default function EventsPage() {
                       {editEvent.image_url ? (
                         <>
                           <img src={editEvent.image_url} alt="Preview" className="w-full h-full object-cover" />
-                          <button 
-                            type="button" 
+                          <button
+                            type="button"
                             onClick={() => setEditEvent({ ...editEvent, image_url: "" })}
                             className="absolute top-1 right-1 p-1 bg-destructive text-destructive-foreground rounded-full"
                           >
@@ -361,8 +520,8 @@ export default function EventsPage() {
 
                 <div className="space-y-2">
                   <Label className="flex items-center justify-between">
-                    <span>Gallery Images ({ ((editEvent.gallery_images as any[]) || []).length }/5)</span>
-                    { ((editEvent.gallery_images as any[]) || []).length < 5 && (
+                    <span>Gallery Images ({((editEvent.gallery_images as any[]) || []).length}/5)</span>
+                    {((editEvent.gallery_images as any[]) || []).length < 5 && (
                       <Button variant="ghost" size="sm" asChild disabled={isUploading} className="h-7 text-xs">
                         <label className="cursor-pointer">
                           <Plus className="h-3 w-3 mr-1" /> Add Image
@@ -372,10 +531,10 @@ export default function EventsPage() {
                     )}
                   </Label>
                   <div className="space-y-2">
-                    { ((editEvent.gallery_images as any[]) || []).length === 0 && (
+                    {((editEvent.gallery_images as any[]) || []).length === 0 && (
                       <p className="text-xs text-muted-foreground italic">No gallery images added yet.</p>
                     )}
-                    { ((editEvent.gallery_images as any[]) || []).map((img, idx) => (
+                    {((editEvent.gallery_images as any[]) || []).map((img, idx) => (
                       <div key={idx} className="flex items-center gap-3 bg-muted/30 p-2 rounded-md border">
                         <img src={img} alt={`Gallery ${idx}`} className="w-12 h-10 object-cover rounded border" />
                         <div className="flex-1 text-[10px] truncate max-w-[200px] font-mono text-muted-foreground">
@@ -399,10 +558,10 @@ export default function EventsPage() {
               </div>
             </div>
           )}
-           <DialogFooter>
+          <DialogFooter>
             <Button variant="outline" onClick={() => setEditEvent(null)}>Cancel</Button>
-            <Button 
-              onClick={() => saveMutation.mutate(editEvent)} 
+            <Button
+              onClick={() => saveMutation.mutate(editEvent)}
               disabled={saveMutation.isPending || !editEvent?.image_url}
             >
               {saveMutation.isPending ? "Saving..." : "Save"}
