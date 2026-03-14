@@ -94,15 +94,6 @@ export default function EventsPage() {
     },
   });
 
-  const uploadImage = async (file: File, eventId: string): Promise<string> => {
-    const ext = file.name.split(".").pop();
-    const filePath = `${eventId}/${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from("event-images").upload(filePath, file, { upsert: true });
-    if (error) throw error;
-    const { data: { publicUrl } } = supabase.storage.from("event-images").getPublicUrl(filePath);
-    return publicUrl;
-  };
-
   const saveMutation = useMutation({
     mutationFn: async (evt: any) => {
       const { isNew, event_categories, ...data } = evt;
@@ -116,24 +107,11 @@ export default function EventsPage() {
         const { error } = await supabase.from("events").update({ ...data, updated_at: new Date().toISOString() }).eq("id", data.id);
         if (error) throw error;
       }
-
-      // Upload image if selected
-      if (imageFile && savedId) {
-        setUploading(true);
-        try {
-          const publicUrl = await uploadImage(imageFile, savedId);
-          await supabase.from("events").update({ image_url: publicUrl, updated_at: new Date().toISOString() }).eq("id", savedId);
-        } finally {
-          setUploading(false);
-        }
-      }
     },
     onSuccess: () => {
       toast.success("Event saved");
       queryClient.invalidateQueries({ queryKey: ["admin-events"] });
       setEditEvent(null);
-      setImageFile(null);
-      setImagePreview(null);
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -216,7 +194,7 @@ export default function EventsPage() {
           <h1 className="text-3xl font-bold">Events</h1>
           <p className="text-muted-foreground mt-1">Manage all events ({events.length} total)</p>
         </div>
-        <Button className="gap-2" onClick={() => openEdit()}>
+        <Button className="gap-2" onClick={() => setEditEvent({ ...emptyEvent, isNew: true })}>
           <Plus className="h-4 w-4" /> Add Event
         </Button>
       </div>
@@ -326,39 +304,11 @@ export default function EventsPage() {
       </Dialog>
 
       {/* Edit/Create Dialog - All Fields */}
-      <Dialog open={!!editEvent} onOpenChange={(o) => { if (!o) { setEditEvent(null); setImageFile(null); setImagePreview(null); } }}>
+      <Dialog open={!!editEvent} onOpenChange={(o) => { if (!o) setEditEvent(null); }}>
         <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle>{editEvent?.isNew ? "Create Event" : "Edit Event"}</DialogTitle></DialogHeader>
           {editEvent && (
             <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
-              {/* Image Upload */}
-              <div>
-                <Label>Event Image</Label>
-                <input type="file" ref={fileInputRef} accept="image/*" className="hidden" onChange={handleFileSelect} />
-                {imagePreview ? (
-                  <div className="relative mt-2 rounded-lg overflow-hidden h-40 bg-muted">
-                    <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                    <div className="absolute top-2 right-2 flex gap-1">
-                      <Button size="icon" variant="secondary" className="h-8 w-8" onClick={() => fileInputRef.current?.click()}>
-                        <Upload className="h-4 w-4" />
-                      </Button>
-                      <Button size="icon" variant="destructive" className="h-8 w-8" onClick={removeImage}>
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div
-                    className="mt-2 border-2 border-dashed border-muted-foreground/25 rounded-lg h-32 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 transition-colors"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <ImageIcon className="h-8 w-8 text-muted-foreground mb-2" />
-                    <p className="text-sm text-muted-foreground">Click to upload image</p>
-                    <p className="text-xs text-muted-foreground">Max 5MB</p>
-                  </div>
-                )}
-              </div>
-
               {/* Title */}
               <div>
                 <Label>Title</Label>
