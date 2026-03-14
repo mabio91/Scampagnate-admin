@@ -126,7 +126,7 @@ export default function CategoriesPage() {
               <div><Label>Name</Label><Input value={editCat.name || ""} onChange={(e) => setEditCat({ ...editCat, name: e.target.value })} /></div>
               <div><Label>Icon (emoji)</Label><Input value={editCat.icon || ""} onChange={(e) => setEditCat({ ...editCat, icon: e.target.value })} /></div>
               <div><Label>Description</Label><Input value={editCat.description || ""} onChange={(e) => setEditCat({ ...editCat, description: e.target.value })} /></div>
-              <div><Label>Sort Order</Label><Input type="number" value={editCat.sort_order ?? ""} onChange={(e) => setEditCat({ ...editCat, sort_order: e.target.value === "" ? 0 : parseInt(e.target.value) })} /></div>
+              <div><Label>Sort Order</Label><Input type="number" value={editCat.sort_order ?? ""} onChange={(e) => setEditCat({ ...editCat, sort_order: e.target.value === "" ? undefined : parseInt(e.target.value, 10) })} /></div>
             </div>
           )}
           <DialogFooter>

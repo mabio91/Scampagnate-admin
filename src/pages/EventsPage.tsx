@@ -335,8 +335,8 @@ export default function EventsPage() {
 
               {/* Spots & Price */}
               <div className="grid grid-cols-3 gap-4">
-                <div><Label>Total Spots</Label><Input type="number" value={editEvent.spots_total ?? ""} onChange={(e) => setEditEvent({ ...editEvent, spots_total: e.target.value === "" ? 0 : parseInt(e.target.value) })} /></div>
-                <div><Label>Price (€)</Label><Input type="number" step="0.01" value={editEvent.price ?? ""} onChange={(e) => setEditEvent({ ...editEvent, price: e.target.value === "" ? 0 : parseFloat(e.target.value) })} /></div>
+                <div><Label>Total Spots</Label><Input type="number" value={editEvent.spots_total ?? ""} onChange={(e) => setEditEvent({ ...editEvent, spots_total: e.target.value === "" ? undefined : parseInt(e.target.value, 10) })} /></div>
+                <div><Label>Price (€)</Label><Input type="number" step="0.01" value={editEvent.price ?? ""} onChange={(e) => setEditEvent({ ...editEvent, price: e.target.value === "" ? undefined : parseFloat(e.target.value) })} /></div>
                 <div><Label>Deposit (€)</Label><Input type="number" step="0.01" value={editEvent.deposit ?? ""} onChange={(e) => setEditEvent({ ...editEvent, deposit: e.target.value ? parseFloat(e.target.value) : null })} placeholder="Optional" /></div>
               </div>
 
