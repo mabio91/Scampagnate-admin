@@ -15,6 +15,7 @@ import IssuesPage from "@/pages/IssuesPage";
 import EquipmentTemplatesPage from "@/pages/EquipmentTemplatesPage";
 import ProfilePage from "@/pages/ProfilePage";
 import MembersPage from "@/pages/MembersPage";
+import ProposalsPage from "@/pages/ProposalsPage";
 import LoginPage from "@/pages/LoginPage";
 import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
@@ -47,6 +48,7 @@ const App = () => (
             <Route path="/equipment-templates" element={<EquipmentTemplatesPage />} />
             <Route path="/issues" element={<IssuesPage />} />
             <Route path="/members" element={<MembersPage />} />
+            <Route path="/proposals" element={<ProposalsPage />} />
             <Route path="/profile" element={<ProfilePage />} />
           </Route>
           <Route path="*" element={<NotFound />} />
