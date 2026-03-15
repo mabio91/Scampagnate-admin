@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, MoreHorizontal, Eye, CalendarPlus, Archive, Trash2, Mail, Lightbulb } from "lucide-react";
+import { Search, MoreHorizontal, Eye, CalendarPlus, Archive, Trash2, Mail, Lightbulb, CheckCircle } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -196,6 +196,11 @@ export default function ProposalsPage() {
                               <Mail className="mr-2 h-4 w-4" /> Contact Proposer
                             </DropdownMenuItem>
                             {proposal.status === "pending" && (
+                              <DropdownMenuItem onClick={() => updateStatusMutation.mutate({ id: proposal.id, status: "approved" })}>
+                                <CheckCircle className="mr-2 h-4 w-4" /> Approve
+                              </DropdownMenuItem>
+                            )}
+                            {(proposal.status === "pending" || proposal.status === "approved") && (
                               <>
                                 <DropdownMenuItem onClick={() => handleConvertToEvent(proposal)}>
                                   <CalendarPlus className="mr-2 h-4 w-4" /> Convert to Event
@@ -272,10 +277,15 @@ export default function ProposalsPage() {
                 <p className="text-sm leading-relaxed">{viewProposal.description || "No description provided."}</p>
               </div>
 
-              {viewProposal.status === "pending" && (
+              {(viewProposal.status === "pending" || viewProposal.status === "approved") && (
                 <>
                   <Separator />
                   <div className="flex flex-wrap gap-2">
+                    {viewProposal.status === "pending" && (
+                      <Button size="sm" variant="default" onClick={() => updateStatusMutation.mutate({ id: viewProposal.id, status: "approved" })}>
+                        <CheckCircle className="mr-2 h-4 w-4" /> Approve
+                      </Button>
+                    )}
                     <Button size="sm" onClick={() => handleConvertToEvent(viewProposal)}>
                       <CalendarPlus className="mr-2 h-4 w-4" /> Convert to Event
                     </Button>
