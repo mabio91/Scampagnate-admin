@@ -27,6 +27,7 @@ const navItems = [
   { title: "Events", url: "/events", icon: Calendar },
   { title: "Equipment Templates", url: "/equipment-templates", icon: Package },
   { title: "Issues", url: "/issues", icon: AlertTriangle },
+  { title: "Proposals", url: "/proposals", icon: Lightbulb },
 ];
 
 export function AdminSidebar() {
