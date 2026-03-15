@@ -196,6 +196,11 @@ export default function ProposalsPage() {
                               <Mail className="mr-2 h-4 w-4" /> Contact Proposer
                             </DropdownMenuItem>
                             {proposal.status === "pending" && (
+                              <DropdownMenuItem onClick={() => updateStatusMutation.mutate({ id: proposal.id, status: "approved" })}>
+                                <CheckCircle className="mr-2 h-4 w-4" /> Approve
+                              </DropdownMenuItem>
+                            )}
+                            {(proposal.status === "pending" || proposal.status === "approved") && (
                               <>
                                 <DropdownMenuItem onClick={() => handleConvertToEvent(proposal)}>
                                   <CalendarPlus className="mr-2 h-4 w-4" /> Convert to Event
