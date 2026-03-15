@@ -277,10 +277,15 @@ export default function ProposalsPage() {
                 <p className="text-sm leading-relaxed">{viewProposal.description || "No description provided."}</p>
               </div>
 
-              {viewProposal.status === "pending" && (
+              {(viewProposal.status === "pending" || viewProposal.status === "approved") && (
                 <>
                   <Separator />
                   <div className="flex flex-wrap gap-2">
+                    {viewProposal.status === "pending" && (
+                      <Button size="sm" variant="default" onClick={() => updateStatusMutation.mutate({ id: viewProposal.id, status: "approved" })}>
+                        <CheckCircle className="mr-2 h-4 w-4" /> Approve
+                      </Button>
+                    )}
                     <Button size="sm" onClick={() => handleConvertToEvent(viewProposal)}>
                       <CalendarPlus className="mr-2 h-4 w-4" /> Convert to Event
                     </Button>
