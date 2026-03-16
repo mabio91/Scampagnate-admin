@@ -554,6 +554,43 @@ export default function UsersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Confirmation Dialog for destructive actions */}
+      <AlertDialog open={!!confirmAction} onOpenChange={(o) => !o && setConfirmAction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmAction?.type === "delete" ? "Delete User" : confirmAction?.type === "ban" ? "Ban User" : "Suspend User"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmAction?.type === "delete"
+                ? `This will permanently delete ${confirmAction.userName}'s profile and all associated data. This action cannot be undone.`
+                : confirmAction?.type === "ban"
+                ? `Are you sure you want to ban ${confirmAction?.userName}? They will lose access to the platform.`
+                : `Are you sure you want to suspend ${confirmAction?.userName}'s account?`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (!confirmAction) return;
+                if (confirmAction.type === "delete") {
+                  deleteUser.mutate(confirmAction.userId);
+                } else if (confirmAction.type === "ban") {
+                  updateStatus.mutate({ userId: confirmAction.userId, status: "Banned" });
+                } else {
+                  updateStatus.mutate({ userId: confirmAction.userId, status: "Suspended" });
+                }
+                setConfirmAction(null);
+              }}
+            >
+              {confirmAction?.type === "delete" ? "Delete" : confirmAction?.type === "ban" ? "Ban" : "Suspend"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
