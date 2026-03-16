@@ -293,7 +293,7 @@ export default function UsersPage() {
                             <Edit2 className="h-4 w-4 mr-2" /> Edit Details
                           </DropdownMenuItem>
                           {user.account_status !== "Suspended" && (
-                            <DropdownMenuItem onClick={() => updateStatus.mutate({ userId: user.id, status: "Suspended" })}>
+                            <DropdownMenuItem onClick={() => setConfirmAction({ type: "suspend", userId: user.id, userName: `${user.first_name} ${user.last_name}` })}>
                               <MoreHorizontal className="h-4 w-4 mr-2" /> Suspend Account
                             </DropdownMenuItem>
                           )}
@@ -305,12 +305,12 @@ export default function UsersPage() {
                           {user.account_status !== "Banned" && (
                             <DropdownMenuItem
                               className="text-destructive"
-                              onClick={() => { if (confirm("Are you sure you want to BAN this user? This is permanent.")) updateStatus.mutate({ userId: user.id, status: "Banned" }); }}
+                              onClick={() => setConfirmAction({ type: "ban", userId: user.id, userName: `${user.first_name} ${user.last_name}` })}
                             >
                               <Trash2 className="h-4 w-4 mr-2" /> Ban User
                             </DropdownMenuItem>
                           )}
-                          <DropdownMenuItem className="text-destructive" onClick={() => { if (confirm("Delete this user's profile entirely?")) deleteUser.mutate(user.id); }}>
+                          <DropdownMenuItem className="text-destructive" onClick={() => setConfirmAction({ type: "delete", userId: user.id, userName: `${user.first_name} ${user.last_name}` })}>
                             <Trash2 className="h-4 w-4 mr-2" /> Delete Profile
                           </DropdownMenuItem>
                         </DropdownMenuContent>
