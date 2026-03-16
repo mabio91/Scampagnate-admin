@@ -253,9 +253,25 @@ const DiscountCodesPage = () => {
                         {code.discount_type === "percentage" ? `${code.discount_value}%` : `€${code.discount_value}`}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={code.applies_to_all ? "default" : "secondary"}>
-                          {code.applies_to_all ? "All Events" : `${(code.event_ids as string[])?.length || 0} events`}
-                        </Badge>
+                        {code.applies_to_all ? (
+                          <Badge variant="default">All Events</Badge>
+                        ) : (
+                          <div className="flex flex-wrap gap-1">
+                            {((code.event_ids as string[]) || []).slice(0, 2).map((eid) => {
+                              const ev = events.find((e) => e.id === eid);
+                              return (
+                                <Badge key={eid} variant="secondary" className="text-xs truncate max-w-[120px]">
+                                  {ev?.title || "Unknown"}
+                                </Badge>
+                              );
+                            })}
+                            {((code.event_ids as string[]) || []).length > 2 && (
+                              <Badge variant="outline" className="text-xs">
+                                +{(code.event_ids as string[]).length - 2} more
+                              </Badge>
+                            )}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>
                         {code.times_used}{code.max_uses ? ` / ${code.max_uses}` : ""}
