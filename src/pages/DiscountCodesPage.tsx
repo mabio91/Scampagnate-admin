@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, TicketPercent, Copy, Eye, Search, X } from "lucide-react";
+import { Plus, Pencil, Trash2, TicketPercent, Copy, ClipboardCopy, Eye, Search, X } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { Tables, TablesInsert } from "@/integrations/supabase/types";
 
@@ -164,6 +164,22 @@ const DiscountCodesPage = () => {
     toast({ title: "Code copied to clipboard" });
   };
 
+  const duplicateCode = (code: DiscountCode) => {
+    setEditingCode(null);
+    setForm({
+      code: code.code + "_COPY",
+      description: code.description,
+      discount_type: code.discount_type,
+      discount_value: code.discount_value,
+      applies_to_all: code.applies_to_all,
+      event_ids: (code.event_ids as string[]) || [],
+      max_uses: code.max_uses,
+      expires_at: code.expires_at ? code.expires_at.split("T")[0] : "",
+      is_active: true,
+    });
+    setDialogOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -243,8 +259,8 @@ const DiscountCodesPage = () => {
                           <code className="font-mono font-bold text-foreground bg-muted px-2 py-1 rounded text-sm">
                             {code.code}
                           </code>
-                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => copyCode(code.code)}>
-                            <Copy className="h-3 w-3" />
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => copyCode(code.code)} title="Copy code">
+                            <ClipboardCopy className="h-3 w-3" />
                           </Button>
                         </div>
                       </TableCell>
@@ -295,6 +311,9 @@ const DiscountCodesPage = () => {
                         <div className="flex justify-end gap-1">
                           <Button variant="ghost" size="icon" onClick={() => { setSelectedCodeId(code.id); setUsageDialogOpen(true); }}>
                             <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => duplicateCode(code)} title="Duplicate">
+                            <Copy className="h-4 w-4" />
                           </Button>
                           <Button variant="ghost" size="icon" onClick={() => openEdit(code)}>
                             <Pencil className="h-4 w-4" />
