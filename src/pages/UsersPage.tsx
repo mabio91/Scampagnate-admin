@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Search, MoreHorizontal, Trash2, Edit2, UserPlus } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -35,6 +36,7 @@ export default function UsersPage() {
   const [editRole, setEditRole] = useState("user");
   const [createOpen, setCreateOpen] = useState(false);
   const [newUser, setNewUser] = useState({ email: "", password: "", first_name: "", last_name: "", phone: "", role: "user" });
+  const [confirmAction, setConfirmAction] = useState<{ type: "delete" | "ban" | "suspend"; userId: string; userName: string } | null>(null);
   const queryClient = useQueryClient();
 
   const { data: users = [], isLoading } = useQuery({
@@ -291,7 +293,7 @@ export default function UsersPage() {
                             <Edit2 className="h-4 w-4 mr-2" /> Edit Details
                           </DropdownMenuItem>
                           {user.account_status !== "Suspended" && (
-                            <DropdownMenuItem onClick={() => updateStatus.mutate({ userId: user.id, status: "Suspended" })}>
+                            <DropdownMenuItem onClick={() => setConfirmAction({ type: "suspend", userId: user.id, userName: `${user.first_name} ${user.last_name}` })}>
                               <MoreHorizontal className="h-4 w-4 mr-2" /> Suspend Account
                             </DropdownMenuItem>
                           )}
@@ -303,12 +305,12 @@ export default function UsersPage() {
                           {user.account_status !== "Banned" && (
                             <DropdownMenuItem
                               className="text-destructive"
-                              onClick={() => { if (confirm("Are you sure you want to BAN this user? This is permanent.")) updateStatus.mutate({ userId: user.id, status: "Banned" }); }}
+                              onClick={() => setConfirmAction({ type: "ban", userId: user.id, userName: `${user.first_name} ${user.last_name}` })}
                             >
                               <Trash2 className="h-4 w-4 mr-2" /> Ban User
                             </DropdownMenuItem>
                           )}
-                          <DropdownMenuItem className="text-destructive" onClick={() => { if (confirm("Delete this user's profile entirely?")) deleteUser.mutate(user.id); }}>
+                          <DropdownMenuItem className="text-destructive" onClick={() => setConfirmAction({ type: "delete", userId: user.id, userName: `${user.first_name} ${user.last_name}` })}>
                             <Trash2 className="h-4 w-4 mr-2" /> Delete Profile
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -552,6 +554,43 @@ export default function UsersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Confirmation Dialog for destructive actions */}
+      <AlertDialog open={!!confirmAction} onOpenChange={(o) => !o && setConfirmAction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmAction?.type === "delete" ? "Delete User" : confirmAction?.type === "ban" ? "Ban User" : "Suspend User"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmAction?.type === "delete"
+                ? `This will permanently delete ${confirmAction.userName}'s profile and all associated data. This action cannot be undone.`
+                : confirmAction?.type === "ban"
+                ? `Are you sure you want to ban ${confirmAction?.userName}? They will lose access to the platform.`
+                : `Are you sure you want to suspend ${confirmAction?.userName}'s account?`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (!confirmAction) return;
+                if (confirmAction.type === "delete") {
+                  deleteUser.mutate(confirmAction.userId);
+                } else if (confirmAction.type === "ban") {
+                  updateStatus.mutate({ userId: confirmAction.userId, status: "Banned" });
+                } else {
+                  updateStatus.mutate({ userId: confirmAction.userId, status: "Suspended" });
+                }
+                setConfirmAction(null);
+              }}
+            >
+              {confirmAction?.type === "delete" ? "Delete" : confirmAction?.type === "ban" ? "Ban" : "Suspend"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
