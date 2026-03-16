@@ -651,7 +651,7 @@ export default function Dashboard() {
                       const x = cxPos + radius * Math.cos(-midAngle * RADIAN);
                       const y = cyPos + radius * Math.sin(-midAngle * RADIAN);
                       return (
-                        <text x={x} y={y} textAnchor={x > cxPos ? "start" : "end"} dominantBaseline="central" fill="hsl(150, 10%, 35%)" fontSize={11} fontWeight={600}>
+                        <text x={x} y={y} textAnchor={x > cxPos ? "start" : "end"} dominantBaseline="central" fill={chartTheme.pieLabelFill} fontSize={11} fontWeight={600}>
                           {`${(percent * 100).toFixed(0)}%`}
                         </text>
                       );
