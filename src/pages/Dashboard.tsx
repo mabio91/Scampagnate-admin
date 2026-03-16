@@ -27,16 +27,30 @@ const PIE_COLORS = [
   "hsl(280, 40%, 50%)",
 ];
 
-const chartTooltipStyle = {
-  contentStyle: {
-    backgroundColor: "hsl(40, 25%, 99%)",
-    border: "1px solid hsl(40, 15%, 87%)",
-    borderRadius: "0.75rem",
-    fontSize: "0.8rem",
-    boxShadow: "0 8px 32px -8px rgba(0,0,0,0.12)",
-    padding: "10px 14px",
-  },
-};
+function useChartTheme() {
+  const getVar = (name: string) => {
+    const val = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return val ? `hsl(${val})` : undefined;
+  };
+  return {
+    tooltipStyle: {
+      contentStyle: {
+        backgroundColor: getVar("--popover") || "hsl(40, 25%, 99%)",
+        border: `1px solid ${getVar("--border") || "hsl(40, 15%, 87%)"}`,
+        borderRadius: "0.75rem",
+        fontSize: "0.8rem",
+        boxShadow: "0 8px 32px -8px rgba(0,0,0,0.12)",
+        padding: "10px 14px",
+        color: getVar("--popover-foreground") || "inherit",
+      },
+    },
+    gridStroke: getVar("--border") || "hsl(40, 15%, 90%)",
+    tickFill: getVar("--muted-foreground") || "hsl(150, 10%, 45%)",
+    cursorFill: getVar("--muted") || "hsl(40, 15%, 94%)",
+    dotFill: getVar("--card") || "hsl(40, 25%, 99%)",
+    pieLabelFill: getVar("--muted-foreground") || "hsl(150, 10%, 35%)",
+  };
+}
 
 /* ── Premium Stat Card ── */
 interface PremiumStatCardProps {
