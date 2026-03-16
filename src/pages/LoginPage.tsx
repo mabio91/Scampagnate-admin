@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import logo from "@/assets/logo.png";
 import { AuthPageWrapper } from "@/components/AuthPageWrapper";
+import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -94,6 +95,9 @@ export default function LoginPage() {
 
   return (
     <AuthPageWrapper>
+      <div className="absolute top-4 right-4">
+        <ThemeSwitcher />
+      </div>
 
       <Card className="w-full max-w-sm border-border/50 shadow-xl backdrop-blur-sm bg-card/80">
         <CardHeader className="text-center pb-2">
