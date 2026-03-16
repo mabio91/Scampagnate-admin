@@ -367,25 +367,62 @@ const DiscountCodesPage = () => {
             </div>
             {!form.applies_to_all && (
               <div>
-                <Label>Select Events</Label>
-                <div className="border rounded-md p-3 max-h-40 overflow-y-auto space-y-2">
-                  {events.map((ev) => (
-                    <label key={ev.id} className="flex items-center gap-2 text-sm cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={form.event_ids.includes(ev.id)}
-                        onChange={(e) => {
-                          setForm({
-                            ...form,
-                            event_ids: e.target.checked
-                              ? [...form.event_ids, ev.id]
-                              : form.event_ids.filter((id) => id !== ev.id),
-                          });
-                        }}
-                      />
-                      <span className="text-foreground">{ev.title}</span>
-                    </label>
-                  ))}
+                <Label>Select Events ({form.event_ids.length} selected)</Label>
+                {form.event_ids.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {form.event_ids.map((eid) => {
+                      const ev = events.find((e) => e.id === eid);
+                      return (
+                        <Badge key={eid} variant="secondary" className="text-xs flex items-center gap-1">
+                          {ev?.title || "Unknown"}
+                          <X
+                            className="h-3 w-3 cursor-pointer hover:text-destructive"
+                            onClick={() => setForm({ ...form, event_ids: form.event_ids.filter((id) => id !== eid) })}
+                          />
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                )}
+                <div className="relative mb-2">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search events..."
+                    value={eventSearch}
+                    onChange={(e) => setEventSearch(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+                <div className="border border-border rounded-md p-3 max-h-48 overflow-y-auto space-y-1">
+                  {events
+                    .filter((ev) => ev.title.toLowerCase().includes(eventSearch.toLowerCase()))
+                    .map((ev) => (
+                      <label
+                        key={ev.id}
+                        className="flex items-center gap-3 text-sm cursor-pointer rounded-md px-2 py-1.5 hover:bg-muted transition-colors"
+                      >
+                        <Checkbox
+                          checked={form.event_ids.includes(ev.id)}
+                          onCheckedChange={(checked) => {
+                            setForm({
+                              ...form,
+                              event_ids: checked
+                                ? [...form.event_ids, ev.id]
+                                : form.event_ids.filter((id) => id !== ev.id),
+                            });
+                          }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-foreground block truncate">{ev.title}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(ev.date).toLocaleDateString()} · {ev.status}
+                          </span>
+                        </div>
+                      </label>
+                    ))}
+                  {events.filter((ev) => ev.title.toLowerCase().includes(eventSearch.toLowerCase())).length === 0 && (
+                    <p className="text-muted-foreground text-sm text-center py-2">No events found</p>
+                  )}
                 </div>
               </div>
             )}
