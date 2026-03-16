@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useTheme } from "next-themes";
 import {
   Users, Building2, Calendar, AlertTriangle, Activity, ArrowUpRight, ArrowDownRight, Minus,
   TrendingUp, UserCheck, BarChart3, Clock, Repeat, UserPlus, Star, CloudSun, MapPin,
@@ -27,16 +28,39 @@ const PIE_COLORS = [
   "hsl(280, 40%, 50%)",
 ];
 
-const chartTooltipStyle = {
-  contentStyle: {
-    backgroundColor: "hsl(40, 25%, 99%)",
-    border: "1px solid hsl(40, 15%, 87%)",
-    borderRadius: "0.75rem",
-    fontSize: "0.8rem",
-    boxShadow: "0 8px 32px -8px rgba(0,0,0,0.12)",
-    padding: "10px 14px",
-  },
-};
+function useChartTheme() {
+  const { theme, resolvedTheme } = useTheme();
+  const [, setTick] = useState(0);
+
+  // Re-compute when theme changes (CSS vars update async)
+  useEffect(() => {
+    const timer = setTimeout(() => setTick((t) => t + 1), 50);
+    return () => clearTimeout(timer);
+  }, [theme, resolvedTheme]);
+
+  const getVar = (name: string) => {
+    const val = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return val ? `hsl(${val})` : undefined;
+  };
+  return {
+    tooltipStyle: {
+      contentStyle: {
+        backgroundColor: getVar("--popover") || "hsl(40, 25%, 99%)",
+        border: `1px solid ${getVar("--border") || "hsl(40, 15%, 87%)"}`,
+        borderRadius: "0.75rem",
+        fontSize: "0.8rem",
+        boxShadow: "0 8px 32px -8px rgba(0,0,0,0.12)",
+        padding: "10px 14px",
+        color: getVar("--popover-foreground") || "inherit",
+      },
+    },
+    gridStroke: getVar("--border") || "hsl(40, 15%, 90%)",
+    tickFill: getVar("--muted-foreground") || "hsl(150, 10%, 45%)",
+    cursorFill: getVar("--muted") || "hsl(40, 15%, 94%)",
+    dotFill: getVar("--card") || "hsl(40, 25%, 99%)",
+    pieLabelFill: getVar("--muted-foreground") || "hsl(150, 10%, 35%)",
+  };
+}
 
 /* ── Premium Stat Card ── */
 interface PremiumStatCardProps {
@@ -167,6 +191,7 @@ function getWeatherLabel(code: number): string {
 export default function Dashboard() {
   const { italyTime, italyDate } = useItalyTime();
   const { data: weather } = useItalyWeather();
+  const chartTheme = useChartTheme();
 
   const currentYear = new Date().getFullYear();
   const yearStart = `${currentYear}-01-01`;
@@ -601,10 +626,10 @@ export default function Dashboard() {
                   <stop offset="100%" stopColor="hsl(30, 50%, 55%)" stopOpacity={0.8} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(40, 15%, 90%)" vertical={false} />
-              <XAxis dataKey="month" tick={{ fontSize: 12, fill: "hsl(150, 10%, 45%)" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 12, fill: "hsl(150, 10%, 45%)" }} axisLine={false} tickLine={false} />
-              <Tooltip {...chartTooltipStyle} cursor={{ fill: "hsl(40, 15%, 94%)" }} />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridStroke} vertical={false} />
+              <XAxis dataKey="month" tick={{ fontSize: 12, fill: chartTheme.tickFill }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 12, fill: chartTheme.tickFill }} axisLine={false} tickLine={false} />
+              <Tooltip {...chartTheme.tooltipStyle} cursor={{ fill: chartTheme.cursorFill }} />
               <Legend wrapperStyle={{ fontSize: "12px", paddingTop: "12px" }} />
               <Bar dataKey="events" fill="url(#barEvents)" radius={[6, 6, 0, 0]} maxBarSize={32} />
               <Bar dataKey="registrations" fill="url(#barRegs)" radius={[6, 6, 0, 0]} maxBarSize={32} />
@@ -636,7 +661,7 @@ export default function Dashboard() {
                       const x = cxPos + radius * Math.cos(-midAngle * RADIAN);
                       const y = cyPos + radius * Math.sin(-midAngle * RADIAN);
                       return (
-                        <text x={x} y={y} textAnchor={x > cxPos ? "start" : "end"} dominantBaseline="central" fill="hsl(150, 10%, 35%)" fontSize={11} fontWeight={600}>
+                        <text x={x} y={y} textAnchor={x > cxPos ? "start" : "end"} dominantBaseline="central" fill={chartTheme.pieLabelFill} fontSize={11} fontWeight={600}>
                           {`${(percent * 100).toFixed(0)}%`}
                         </text>
                       );
@@ -646,7 +671,7 @@ export default function Dashboard() {
                       <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip {...chartTooltipStyle} />
+                  <Tooltip {...chartTheme.tooltipStyle} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 mt-2 px-2">
@@ -672,13 +697,13 @@ export default function Dashboard() {
         <ChartCard title="Issues Trend">
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={issuesTrend}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(40, 15%, 90%)" vertical={false} />
-              <XAxis dataKey="week" tick={{ fontSize: 12, fill: "hsl(150, 10%, 45%)" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 12, fill: "hsl(150, 10%, 45%)" }} axisLine={false} tickLine={false} />
-              <Tooltip {...chartTooltipStyle} />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridStroke} vertical={false} />
+              <XAxis dataKey="week" tick={{ fontSize: 12, fill: chartTheme.tickFill }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 12, fill: chartTheme.tickFill }} axisLine={false} tickLine={false} />
+              <Tooltip {...chartTheme.tooltipStyle} />
               <Legend wrapperStyle={{ fontSize: "12px", paddingTop: "8px" }} />
-              <Line type="monotone" dataKey="opened" stroke="hsl(0, 65%, 50%)" strokeWidth={2.5} dot={{ r: 4, strokeWidth: 2, fill: "hsl(40, 25%, 99%)" }} activeDot={{ r: 6 }} />
-              <Line type="monotone" dataKey="resolved" stroke="hsl(140, 50%, 40%)" strokeWidth={2.5} dot={{ r: 4, strokeWidth: 2, fill: "hsl(40, 25%, 99%)" }} activeDot={{ r: 6 }} />
+              <Line type="monotone" dataKey="opened" stroke="hsl(0, 65%, 50%)" strokeWidth={2.5} dot={{ r: 4, strokeWidth: 2, fill: chartTheme.dotFill }} activeDot={{ r: 6 }} />
+              <Line type="monotone" dataKey="resolved" stroke="hsl(140, 50%, 40%)" strokeWidth={2.5} dot={{ r: 4, strokeWidth: 2, fill: chartTheme.dotFill }} activeDot={{ r: 6 }} />
             </LineChart>
           </ResponsiveContainer>
         </ChartCard>
