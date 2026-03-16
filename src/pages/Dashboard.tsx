@@ -29,6 +29,15 @@ const PIE_COLORS = [
 ];
 
 function useChartTheme() {
+  const { theme, resolvedTheme } = useTheme();
+  const [, setTick] = useState(0);
+
+  // Re-compute when theme changes (CSS vars update async)
+  useEffect(() => {
+    const timer = setTimeout(() => setTick((t) => t + 1), 50);
+    return () => clearTimeout(timer);
+  }, [theme, resolvedTheme]);
+
   const getVar = (name: string) => {
     const val = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
     return val ? `hsl(${val})` : undefined;
