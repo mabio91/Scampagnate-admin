@@ -95,6 +95,9 @@ export default function LoginPage() {
 
   return (
     <AuthPageWrapper>
+      <div className="absolute top-4 right-4">
+        <ThemeSwitcher />
+      </div>
 
       <Card className="w-full max-w-sm border-border/50 shadow-xl backdrop-blur-sm bg-card/80">
         <CardHeader className="text-center pb-2">
