@@ -12,7 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, TicketPercent, Copy, Eye } from "lucide-react";
+import { Plus, Pencil, Trash2, TicketPercent, Copy, Eye, Search, X } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import type { Tables, TablesInsert } from "@/integrations/supabase/types";
 
 type DiscountCode = Tables<"discount_codes">;
@@ -24,6 +25,7 @@ const DiscountCodesPage = () => {
   const [usageDialogOpen, setUsageDialogOpen] = useState(false);
   const [editingCode, setEditingCode] = useState<DiscountCode | null>(null);
   const [selectedCodeId, setSelectedCodeId] = useState<string | null>(null);
+  const [eventSearch, setEventSearch] = useState("");
 
   const [form, setForm] = useState({
     code: "",
@@ -54,7 +56,7 @@ const DiscountCodesPage = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("events")
-        .select("id, title")
+        .select("id, title, date, status")
         .order("date", { ascending: false });
       if (error) throw error;
       return data;
@@ -251,9 +253,25 @@ const DiscountCodesPage = () => {
                         {code.discount_type === "percentage" ? `${code.discount_value}%` : `€${code.discount_value}`}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={code.applies_to_all ? "default" : "secondary"}>
-                          {code.applies_to_all ? "All Events" : `${(code.event_ids as string[])?.length || 0} events`}
-                        </Badge>
+                        {code.applies_to_all ? (
+                          <Badge variant="default">All Events</Badge>
+                        ) : (
+                          <div className="flex flex-wrap gap-1">
+                            {((code.event_ids as string[]) || []).slice(0, 2).map((eid) => {
+                              const ev = events.find((e) => e.id === eid);
+                              return (
+                                <Badge key={eid} variant="secondary" className="text-xs truncate max-w-[120px]">
+                                  {ev?.title || "Unknown"}
+                                </Badge>
+                              );
+                            })}
+                            {((code.event_ids as string[]) || []).length > 2 && (
+                              <Badge variant="outline" className="text-xs">
+                                +{(code.event_ids as string[]).length - 2} more
+                              </Badge>
+                            )}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>
                         {code.times_used}{code.max_uses ? ` / ${code.max_uses}` : ""}
@@ -349,25 +367,62 @@ const DiscountCodesPage = () => {
             </div>
             {!form.applies_to_all && (
               <div>
-                <Label>Select Events</Label>
-                <div className="border rounded-md p-3 max-h-40 overflow-y-auto space-y-2">
-                  {events.map((ev) => (
-                    <label key={ev.id} className="flex items-center gap-2 text-sm cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={form.event_ids.includes(ev.id)}
-                        onChange={(e) => {
-                          setForm({
-                            ...form,
-                            event_ids: e.target.checked
-                              ? [...form.event_ids, ev.id]
-                              : form.event_ids.filter((id) => id !== ev.id),
-                          });
-                        }}
-                      />
-                      <span className="text-foreground">{ev.title}</span>
-                    </label>
-                  ))}
+                <Label>Select Events ({form.event_ids.length} selected)</Label>
+                {form.event_ids.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {form.event_ids.map((eid) => {
+                      const ev = events.find((e) => e.id === eid);
+                      return (
+                        <Badge key={eid} variant="secondary" className="text-xs flex items-center gap-1">
+                          {ev?.title || "Unknown"}
+                          <X
+                            className="h-3 w-3 cursor-pointer hover:text-destructive"
+                            onClick={() => setForm({ ...form, event_ids: form.event_ids.filter((id) => id !== eid) })}
+                          />
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                )}
+                <div className="relative mb-2">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search events..."
+                    value={eventSearch}
+                    onChange={(e) => setEventSearch(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+                <div className="border border-border rounded-md p-3 max-h-48 overflow-y-auto space-y-1">
+                  {events
+                    .filter((ev) => ev.title.toLowerCase().includes(eventSearch.toLowerCase()))
+                    .map((ev) => (
+                      <label
+                        key={ev.id}
+                        className="flex items-center gap-3 text-sm cursor-pointer rounded-md px-2 py-1.5 hover:bg-muted transition-colors"
+                      >
+                        <Checkbox
+                          checked={form.event_ids.includes(ev.id)}
+                          onCheckedChange={(checked) => {
+                            setForm({
+                              ...form,
+                              event_ids: checked
+                                ? [...form.event_ids, ev.id]
+                                : form.event_ids.filter((id) => id !== ev.id),
+                            });
+                          }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-foreground block truncate">{ev.title}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(ev.date).toLocaleDateString()} · {ev.status}
+                          </span>
+                        </div>
+                      </label>
+                    ))}
+                  {events.filter((ev) => ev.title.toLowerCase().includes(eventSearch.toLowerCase())).length === 0 && (
+                    <p className="text-muted-foreground text-sm text-center py-2">No events found</p>
+                  )}
                 </div>
               </div>
             )}
