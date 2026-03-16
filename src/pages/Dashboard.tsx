@@ -661,7 +661,7 @@ export default function Dashboard() {
                       <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip {...chartTooltipStyle} />
+                  <Tooltip {...chartTheme.tooltipStyle} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 mt-2 px-2">
