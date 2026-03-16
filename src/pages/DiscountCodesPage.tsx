@@ -164,6 +164,22 @@ const DiscountCodesPage = () => {
     toast({ title: "Code copied to clipboard" });
   };
 
+  const duplicateCode = (code: DiscountCode) => {
+    setEditingCode(null);
+    setForm({
+      code: code.code + "_COPY",
+      description: code.description,
+      discount_type: code.discount_type,
+      discount_value: code.discount_value,
+      applies_to_all: code.applies_to_all,
+      event_ids: (code.event_ids as string[]) || [],
+      max_uses: code.max_uses,
+      expires_at: code.expires_at ? code.expires_at.split("T")[0] : "",
+      is_active: true,
+    });
+    setDialogOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
