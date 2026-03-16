@@ -312,6 +312,9 @@ const DiscountCodesPage = () => {
                           <Button variant="ghost" size="icon" onClick={() => { setSelectedCodeId(code.id); setUsageDialogOpen(true); }}>
                             <Eye className="h-4 w-4" />
                           </Button>
+                          <Button variant="ghost" size="icon" onClick={() => duplicateCode(code)} title="Duplicate">
+                            <Copy className="h-4 w-4" />
+                          </Button>
                           <Button variant="ghost" size="icon" onClick={() => openEdit(code)}>
                             <Pencil className="h-4 w-4" />
                           </Button>
