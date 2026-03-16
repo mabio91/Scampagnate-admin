@@ -143,13 +143,14 @@ export default function UsersPage() {
 
   const deleteUser = useMutation({
     mutationFn: async (userId: string) => {
-      // Delete roles, then profile (cascade should handle, but be explicit)
-      await supabase.from("user_roles").delete().eq("user_id", userId);
-      const { error } = await supabase.from("profiles").delete().eq("id", userId);
-      if (error) throw error;
+      const res = await supabase.functions.invoke("delete-user", {
+        body: { user_id: userId },
+      });
+      if (res.error) throw new Error(res.error.message);
+      if (res.data?.error) throw new Error(res.data.error);
     },
     onSuccess: () => {
-      toast.success("User removed");
+      toast.success("User deleted successfully");
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
     },
     onError: (e: any) => toast.error(e.message),
