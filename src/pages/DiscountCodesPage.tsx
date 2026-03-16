@@ -25,6 +25,7 @@ const DiscountCodesPage = () => {
   const [usageDialogOpen, setUsageDialogOpen] = useState(false);
   const [editingCode, setEditingCode] = useState<DiscountCode | null>(null);
   const [selectedCodeId, setSelectedCodeId] = useState<string | null>(null);
+  const [eventSearch, setEventSearch] = useState("");
 
   const [form, setForm] = useState({
     code: "",
