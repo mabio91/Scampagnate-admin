@@ -36,6 +36,7 @@ export default function UsersPage() {
   const [editRole, setEditRole] = useState("user");
   const [createOpen, setCreateOpen] = useState(false);
   const [newUser, setNewUser] = useState({ email: "", password: "", first_name: "", last_name: "", phone: "", role: "user" });
+  const [confirmAction, setConfirmAction] = useState<{ type: "delete" | "ban" | "suspend"; userId: string; userName: string } | null>(null);
   const queryClient = useQueryClient();
 
   const { data: users = [], isLoading } = useQuery({
