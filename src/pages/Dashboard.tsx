@@ -616,10 +616,10 @@ export default function Dashboard() {
                   <stop offset="100%" stopColor="hsl(30, 50%, 55%)" stopOpacity={0.8} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(40, 15%, 90%)" vertical={false} />
-              <XAxis dataKey="month" tick={{ fontSize: 12, fill: "hsl(150, 10%, 45%)" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 12, fill: "hsl(150, 10%, 45%)" }} axisLine={false} tickLine={false} />
-              <Tooltip {...chartTooltipStyle} cursor={{ fill: "hsl(40, 15%, 94%)" }} />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridStroke} vertical={false} />
+              <XAxis dataKey="month" tick={{ fontSize: 12, fill: chartTheme.tickFill }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 12, fill: chartTheme.tickFill }} axisLine={false} tickLine={false} />
+              <Tooltip {...chartTheme.tooltipStyle} cursor={{ fill: chartTheme.cursorFill }} />
               <Legend wrapperStyle={{ fontSize: "12px", paddingTop: "12px" }} />
               <Bar dataKey="events" fill="url(#barEvents)" radius={[6, 6, 0, 0]} maxBarSize={32} />
               <Bar dataKey="registrations" fill="url(#barRegs)" radius={[6, 6, 0, 0]} maxBarSize={32} />
