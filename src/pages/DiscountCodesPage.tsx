@@ -56,7 +56,7 @@ const DiscountCodesPage = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("events")
-        .select("id, title")
+        .select("id, title, date, status")
         .order("date", { ascending: false });
       if (error) throw error;
       return data;
