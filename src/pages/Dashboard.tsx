@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useTheme } from "next-themes";
 import {
   Users, Building2, Calendar, AlertTriangle, Activity, ArrowUpRight, ArrowDownRight, Minus,
   TrendingUp, UserCheck, BarChart3, Clock, Repeat, UserPlus, Star, CloudSun, MapPin,
