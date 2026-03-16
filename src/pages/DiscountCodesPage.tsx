@@ -259,8 +259,8 @@ const DiscountCodesPage = () => {
                           <code className="font-mono font-bold text-foreground bg-muted px-2 py-1 rounded text-sm">
                             {code.code}
                           </code>
-                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => copyCode(code.code)}>
-                            <Copy className="h-3 w-3" />
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => copyCode(code.code)} title="Copy code">
+                            <ClipboardCopy className="h-3 w-3" />
                           </Button>
                         </div>
                       </TableCell>
