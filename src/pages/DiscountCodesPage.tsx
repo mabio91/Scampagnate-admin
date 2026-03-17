@@ -103,8 +103,11 @@ const DiscountCodesPage = () => {
         applies_to_all: values.applies_to_all,
         event_ids: values.applies_to_all ? null : values.event_ids,
         max_uses: values.max_uses,
+        starts_at: values.starts_at || null,
         expires_at: values.expires_at || null,
         is_active: values.is_active,
+        is_single_use: values.is_single_use,
+        assigned_user_id: values.assigned_user_id || null,
       };
 
       if (editingCode) {
