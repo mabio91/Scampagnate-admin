@@ -7,12 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, MoreHorizontal, Eye, Edit2, Trash2, Plus, Upload, X, ArrowUp, ArrowDown, Image as ImageIcon, Loader2 } from "lucide-react";
+import { Search, MoreHorizontal, Eye, Edit2, Trash2, Plus, Upload, X, ArrowUp, ArrowDown, Image as ImageIcon, Loader2, Shield, Lock, Star, Users, Award, Crown, CheckCircle2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -33,6 +34,16 @@ const visibilityColors: Record<string, string> = {
   hidden: "text-muted-foreground border-muted-foreground/30",
 };
 
+type AccessRules = {
+  min_trekking_events?: number | null;
+  min_activities?: number | null;
+  required_badge_id?: string | null;
+  require_active_membership?: boolean;
+  require_manual_approval?: boolean;
+  restriction_message?: string;
+  exclusivity_tags?: string[];
+};
+
 const emptyEvent = {
   title: "", description: "", location: "", date: "", time: "09:00",
   spots_total: 20, price: 0, payment_type: "free" as const,
@@ -40,7 +51,15 @@ const emptyEvent = {
   organizer_name: "", category_id: null as string | null,
   image_url: "" as string,
   gallery_images: [] as string[],
+  access_rules: null as AccessRules | null,
 };
+
+const EXCLUSIVITY_TAGS = [
+  { value: "limited_spots", label: "Limited spots available", icon: Users },
+  { value: "exclusive", label: "Exclusive event", icon: Crown },
+  { value: "members_only", label: "Members-only experience", icon: Lock },
+  { value: "community_priority", label: "Community priority access", icon: Star },
+];
 
 export default function EventsPage() {
   const [search, setSearch] = useState("");
@@ -68,6 +87,44 @@ export default function EventsPage() {
       return data || [];
     },
   });
+
+  const { data: badges = [] } = useQuery({
+    queryKey: ["admin-badges-list"],
+    queryFn: async () => {
+      const { data } = await supabase.from("badges").select("id, name, icon");
+      return data || [];
+    },
+  });
+
+  const getAccessRules = (event: Partial<Event> | null): AccessRules => {
+    if (!event?.access_rules) return {};
+    return event.access_rules as AccessRules;
+  };
+
+  const updateAccessRules = (patch: Partial<AccessRules>) => {
+    if (!editEvent) return;
+    const current = getAccessRules(editEvent);
+    setEditEvent({ ...editEvent, access_rules: { ...current, ...patch } });
+  };
+
+  const toggleExclusivityTag = (tag: string) => {
+    const current = getAccessRules(editEvent);
+    const tags = current.exclusivity_tags || [];
+    const updated = tags.includes(tag) ? tags.filter(t => t !== tag) : [...tags, tag];
+    updateAccessRules({ exclusivity_tags: updated });
+  };
+
+  const hasAnyAccessRule = (event: Partial<Event> | null): boolean => {
+    const rules = getAccessRules(event);
+    return !!(
+      rules.min_trekking_events ||
+      rules.min_activities ||
+      rules.required_badge_id ||
+      rules.require_active_membership ||
+      rules.require_manual_approval ||
+      (rules.exclusivity_tags && rules.exclusivity_tags.length > 0)
+    );
+  };
 
   const { data: registrations = [] } = useQuery({
     queryKey: ["event-registrations", viewEvent?.id],
@@ -226,7 +283,10 @@ export default function EventsPage() {
               <TableBody>
                 {filtered.map((event) => (
                   <TableRow key={event.id}>
-                    <TableCell className="font-medium">{event.title}</TableCell>
+                    <TableCell className="font-medium flex items-center gap-1.5">
+                      {hasAnyAccessRule(event) && <Shield className="h-3.5 w-3.5 text-primary shrink-0" />}
+                      {event.title}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">{event.organizer_name}</TableCell>
                     <TableCell><Badge variant="secondary">{getCategoryName(event.category_id)}</Badge></TableCell>
                     <TableCell className="text-muted-foreground">{event.date}</TableCell>
@@ -276,6 +336,33 @@ export default function EventsPage() {
               <p><strong>Status:</strong> {viewEvent.status}</p>
               <p><strong>Visibility:</strong> {viewEvent.visibility}</p>
               <p><strong>Description:</strong> {viewEvent.description || "—"}</p>
+
+              {hasAnyAccessRule(viewEvent) && (
+                <div className="space-y-2 pt-2 border-t">
+                  <p className="font-semibold flex items-center gap-1.5"><Shield className="h-4 w-4 text-primary" /> Access Rules</p>
+                  {(() => {
+                    const rules = getAccessRules(viewEvent);
+                    return (
+                      <div className="space-y-1 text-xs">
+                        {rules.require_active_membership && <p>• Active membership required</p>}
+                        {rules.require_manual_approval && <p>• Manual approval required</p>}
+                        {rules.min_trekking_events && <p>• Min. {rules.min_trekking_events} trekking events</p>}
+                        {rules.min_activities && <p>• Min. {rules.min_activities} total activities</p>}
+                        {rules.required_badge_id && <p>• Specific badge required</p>}
+                        {rules.restriction_message && <p className="italic text-muted-foreground mt-1">"{rules.restriction_message}"</p>}
+                        {rules.exclusivity_tags && rules.exclusivity_tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {rules.exclusivity_tags.map(tag => {
+                              const tagInfo = EXCLUSIVITY_TAGS.find(t => t.value === tag);
+                              return tagInfo ? <Badge key={tag} variant="secondary" className="text-[10px]">{tagInfo.label}</Badge> : null;
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
 
               <div className="space-y-4 pt-4">
                 <p><strong>Cover Image:</strong></p>
@@ -430,6 +517,139 @@ export default function EventsPage() {
                 </Select>
               </div>
               <div><Label>Description</Label><Textarea value={editEvent.description || ""} onChange={(e) => setEditEvent({ ...editEvent, description: e.target.value })} rows={3} /></div>
+
+              {/* Access Rules Section */}
+              <Separator />
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-primary" />
+                  <h4 className="text-sm font-semibold">Access Rules & Restrictions</h4>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Define who can register for this event. Leave all unchecked for open access.
+                </p>
+
+                {/* Require active membership */}
+                <div className="flex items-center gap-3 p-3 rounded-lg border bg-card">
+                  <Checkbox
+                    id="require-membership"
+                    checked={getAccessRules(editEvent).require_active_membership || false}
+                    onCheckedChange={(v) => updateAccessRules({ require_active_membership: !!v })}
+                  />
+                  <div className="flex-1">
+                    <label htmlFor="require-membership" className="text-sm font-medium cursor-pointer flex items-center gap-2">
+                      <Award className="h-4 w-4 text-primary" /> Require active membership
+                    </label>
+                    <p className="text-xs text-muted-foreground">Only users with an active membership can register.</p>
+                  </div>
+                </div>
+
+                {/* Require manual approval */}
+                <div className="flex items-center gap-3 p-3 rounded-lg border bg-card">
+                  <Checkbox
+                    id="require-approval"
+                    checked={getAccessRules(editEvent).require_manual_approval || false}
+                    onCheckedChange={(v) => updateAccessRules({ require_manual_approval: !!v })}
+                  />
+                  <div className="flex-1">
+                    <label htmlFor="require-approval" className="text-sm font-medium cursor-pointer flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-primary" /> Require manual approval
+                    </label>
+                    <p className="text-xs text-muted-foreground">Registrations need admin/organizer approval before confirmation.</p>
+                  </div>
+                </div>
+
+                {/* Min trekking events */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-xs">Min. trekking events completed</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder="No minimum"
+                      value={getAccessRules(editEvent).min_trekking_events ?? ""}
+                      onChange={(e) => updateAccessRules({ min_trekking_events: e.target.value ? parseInt(e.target.value) : null })}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Min. total activities completed</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder="No minimum"
+                      value={getAccessRules(editEvent).min_activities ?? ""}
+                      onChange={(e) => updateAccessRules({ min_activities: e.target.value ? parseInt(e.target.value) : null })}
+                    />
+                  </div>
+                </div>
+
+                {/* Required badge */}
+                <div>
+                  <Label className="text-xs">Required badge</Label>
+                  <Select
+                    value={getAccessRules(editEvent).required_badge_id || "none"}
+                    onValueChange={(v) => updateAccessRules({ required_badge_id: v === "none" ? null : v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="No badge required" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No badge required</SelectItem>
+                      {badges.map((b) => (
+                        <SelectItem key={b.id} value={b.id}>
+                          {b.icon} {b.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Custom restriction message */}
+                <div>
+                  <Label className="text-xs">Custom restriction message</Label>
+                  <Textarea
+                    value={getAccessRules(editEvent).restriction_message || ""}
+                    onChange={(e) => updateAccessRules({ restriction_message: e.target.value || undefined })}
+                    rows={2}
+                    placeholder='e.g. "This event is reserved for users who have participated in at least two trekking activities."'
+                  />
+                </div>
+
+                {/* Exclusivity / scarcity tags */}
+                <div>
+                  <Label className="text-xs mb-2 block">Exclusivity & scarcity indicators</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {EXCLUSIVITY_TAGS.map((tag) => {
+                      const TagIcon = tag.icon;
+                      const selected = (getAccessRules(editEvent).exclusivity_tags || []).includes(tag.value);
+                      return (
+                        <button
+                          key={tag.value}
+                          type="button"
+                          onClick={() => toggleExclusivityTag(tag.value)}
+                          className={`flex items-center gap-2 p-2.5 rounded-lg border text-xs text-left transition-colors ${
+                            selected
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-border bg-card text-muted-foreground hover:border-primary/50"
+                          }`}
+                        >
+                          <TagIcon className="h-3.5 w-3.5 shrink-0" />
+                          {tag.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {hasAnyAccessRule(editEvent) && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-accent/50 border border-accent">
+                    <Shield className="h-4 w-4 text-primary shrink-0" />
+                    <p className="text-xs text-accent-foreground">
+                      This event has access restrictions. Users who don't meet the requirements will see a restriction message.
+                    </p>
+                  </div>
+                )}
+              </div>
 
               <div className="space-y-4 pt-2 border-t mt-4">
                 <h3 className="font-semibold text-sm">Media Settings</h3>
