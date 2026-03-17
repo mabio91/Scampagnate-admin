@@ -81,6 +81,25 @@ const EXCLUSIVITY_TAGS = [
   { value: "community_priority", label: "Community priority access", icon: Star },
 ];
 
+const DETAIL_VISIBILITY_OPTIONS = [
+  { value: "everyone", label: "Everyone can see details" },
+  { value: "registered_only", label: "Only registered users" },
+  { value: "eligible_only", label: "Only eligible users" },
+];
+
+const REGISTRATION_RULE_OPTIONS = [
+  { value: "open", label: "Open to all" },
+  { value: "eligible_only", label: "Only eligible users" },
+  { value: "invite_only", label: "Invite only" },
+];
+
+const USER_GROUP_OPTIONS = [
+  { value: "early_supporters", label: "Early Supporters" },
+  { value: "active_members", label: "Active Members" },
+  { value: "veteran_hikers", label: "Veteran Hikers" },
+  { value: "organizers", label: "Organizers" },
+];
+
 export default function EventsPage() {
   const [search, setSearch] = useState("");
   const [viewEvent, setViewEvent] = useState<EventWithCategory | null>(null);
