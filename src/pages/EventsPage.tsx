@@ -503,277 +503,250 @@ export default function EventsPage() {
                 <div><Label>Deposit (€)</Label><Input type="number" step="0.01" value={editEvent.deposit ?? ""} onChange={(e) => setEditEvent({ ...editEvent, deposit: e.target.value ? parseFloat(e.target.value) : null })} placeholder="Optional" /></div>
               </div>
 
-              {/* Dynamic Pricing Rules */}
-              {(editEvent.payment_type === "paid" || editEvent.payment_type === "deposit") && (
-                <div className="space-y-3 p-3 rounded-lg border border-dashed border-primary/30 bg-primary/5">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Tag className="h-4 w-4 text-primary" />
-                      <h4 className="text-sm font-semibold">Dynamic Pricing Rules</h4>
-                    </div>
-                    <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={addPricingRule}>
-                      <Plus className="h-3 w-3 mr-1" /> Add Rule
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Define reserved prices for eligible users. Standard price: <strong>€{editEvent.price ?? 0}</strong>
-                  </p>
-
-                  {getPricingRules(editEvent).length === 0 && (
-                    <p className="text-xs text-muted-foreground italic text-center py-2">No pricing rules. All users see the standard price.</p>
-                  )}
-
-                  {getPricingRules(editEvent).map((rule) => (
-                    <div key={rule.id} className="space-y-2 p-3 rounded-md border bg-card">
-                      <div className="flex items-center gap-2">
-                        <DollarSign className="h-3.5 w-3.5 text-primary shrink-0" />
-                        <Input
-                          className="h-8 text-sm"
-                          placeholder="Rule name (e.g. Member Price)"
-                          value={rule.name}
-                          onChange={(e) => updatePricingRule(rule.id, { name: e.target.value })}
-                        />
-                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive" onClick={() => removePricingRule(rule.id)}>
-                          <X className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div>
-                          <Label className="text-[10px]">Reserved Price (€)</Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min={0}
-                            className="h-8 text-sm"
-                            value={rule.price ?? ""}
-                            onChange={(e) => updatePricingRule(rule.id, { price: parseFloat(e.target.value) || 0 })}
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-[10px]">Condition</Label>
-                          <Select value={rule.condition} onValueChange={(v) => updatePricingRule(rule.id, { condition: v as any, condition_value: null })}>
-                            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {PRICING_CONDITIONS.map((c) => (
-                                <SelectItem key={c.value} value={c.value} className="text-xs">{c.label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          {rule.condition === "has_badge" && (
-                            <>
-                              <Label className="text-[10px]">Badge</Label>
-                              <Select value={rule.condition_value as string || "none"} onValueChange={(v) => updatePricingRule(rule.id, { condition_value: v === "none" ? null : v })}>
-                                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="none">Select badge</SelectItem>
-                                  {badges.map((b) => (
-                                    <SelectItem key={b.id} value={b.id} className="text-xs">{b.icon} {b.name}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </>
-                          )}
-                          {rule.condition === "min_events" && (
-                            <>
-                              <Label className="text-[10px]">Min. Events</Label>
-                              <Input
-                                type="number"
-                                min={1}
-                                className="h-8 text-sm"
-                                value={rule.condition_value as number ?? ""}
-                                onChange={(e) => updatePricingRule(rule.id, { condition_value: parseInt(e.target.value) || null })}
-                              />
-                            </>
-                          )}
-                          {!["has_badge", "min_events"].includes(rule.condition) && (
-                            <p className="text-[10px] text-muted-foreground pt-5">No extra config needed</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <Label>Status</Label>
-                  <Select value={editEvent.status || "available"} onValueChange={(v) => setEditEvent({ ...editEvent, status: v as any })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="available">Available</SelectItem>
-                      <SelectItem value="full">Full</SelectItem>
-                      <SelectItem value="closed">Closed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Category</Label>
-                  <Select value={editEvent.category_id || "none"} onValueChange={(v) => setEditEvent({ ...editEvent, category_id: v === "none" ? null : v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      {categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Payment Type</Label>
-                  <Select value={editEvent.payment_type || "free"} onValueChange={(v) => setEditEvent({ ...editEvent, payment_type: v as any })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="free">Free</SelectItem>
-                      <SelectItem value="paid">Paid</SelectItem>
-                      <SelectItem value="deposit">Deposit</SelectItem>
-                      <SelectItem value="location">Pay at location</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* Trail Details */}
-              <Separator />
-              <h4 className="text-sm font-semibold">Trail Details (optional)</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Difficulty</Label>
-                  <Select value={editEvent.difficulty || "none"} onValueChange={(v) => setEditEvent({ ...editEvent, difficulty: v === "none" ? null : v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      <SelectItem value="facile">Facile</SelectItem>
-                      <SelectItem value="moderato">Moderato</SelectItem>
-                      <SelectItem value="impegnativo">Impegnativo</SelectItem>
-                      <SelectItem value="esperto">Esperto</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div><Label>Duration</Label><Input value={editEvent.duration || ""} onChange={(e) => setEditEvent({ ...editEvent, duration: e.target.value || null })} placeholder="e.g. 3h" /></div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div><Label>Distance</Label><Input value={editEvent.distance || ""} onChange={(e) => setEditEvent({ ...editEvent, distance: e.target.value || null })} placeholder="e.g. 12 km" /></div>
-                <div><Label>Elevation</Label><Input value={editEvent.elevation || ""} onChange={(e) => setEditEvent({ ...editEvent, elevation: e.target.value || null })} placeholder="e.g. 500 m" /></div>
-              </div>
-
-              {/* Featured */}
-              <div className="flex items-center justify-between">
-                <Label>Featured Event</Label>
-                <Switch checked={editEvent.featured || false} onCheckedChange={(v) => setEditEvent({ ...editEvent, featured: v })} />
-              </div>
-
-              {/* Description */}
-              <div>
-                <Label>Description</Label>
-                <Textarea value={editEvent.description || ""} onChange={(e) => setEditEvent({ ...editEvent, description: e.target.value })} rows={4} />
-              </div>
-
-              {/* Cancellation Policy */}
-              <div>
-                <Label>Cancellation Policy</Label>
-                <Textarea value={editEvent.cancellation_policy || ""} onChange={(e) => setEditEvent({ ...editEvent, cancellation_policy: e.target.value || null })} rows={2} placeholder="Optional" />
-              </div>
-              <div>
-                <Label>Visibility</Label>
-                <Select value={editEvent.visibility || "public"} onValueChange={(v) => setEditEvent({ ...editEvent, visibility: v as any })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="public">Public</SelectItem>
-                    <SelectItem value="private">Private</SelectItem>
-                    <SelectItem value="hidden">Hidden</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div><Label>Description</Label><Textarea value={editEvent.description || ""} onChange={(e) => setEditEvent({ ...editEvent, description: e.target.value })} rows={3} /></div>
-
-              {/* Access Rules Section */}
+              {/* ═══ Access & Pricing Rules ═══ */}
               <Separator />
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <Shield className="h-4 w-4 text-primary" />
-                  <h4 className="text-sm font-semibold">Access Rules & Restrictions</h4>
+                  <h4 className="text-sm font-semibold">Access & Pricing Rules</h4>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Define who can register for this event. Leave all unchecked for open access.
+                  Configure who can see the event, who can access details, who can register, and which price they see.
                 </p>
 
-                {/* Require active membership */}
-                <div className="flex items-center gap-3 p-3 rounded-lg border bg-card">
-                  <Checkbox
-                    id="require-membership"
-                    checked={getAccessRules(editEvent).require_active_membership || false}
-                    onCheckedChange={(v) => updateAccessRules({ require_active_membership: !!v })}
-                  />
-                  <div className="flex-1">
-                    <label htmlFor="require-membership" className="text-sm font-medium cursor-pointer flex items-center gap-2">
-                      <Award className="h-4 w-4 text-primary" /> Require active membership
-                    </label>
-                    <p className="text-xs text-muted-foreground">Only users with an active membership can register.</p>
-                  </div>
-                </div>
-
-                {/* Require manual approval */}
-                <div className="flex items-center gap-3 p-3 rounded-lg border bg-card">
-                  <Checkbox
-                    id="require-approval"
-                    checked={getAccessRules(editEvent).require_manual_approval || false}
-                    onCheckedChange={(v) => updateAccessRules({ require_manual_approval: !!v })}
-                  />
-                  <div className="flex-1">
-                    <label htmlFor="require-approval" className="text-sm font-medium cursor-pointer flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-primary" /> Require manual approval
-                    </label>
-                    <p className="text-xs text-muted-foreground">Registrations need admin/organizer approval before confirmation.</p>
-                  </div>
-                </div>
-
-                {/* Min trekking events */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-xs">Min. trekking events completed</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      placeholder="No minimum"
-                      value={getAccessRules(editEvent).min_trekking_events ?? ""}
-                      onChange={(e) => updateAccessRules({ min_trekking_events: e.target.value ? parseInt(e.target.value) : null })}
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Min. total activities completed</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      placeholder="No minimum"
-                      value={getAccessRules(editEvent).min_activities ?? ""}
-                      onChange={(e) => updateAccessRules({ min_activities: e.target.value ? parseInt(e.target.value) : null })}
-                    />
-                  </div>
-                </div>
-
-                {/* Required badge */}
-                <div>
-                  <Label className="text-xs">Required badge</Label>
-                  <Select
-                    value={getAccessRules(editEvent).required_badge_id || "none"}
-                    onValueChange={(v) => updateAccessRules({ required_badge_id: v === "none" ? null : v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="No badge required" />
-                    </SelectTrigger>
+                {/* ── Visibility ── */}
+                <div className="space-y-2 p-3 rounded-lg border bg-card">
+                  <Label className="text-xs font-semibold flex items-center gap-1.5"><Eye className="h-3.5 w-3.5 text-primary" /> Event Visibility</Label>
+                  <Select value={editEvent.visibility || "public"} onValueChange={(v) => setEditEvent({ ...editEvent, visibility: v as any })}>
+                    <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">No badge required</SelectItem>
-                      {badges.map((b) => (
-                        <SelectItem key={b.id} value={b.id}>
-                          {b.icon} {b.name}
-                        </SelectItem>
+                      <SelectItem value="public">Public — visible to everyone</SelectItem>
+                      <SelectItem value="private">Private — visible only to eligible users</SelectItem>
+                      <SelectItem value="hidden">Hidden — accessible only via direct link</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* ── Detail Visibility ── */}
+                <div className="space-y-2 p-3 rounded-lg border bg-card">
+                  <Label className="text-xs font-semibold">Who can see event details?</Label>
+                  <Select value={getAccessRules(editEvent).detail_visibility || "everyone"} onValueChange={(v) => updateAccessRules({ detail_visibility: v as any })}>
+                    <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {DETAIL_VISIBILITY_OPTIONS.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[10px] text-muted-foreground">Controls whether non-eligible users can view the full event page or just a teaser.</p>
+                </div>
+
+                {/* ── Registration Rule ── */}
+                <div className="space-y-2 p-3 rounded-lg border bg-card">
+                  <Label className="text-xs font-semibold">Who can register?</Label>
+                  <Select value={getAccessRules(editEvent).registration_rule || "open"} onValueChange={(v) => updateAccessRules({ registration_rule: v as any })}>
+                    <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {REGISTRATION_RULE_OPTIONS.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
 
-                {/* Custom restriction message */}
+                {/* ── Eligibility Requirements ── */}
+                <div className="space-y-3 p-3 rounded-lg border border-dashed border-primary/20">
+                  <Label className="text-xs font-semibold flex items-center gap-1.5"><Lock className="h-3.5 w-3.5 text-primary" /> Eligibility Requirements</Label>
+                  <p className="text-[10px] text-muted-foreground">Leave all unchecked for open access.</p>
+
+                  <div className="flex items-center gap-3 p-2.5 rounded-md border bg-card">
+                    <Checkbox
+                      id="require-membership"
+                      checked={getAccessRules(editEvent).require_active_membership || false}
+                      onCheckedChange={(v) => updateAccessRules({ require_active_membership: !!v })}
+                    />
+                    <div className="flex-1">
+                      <label htmlFor="require-membership" className="text-xs font-medium cursor-pointer flex items-center gap-1.5">
+                        <Award className="h-3.5 w-3.5 text-primary" /> Require active membership
+                      </label>
+                      <p className="text-[10px] text-muted-foreground">Only users with an active membership can register.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 p-2.5 rounded-md border bg-card">
+                    <Checkbox
+                      id="require-approval"
+                      checked={getAccessRules(editEvent).require_manual_approval || false}
+                      onCheckedChange={(v) => updateAccessRules({ require_manual_approval: !!v })}
+                    />
+                    <div className="flex-1">
+                      <label htmlFor="require-approval" className="text-xs font-medium cursor-pointer flex items-center gap-1.5">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Require manual approval
+                      </label>
+                      <p className="text-[10px] text-muted-foreground">Registrations need admin/organizer approval.</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-[10px]">Min. trekking events</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        className="h-8 text-sm"
+                        placeholder="No minimum"
+                        value={getAccessRules(editEvent).min_trekking_events ?? ""}
+                        onChange={(e) => updateAccessRules({ min_trekking_events: e.target.value ? parseInt(e.target.value) : null })}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-[10px]">Min. total activities</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        className="h-8 text-sm"
+                        placeholder="No minimum"
+                        value={getAccessRules(editEvent).min_activities ?? ""}
+                        onChange={(e) => updateAccessRules({ min_activities: e.target.value ? parseInt(e.target.value) : null })}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-[10px]">Required badge</Label>
+                    <Select
+                      value={getAccessRules(editEvent).required_badge_id || "none"}
+                      onValueChange={(v) => updateAccessRules({ required_badge_id: v === "none" ? null : v })}
+                    >
+                      <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="No badge required" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No badge required</SelectItem>
+                        {badges.map((b) => (
+                          <SelectItem key={b.id} value={b.id}>{b.icon} {b.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Allowed user groups */}
+                  <div>
+                    <Label className="text-[10px] mb-1.5 block">Restrict to specific user groups</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {USER_GROUP_OPTIONS.map((group) => {
+                        const selected = (getAccessRules(editEvent).allowed_user_groups || []).includes(group.value);
+                        return (
+                          <div key={group.value} className="flex items-center gap-2">
+                            <Checkbox
+                              checked={selected}
+                              onCheckedChange={(v) => {
+                                const current = getAccessRules(editEvent).allowed_user_groups || [];
+                                const updated = v ? [...current, group.value] : current.filter(g => g !== group.value);
+                                updateAccessRules({ allowed_user_groups: updated.length > 0 ? updated : undefined });
+                              }}
+                            />
+                            <span className="text-xs">{group.label}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-1">Leave unchecked for no group restriction.</p>
+                  </div>
+                </div>
+
+                {/* ── Dynamic Pricing ── */}
+                {(editEvent.payment_type === "paid" || editEvent.payment_type === "deposit") && (
+                  <div className="space-y-3 p-3 rounded-lg border border-dashed border-primary/30 bg-primary/5">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-semibold flex items-center gap-1.5">
+                        <Tag className="h-3.5 w-3.5 text-primary" /> Dynamic Pricing Rules
+                      </Label>
+                      <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={addPricingRule}>
+                        <Plus className="h-3 w-3 mr-1" /> Add Rule
+                      </Button>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      Standard price: <strong>€{editEvent.price ?? 0}</strong>. Define reserved prices for eligible users.
+                    </p>
+
+                    {getPricingRules(editEvent).length === 0 && (
+                      <p className="text-xs text-muted-foreground italic text-center py-2">No pricing rules. All users see the standard price.</p>
+                    )}
+
+                    {getPricingRules(editEvent).map((rule) => (
+                      <div key={rule.id} className="space-y-2 p-3 rounded-md border bg-card">
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="h-3.5 w-3.5 text-primary shrink-0" />
+                          <Input
+                            className="h-8 text-sm"
+                            placeholder="Rule name (e.g. Member Price)"
+                            value={rule.name}
+                            onChange={(e) => updatePricingRule(rule.id, { name: e.target.value })}
+                          />
+                          <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive" onClick={() => removePricingRule(rule.id)}>
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div>
+                            <Label className="text-[10px]">Reserved Price (€)</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min={0}
+                              className="h-8 text-sm"
+                              value={rule.price ?? ""}
+                              onChange={(e) => updatePricingRule(rule.id, { price: parseFloat(e.target.value) || 0 })}
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-[10px]">Condition</Label>
+                            <Select value={rule.condition} onValueChange={(v) => updatePricingRule(rule.id, { condition: v as any, condition_value: null })}>
+                              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {PRICING_CONDITIONS.map((c) => (
+                                  <SelectItem key={c.value} value={c.value} className="text-xs">{c.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            {rule.condition === "has_badge" && (
+                              <>
+                                <Label className="text-[10px]">Badge</Label>
+                                <Select value={rule.condition_value as string || "none"} onValueChange={(v) => updatePricingRule(rule.id, { condition_value: v === "none" ? null : v })}>
+                                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="none">Select badge</SelectItem>
+                                    {badges.map((b) => (
+                                      <SelectItem key={b.id} value={b.id} className="text-xs">{b.icon} {b.name}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </>
+                            )}
+                            {rule.condition === "min_events" && (
+                              <>
+                                <Label className="text-[10px]">Min. Events</Label>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  className="h-8 text-sm"
+                                  value={rule.condition_value as number ?? ""}
+                                  onChange={(e) => updatePricingRule(rule.id, { condition_value: parseInt(e.target.value) || null })}
+                                />
+                              </>
+                            )}
+                            {!["has_badge", "min_events"].includes(rule.condition) && (
+                              <p className="text-[10px] text-muted-foreground pt-5">No extra config needed</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* ── Custom restriction message ── */}
                 <div>
                   <Label className="text-xs">Custom restriction message</Label>
                   <Textarea
@@ -784,7 +757,7 @@ export default function EventsPage() {
                   />
                 </div>
 
-                {/* Exclusivity / scarcity tags */}
+                {/* ── Exclusivity / scarcity tags ── */}
                 <div>
                   <Label className="text-xs mb-2 block">Exclusivity & scarcity indicators</Label>
                   <div className="grid grid-cols-2 gap-2">
