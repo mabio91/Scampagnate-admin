@@ -413,31 +413,51 @@ export default function EventsPage() {
               <p><strong>Visibility:</strong> {viewEvent.visibility}</p>
               <p><strong>Description:</strong> {viewEvent.description || "—"}</p>
 
-              {hasAnyAccessRule(viewEvent) && (
-                <div className="space-y-2 pt-2 border-t">
-                  <p className="font-semibold flex items-center gap-1.5"><Shield className="h-4 w-4 text-primary" /> Access Rules</p>
-                  {(() => {
-                    const rules = getAccessRules(viewEvent);
-                    return (
-                      <div className="space-y-1 text-xs">
-                        {rules.require_active_membership && <p>• Active membership required</p>}
-                        {rules.require_manual_approval && <p>• Manual approval required</p>}
-                        {rules.min_trekking_events && <p>• Min. {rules.min_trekking_events} trekking events</p>}
-                        {rules.min_activities && <p>• Min. {rules.min_activities} total activities</p>}
-                        {rules.required_badge_id && <p>• Specific badge required</p>}
-                        {rules.restriction_message && <p className="italic text-muted-foreground mt-1">"{rules.restriction_message}"</p>}
-                        {rules.exclusivity_tags && rules.exclusivity_tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {rules.exclusivity_tags.map(tag => {
-                              const tagInfo = EXCLUSIVITY_TAGS.find(t => t.value === tag);
-                              return tagInfo ? <Badge key={tag} variant="secondary" className="text-[10px]">{tagInfo.label}</Badge> : null;
-                            })}
-                          </div>
-                        )}
+              {(() => {
+                const rules = getAccessRules(viewEvent);
+                const hasRules = hasAnyAccessRule(viewEvent) || rules.detail_visibility || rules.registration_rule || (rules.allowed_user_groups && rules.allowed_user_groups.length > 0) || (rules.pricing_rules && rules.pricing_rules.length > 0);
+                if (!hasRules) return null;
+                return (
+                  <div className="space-y-2 pt-2 border-t">
+                    <p className="font-semibold flex items-center gap-1.5"><Shield className="h-4 w-4 text-primary" /> Access & Pricing Rules</p>
+                    <div className="space-y-1 text-xs">
+                      {rules.detail_visibility && rules.detail_visibility !== "everyone" && (
+                        <p>• Details visible to: {DETAIL_VISIBILITY_OPTIONS.find(o => o.value === rules.detail_visibility)?.label}</p>
+                      )}
+                      {rules.registration_rule && rules.registration_rule !== "open" && (
+                        <p>• Registration: {REGISTRATION_RULE_OPTIONS.find(o => o.value === rules.registration_rule)?.label}</p>
+                      )}
+                      {rules.require_active_membership && <p>• Active membership required</p>}
+                      {rules.require_manual_approval && <p>• Manual approval required</p>}
+                      {rules.min_trekking_events && <p>• Min. {rules.min_trekking_events} trekking events</p>}
+                      {rules.min_activities && <p>• Min. {rules.min_activities} total activities</p>}
+                      {rules.required_badge_id && <p>• Specific badge required</p>}
+                      {rules.allowed_user_groups && rules.allowed_user_groups.length > 0 && (
+                        <p>• Restricted to groups: {rules.allowed_user_groups.map(g => USER_GROUP_OPTIONS.find(o => o.value === g)?.label || g).join(", ")}</p>
+                      )}
+                      {rules.restriction_message && <p className="italic text-muted-foreground mt-1">"{rules.restriction_message}"</p>}
+                      {rules.exclusivity_tags && rules.exclusivity_tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {rules.exclusivity_tags.map(tag => {
+                            const tagInfo = EXCLUSIVITY_TAGS.find(t => t.value === tag);
+                            return tagInfo ? <Badge key={tag} variant="secondary" className="text-[10px]">{tagInfo.label}</Badge> : null;
+                          })}
+                        </div>
+                      )}
+                    </div>
+                    {getPricingRules(viewEvent).length > 0 && (
+                      <div className="space-y-1.5 pl-2 border-l-2 border-primary/30 mt-2">
+                        <p className="text-xs font-semibold flex items-center gap-1"><Tag className="h-3 w-3 text-primary" /> Dynamic Pricing</p>
+                        {getPricingRules(viewEvent).map((rule) => (
+                          <p key={rule.id} className="text-xs text-muted-foreground">
+                            • <strong>{rule.name || "Unnamed"}</strong>: €{rule.price} — {PRICING_CONDITIONS.find(c => c.value === rule.condition)?.label}
+                          </p>
+                        ))}
                       </div>
-                    );
-                  })()}
-                </div>
+                    )}
+                  </div>
+                );
+              })()}
               )}
 
               <div className="space-y-4 pt-4">
