@@ -292,6 +292,8 @@ const DiscountCodesPage = () => {
                             <ClipboardCopy className="h-3 w-3" />
                           </Button>
                         </div>
+                        {code.is_single_use && <Badge variant="outline" className="text-xs">Single-use</Badge>}
+                        {code.assigned_user_id && <Badge variant="outline" className="text-xs"><User className="h-3 w-3 mr-1" />Personal</Badge>}
                       </TableCell>
                       <TableCell className="text-muted-foreground max-w-[200px] truncate">{code.description}</TableCell>
                       <TableCell className="font-semibold text-foreground">
