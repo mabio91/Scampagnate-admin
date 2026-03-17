@@ -12,7 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, TicketPercent, Copy, ClipboardCopy, Eye, Search, X } from "lucide-react";
+import { Plus, Pencil, Trash2, TicketPercent, Copy, ClipboardCopy, Eye, Search, X, User } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { Tables, TablesInsert } from "@/integrations/supabase/types";
 
@@ -26,6 +27,7 @@ const DiscountCodesPage = () => {
   const [editingCode, setEditingCode] = useState<DiscountCode | null>(null);
   const [selectedCodeId, setSelectedCodeId] = useState<string | null>(null);
   const [eventSearch, setEventSearch] = useState("");
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     code: "",
@@ -35,8 +37,11 @@ const DiscountCodesPage = () => {
     applies_to_all: true,
     event_ids: [] as string[],
     max_uses: null as number | null,
+    starts_at: "",
     expires_at: "",
     is_active: true,
+    is_single_use: false,
+    assigned_user_id: "" as string,
   });
 
   const { data: codes = [], isLoading } = useQuery({
@@ -58,6 +63,18 @@ const DiscountCodesPage = () => {
         .from("events")
         .select("id, title, date, status")
         .order("date", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: profiles = [] } = useQuery({
+    queryKey: ["profiles-for-discount"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, first_name, last_name, email")
+        .order("first_name");
       if (error) throw error;
       return data;
     },
@@ -86,8 +103,11 @@ const DiscountCodesPage = () => {
         applies_to_all: values.applies_to_all,
         event_ids: values.applies_to_all ? null : values.event_ids,
         max_uses: values.max_uses,
+        starts_at: values.starts_at || null,
         expires_at: values.expires_at || null,
         is_active: values.is_active,
+        is_single_use: values.is_single_use,
+        assigned_user_id: values.assigned_user_id || null,
       };
 
       if (editingCode) {
@@ -134,13 +154,16 @@ const DiscountCodesPage = () => {
     },
   });
 
+  const defaultForm = {
+    code: "", description: "", discount_type: "percentage" as string, discount_value: 0,
+    applies_to_all: true, event_ids: [] as string[], max_uses: null as number | null,
+    starts_at: "", expires_at: "", is_active: true, is_single_use: false, assigned_user_id: "",
+  };
+
   const closeDialog = () => {
     setDialogOpen(false);
     setEditingCode(null);
-    setForm({
-      code: "", description: "", discount_type: "percentage", discount_value: 0,
-      applies_to_all: true, event_ids: [], max_uses: null, expires_at: "", is_active: true,
-    });
+    setForm({ ...defaultForm });
   };
 
   const openEdit = (code: DiscountCode) => {
@@ -153,8 +176,11 @@ const DiscountCodesPage = () => {
       applies_to_all: code.applies_to_all,
       event_ids: (code.event_ids as string[]) || [],
       max_uses: code.max_uses,
+      starts_at: code.starts_at ? code.starts_at.split("T")[0] : "",
       expires_at: code.expires_at ? code.expires_at.split("T")[0] : "",
       is_active: code.is_active,
+      is_single_use: code.is_single_use,
+      assigned_user_id: code.assigned_user_id || "",
     });
     setDialogOpen(true);
   };
@@ -174,8 +200,11 @@ const DiscountCodesPage = () => {
       applies_to_all: code.applies_to_all,
       event_ids: (code.event_ids as string[]) || [],
       max_uses: code.max_uses,
+      starts_at: code.starts_at ? code.starts_at.split("T")[0] : "",
       expires_at: code.expires_at ? code.expires_at.split("T")[0] : "",
       is_active: true,
+      is_single_use: code.is_single_use,
+      assigned_user_id: code.assigned_user_id || "",
     });
     setDialogOpen(true);
   };
@@ -263,6 +292,8 @@ const DiscountCodesPage = () => {
                             <ClipboardCopy className="h-3 w-3" />
                           </Button>
                         </div>
+                        {code.is_single_use && <Badge variant="outline" className="text-xs">Single-use</Badge>}
+                        {code.assigned_user_id && <Badge variant="outline" className="text-xs"><User className="h-3 w-3 mr-1" />Personal</Badge>}
                       </TableCell>
                       <TableCell className="text-muted-foreground max-w-[200px] truncate">{code.description}</TableCell>
                       <TableCell className="font-semibold text-foreground">
@@ -318,7 +349,7 @@ const DiscountCodesPage = () => {
                           <Button variant="ghost" size="icon" onClick={() => openEdit(code)}>
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteMutation.mutate(code.id)}>
+                          <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setDeleteId(code.id)}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
@@ -457,14 +488,59 @@ const DiscountCodesPage = () => {
                 />
               </div>
               <div>
-                <Label>Expires At (optional)</Label>
+                <Label>Starts At (optional)</Label>
                 <Input
                   type="date"
-                  value={form.expires_at}
-                  onChange={(e) => setForm({ ...form, expires_at: e.target.value })}
+                  value={form.starts_at}
+                  onChange={(e) => setForm({ ...form, starts_at: e.target.value })}
                 />
               </div>
             </div>
+            <div>
+              <Label>Expires At (optional)</Label>
+              <Input
+                type="date"
+                value={form.expires_at}
+                onChange={(e) => setForm({ ...form, expires_at: e.target.value })}
+              />
+            </div>
+
+            <div className="border border-border rounded-lg p-4 space-y-4">
+              <h4 className="text-sm font-semibold text-foreground">Advanced Options</h4>
+              <div className="flex items-center gap-3">
+                <Switch
+                  checked={form.is_single_use}
+                  onCheckedChange={(checked) => setForm({ ...form, is_single_use: checked })}
+                />
+                <div>
+                  <Label>Single-use per user</Label>
+                  <p className="text-xs text-muted-foreground">Each user can only use this code once across all events</p>
+                </div>
+              </div>
+              <div>
+                <Label>Assign to specific user (optional)</Label>
+                <Select
+                  value={form.assigned_user_id || "none"}
+                  onValueChange={(v) => setForm({ ...form, assigned_user_id: v === "none" ? "" : v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Available to everyone" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Available to everyone</SelectItem>
+                    {profiles.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        <span className="flex items-center gap-2">
+                          <User className="h-3 w-3" />
+                          {p.first_name} {p.last_name} {p.email ? `(${p.email})` : ""}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             <div className="flex items-center gap-3">
               <Switch
                 checked={form.is_active}
@@ -516,6 +592,26 @@ const DiscountCodesPage = () => {
           )}
         </DialogContent>
       </Dialog>
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Discount Code</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this discount code? This action cannot be undone and any existing usage history will remain.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { if (deleteId) { deleteMutation.mutate(deleteId); setDeleteId(null); } }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
