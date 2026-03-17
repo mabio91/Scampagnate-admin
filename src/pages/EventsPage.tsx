@@ -34,6 +34,14 @@ const visibilityColors: Record<string, string> = {
   hidden: "text-muted-foreground border-muted-foreground/30",
 };
 
+type PricingRule = {
+  id: string;
+  name: string;
+  price: number;
+  condition: "has_participated" | "has_membership" | "has_badge" | "early_community" | "min_events";
+  condition_value?: string | number | null;
+};
+
 type AccessRules = {
   min_trekking_events?: number | null;
   min_activities?: number | null;
@@ -42,6 +50,7 @@ type AccessRules = {
   require_manual_approval?: boolean;
   restriction_message?: string;
   exclusivity_tags?: string[];
+  pricing_rules?: PricingRule[];
 };
 
 const emptyEvent = {
