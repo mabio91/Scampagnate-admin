@@ -154,13 +154,16 @@ const DiscountCodesPage = () => {
     },
   });
 
+  const defaultForm = {
+    code: "", description: "", discount_type: "percentage" as string, discount_value: 0,
+    applies_to_all: true, event_ids: [] as string[], max_uses: null as number | null,
+    starts_at: "", expires_at: "", is_active: true, is_single_use: false, assigned_user_id: "",
+  };
+
   const closeDialog = () => {
     setDialogOpen(false);
     setEditingCode(null);
-    setForm({
-      code: "", description: "", discount_type: "percentage", discount_value: 0,
-      applies_to_all: true, event_ids: [], max_uses: null, expires_at: "", is_active: true,
-    });
+    setForm({ ...defaultForm });
   };
 
   const openEdit = (code: DiscountCode) => {
@@ -173,8 +176,11 @@ const DiscountCodesPage = () => {
       applies_to_all: code.applies_to_all,
       event_ids: (code.event_ids as string[]) || [],
       max_uses: code.max_uses,
+      starts_at: code.starts_at ? code.starts_at.split("T")[0] : "",
       expires_at: code.expires_at ? code.expires_at.split("T")[0] : "",
       is_active: code.is_active,
+      is_single_use: code.is_single_use,
+      assigned_user_id: code.assigned_user_id || "",
     });
     setDialogOpen(true);
   };
@@ -194,8 +200,11 @@ const DiscountCodesPage = () => {
       applies_to_all: code.applies_to_all,
       event_ids: (code.event_ids as string[]) || [],
       max_uses: code.max_uses,
+      starts_at: code.starts_at ? code.starts_at.split("T")[0] : "",
       expires_at: code.expires_at ? code.expires_at.split("T")[0] : "",
       is_active: true,
+      is_single_use: code.is_single_use,
+      assigned_user_id: code.assigned_user_id || "",
     });
     setDialogOpen(true);
   };
