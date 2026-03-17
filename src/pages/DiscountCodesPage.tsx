@@ -27,6 +27,7 @@ const DiscountCodesPage = () => {
   const [editingCode, setEditingCode] = useState<DiscountCode | null>(null);
   const [selectedCodeId, setSelectedCodeId] = useState<string | null>(null);
   const [eventSearch, setEventSearch] = useState("");
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     code: "",
@@ -36,8 +37,11 @@ const DiscountCodesPage = () => {
     applies_to_all: true,
     event_ids: [] as string[],
     max_uses: null as number | null,
+    starts_at: "",
     expires_at: "",
     is_active: true,
+    is_single_use: false,
+    assigned_user_id: "" as string,
   });
 
   const { data: codes = [], isLoading } = useQuery({
