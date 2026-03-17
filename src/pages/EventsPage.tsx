@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, MoreHorizontal, Eye, Edit2, Trash2, Plus, Upload, X, ArrowUp, ArrowDown, Image as ImageIcon, Loader2, Shield, Lock, Star, Users, Award, Crown, CheckCircle2 } from "lucide-react";
+import { Search, MoreHorizontal, Eye, Edit2, Trash2, Plus, Upload, X, ArrowUp, ArrowDown, Image as ImageIcon, Loader2, Shield, Lock, Star, Users, Award, Crown, CheckCircle2, DollarSign, Tag } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -34,6 +34,14 @@ const visibilityColors: Record<string, string> = {
   hidden: "text-muted-foreground border-muted-foreground/30",
 };
 
+type PricingRule = {
+  id: string;
+  name: string;
+  price: number;
+  condition: "has_participated" | "has_membership" | "has_badge" | "early_community" | "min_events";
+  condition_value?: string | number | null;
+};
+
 type AccessRules = {
   min_trekking_events?: number | null;
   min_activities?: number | null;
@@ -42,6 +50,7 @@ type AccessRules = {
   require_manual_approval?: boolean;
   restriction_message?: string;
   exclusivity_tags?: string[];
+  pricing_rules?: PricingRule[];
 };
 
 const emptyEvent = {
@@ -53,6 +62,14 @@ const emptyEvent = {
   gallery_images: [] as string[],
   access_rules: null as AccessRules | null,
 };
+
+const PRICING_CONDITIONS = [
+  { value: "has_participated", label: "Has participated in at least 1 event" },
+  { value: "has_membership", label: "Has active membership" },
+  { value: "has_badge", label: "Has a specific badge" },
+  { value: "early_community", label: "Early community member" },
+  { value: "min_events", label: "Min. events attended" },
+];
 
 const EXCLUSIVITY_TAGS = [
   { value: "limited_spots", label: "Limited spots available", icon: Users },
@@ -112,6 +129,32 @@ export default function EventsPage() {
     const tags = current.exclusivity_tags || [];
     const updated = tags.includes(tag) ? tags.filter(t => t !== tag) : [...tags, tag];
     updateAccessRules({ exclusivity_tags: updated });
+  };
+
+  const getPricingRules = (event: Partial<Event> | null): PricingRule[] => {
+    const rules = getAccessRules(event);
+    return rules.pricing_rules || [];
+  };
+
+  const addPricingRule = () => {
+    const rules = getPricingRules(editEvent);
+    const newRule: PricingRule = {
+      id: crypto.randomUUID(),
+      name: "",
+      price: 0,
+      condition: "has_participated",
+    };
+    updateAccessRules({ pricing_rules: [...rules, newRule] });
+  };
+
+  const updatePricingRule = (id: string, patch: Partial<PricingRule>) => {
+    const rules = getPricingRules(editEvent);
+    updateAccessRules({ pricing_rules: rules.map(r => r.id === id ? { ...r, ...patch } : r) });
+  };
+
+  const removePricingRule = (id: string) => {
+    const rules = getPricingRules(editEvent);
+    updateAccessRules({ pricing_rules: rules.filter(r => r.id !== id) });
   };
 
   const hasAnyAccessRule = (event: Partial<Event> | null): boolean => {
@@ -285,6 +328,7 @@ export default function EventsPage() {
                   <TableRow key={event.id}>
                     <TableCell className="font-medium flex items-center gap-1.5">
                       {hasAnyAccessRule(event) && <Shield className="h-3.5 w-3.5 text-primary shrink-0" />}
+                      {getPricingRules(event).length > 0 && <Tag className="h-3.5 w-3.5 text-accent-foreground shrink-0" />}
                       {event.title}
                     </TableCell>
                     <TableCell className="text-muted-foreground">{event.organizer_name}</TableCell>
@@ -333,6 +377,16 @@ export default function EventsPage() {
               <p><strong>Organizer:</strong> {viewEvent.organizer_name}</p>
               <p><strong>Spots:</strong> {viewEvent.spots_taken}/{viewEvent.spots_total}</p>
               <p><strong>Price:</strong> {viewEvent.price > 0 ? `€${viewEvent.price}` : "Free"}</p>
+              {getPricingRules(viewEvent).length > 0 && (
+                <div className="space-y-1.5 pl-2 border-l-2 border-primary/30">
+                  <p className="text-xs font-semibold flex items-center gap-1"><Tag className="h-3 w-3 text-primary" /> Dynamic Pricing</p>
+                  {getPricingRules(viewEvent).map((rule) => (
+                    <p key={rule.id} className="text-xs text-muted-foreground">
+                      • <strong>{rule.name || "Unnamed"}</strong>: €{rule.price} — {PRICING_CONDITIONS.find(c => c.value === rule.condition)?.label}
+                    </p>
+                  ))}
+                </div>
+              )}
               <p><strong>Status:</strong> {viewEvent.status}</p>
               <p><strong>Visibility:</strong> {viewEvent.visibility}</p>
               <p><strong>Description:</strong> {viewEvent.description || "—"}</p>
@@ -427,7 +481,100 @@ export default function EventsPage() {
                 <div><Label>Deposit (€)</Label><Input type="number" step="0.01" value={editEvent.deposit ?? ""} onChange={(e) => setEditEvent({ ...editEvent, deposit: e.target.value ? parseFloat(e.target.value) : null })} placeholder="Optional" /></div>
               </div>
 
-              {/* Status, Category, Payment Type */}
+              {/* Dynamic Pricing Rules */}
+              {(editEvent.payment_type === "paid" || editEvent.payment_type === "deposit") && (
+                <div className="space-y-3 p-3 rounded-lg border border-dashed border-primary/30 bg-primary/5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Tag className="h-4 w-4 text-primary" />
+                      <h4 className="text-sm font-semibold">Dynamic Pricing Rules</h4>
+                    </div>
+                    <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={addPricingRule}>
+                      <Plus className="h-3 w-3 mr-1" /> Add Rule
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Define reserved prices for eligible users. Standard price: <strong>€{editEvent.price ?? 0}</strong>
+                  </p>
+
+                  {getPricingRules(editEvent).length === 0 && (
+                    <p className="text-xs text-muted-foreground italic text-center py-2">No pricing rules. All users see the standard price.</p>
+                  )}
+
+                  {getPricingRules(editEvent).map((rule) => (
+                    <div key={rule.id} className="space-y-2 p-3 rounded-md border bg-card">
+                      <div className="flex items-center gap-2">
+                        <DollarSign className="h-3.5 w-3.5 text-primary shrink-0" />
+                        <Input
+                          className="h-8 text-sm"
+                          placeholder="Rule name (e.g. Member Price)"
+                          value={rule.name}
+                          onChange={(e) => updatePricingRule(rule.id, { name: e.target.value })}
+                        />
+                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive" onClick={() => removePricingRule(rule.id)}>
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <Label className="text-[10px]">Reserved Price (€)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min={0}
+                            className="h-8 text-sm"
+                            value={rule.price ?? ""}
+                            onChange={(e) => updatePricingRule(rule.id, { price: parseFloat(e.target.value) || 0 })}
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-[10px]">Condition</Label>
+                          <Select value={rule.condition} onValueChange={(v) => updatePricingRule(rule.id, { condition: v as any, condition_value: null })}>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {PRICING_CONDITIONS.map((c) => (
+                                <SelectItem key={c.value} value={c.value} className="text-xs">{c.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          {rule.condition === "has_badge" && (
+                            <>
+                              <Label className="text-[10px]">Badge</Label>
+                              <Select value={rule.condition_value as string || "none"} onValueChange={(v) => updatePricingRule(rule.id, { condition_value: v === "none" ? null : v })}>
+                                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">Select badge</SelectItem>
+                                  {badges.map((b) => (
+                                    <SelectItem key={b.id} value={b.id} className="text-xs">{b.icon} {b.name}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </>
+                          )}
+                          {rule.condition === "min_events" && (
+                            <>
+                              <Label className="text-[10px]">Min. Events</Label>
+                              <Input
+                                type="number"
+                                min={1}
+                                className="h-8 text-sm"
+                                value={rule.condition_value as number ?? ""}
+                                onChange={(e) => updatePricingRule(rule.id, { condition_value: parseInt(e.target.value) || null })}
+                              />
+                            </>
+                          )}
+                          {!["has_badge", "min_events"].includes(rule.condition) && (
+                            <p className="text-[10px] text-muted-foreground pt-5">No extra config needed</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <Label>Status</Label>
