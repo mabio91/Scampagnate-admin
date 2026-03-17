@@ -503,6 +503,88 @@ export default function EventsPage() {
                 <div><Label>Deposit (€)</Label><Input type="number" step="0.01" value={editEvent.deposit ?? ""} onChange={(e) => setEditEvent({ ...editEvent, deposit: e.target.value ? parseFloat(e.target.value) : null })} placeholder="Optional" /></div>
               </div>
 
+              {/* Status, Category, Payment */}
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label>Status</Label>
+                  <Select value={editEvent.status || "available"} onValueChange={(v) => setEditEvent({ ...editEvent, status: v as any })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="available">Available</SelectItem>
+                      <SelectItem value="full">Full</SelectItem>
+                      <SelectItem value="closed">Closed</SelectItem>
+                      <SelectItem value="draft">Draft</SelectItem>
+                      <SelectItem value="published">Published</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Category</Label>
+                  <Select value={editEvent.category_id || "none"} onValueChange={(v) => setEditEvent({ ...editEvent, category_id: v === "none" ? null : v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      {categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Payment Type</Label>
+                  <Select value={editEvent.payment_type || "free"} onValueChange={(v) => setEditEvent({ ...editEvent, payment_type: v as any })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="free">Free</SelectItem>
+                      <SelectItem value="paid">Paid</SelectItem>
+                      <SelectItem value="deposit">Deposit</SelectItem>
+                      <SelectItem value="location">Pay at location</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <Label>Description</Label>
+                <Textarea value={editEvent.description || ""} onChange={(e) => setEditEvent({ ...editEvent, description: e.target.value })} rows={3} />
+              </div>
+
+              {/* Trail Details */}
+              <Separator />
+              <h4 className="text-sm font-semibold">Trail Details (optional)</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Difficulty</Label>
+                  <Select value={editEvent.difficulty || "none"} onValueChange={(v) => setEditEvent({ ...editEvent, difficulty: v === "none" ? null : v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      <SelectItem value="facile">Facile</SelectItem>
+                      <SelectItem value="moderato">Moderato</SelectItem>
+                      <SelectItem value="impegnativo">Impegnativo</SelectItem>
+                      <SelectItem value="esperto">Esperto</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div><Label>Duration</Label><Input value={editEvent.duration || ""} onChange={(e) => setEditEvent({ ...editEvent, duration: e.target.value || null })} placeholder="e.g. 3h" /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><Label>Distance</Label><Input value={editEvent.distance || ""} onChange={(e) => setEditEvent({ ...editEvent, distance: e.target.value || null })} placeholder="e.g. 12 km" /></div>
+                <div><Label>Elevation</Label><Input value={editEvent.elevation || ""} onChange={(e) => setEditEvent({ ...editEvent, elevation: e.target.value || null })} placeholder="e.g. 500 m" /></div>
+              </div>
+
+              {/* Featured */}
+              <div className="flex items-center justify-between">
+                <Label>Featured Event</Label>
+                <Switch checked={editEvent.featured || false} onCheckedChange={(v) => setEditEvent({ ...editEvent, featured: v })} />
+              </div>
+
+              {/* Cancellation Policy */}
+              <div>
+                <Label>Cancellation Policy</Label>
+                <Textarea value={editEvent.cancellation_policy || ""} onChange={(e) => setEditEvent({ ...editEvent, cancellation_policy: e.target.value || null })} rows={2} placeholder="Optional" />
+              </div>
+
               {/* ═══ Access & Pricing Rules ═══ */}
               <Separator />
               <div className="space-y-4">
