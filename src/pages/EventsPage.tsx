@@ -488,6 +488,139 @@ export default function EventsPage() {
               </div>
               <div><Label>Description</Label><Textarea value={editEvent.description || ""} onChange={(e) => setEditEvent({ ...editEvent, description: e.target.value })} rows={3} /></div>
 
+              {/* Access Rules Section */}
+              <Separator />
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-primary" />
+                  <h4 className="text-sm font-semibold">Access Rules & Restrictions</h4>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Define who can register for this event. Leave all unchecked for open access.
+                </p>
+
+                {/* Require active membership */}
+                <div className="flex items-center gap-3 p-3 rounded-lg border bg-card">
+                  <Checkbox
+                    id="require-membership"
+                    checked={getAccessRules(editEvent).require_active_membership || false}
+                    onCheckedChange={(v) => updateAccessRules({ require_active_membership: !!v })}
+                  />
+                  <div className="flex-1">
+                    <label htmlFor="require-membership" className="text-sm font-medium cursor-pointer flex items-center gap-2">
+                      <Award className="h-4 w-4 text-primary" /> Require active membership
+                    </label>
+                    <p className="text-xs text-muted-foreground">Only users with an active membership can register.</p>
+                  </div>
+                </div>
+
+                {/* Require manual approval */}
+                <div className="flex items-center gap-3 p-3 rounded-lg border bg-card">
+                  <Checkbox
+                    id="require-approval"
+                    checked={getAccessRules(editEvent).require_manual_approval || false}
+                    onCheckedChange={(v) => updateAccessRules({ require_manual_approval: !!v })}
+                  />
+                  <div className="flex-1">
+                    <label htmlFor="require-approval" className="text-sm font-medium cursor-pointer flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-primary" /> Require manual approval
+                    </label>
+                    <p className="text-xs text-muted-foreground">Registrations need admin/organizer approval before confirmation.</p>
+                  </div>
+                </div>
+
+                {/* Min trekking events */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-xs">Min. trekking events completed</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder="No minimum"
+                      value={getAccessRules(editEvent).min_trekking_events ?? ""}
+                      onChange={(e) => updateAccessRules({ min_trekking_events: e.target.value ? parseInt(e.target.value) : null })}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Min. total activities completed</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder="No minimum"
+                      value={getAccessRules(editEvent).min_activities ?? ""}
+                      onChange={(e) => updateAccessRules({ min_activities: e.target.value ? parseInt(e.target.value) : null })}
+                    />
+                  </div>
+                </div>
+
+                {/* Required badge */}
+                <div>
+                  <Label className="text-xs">Required badge</Label>
+                  <Select
+                    value={getAccessRules(editEvent).required_badge_id || "none"}
+                    onValueChange={(v) => updateAccessRules({ required_badge_id: v === "none" ? null : v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="No badge required" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No badge required</SelectItem>
+                      {badges.map((b) => (
+                        <SelectItem key={b.id} value={b.id}>
+                          {b.icon} {b.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Custom restriction message */}
+                <div>
+                  <Label className="text-xs">Custom restriction message</Label>
+                  <Textarea
+                    value={getAccessRules(editEvent).restriction_message || ""}
+                    onChange={(e) => updateAccessRules({ restriction_message: e.target.value || undefined })}
+                    rows={2}
+                    placeholder='e.g. "This event is reserved for users who have participated in at least two trekking activities."'
+                  />
+                </div>
+
+                {/* Exclusivity / scarcity tags */}
+                <div>
+                  <Label className="text-xs mb-2 block">Exclusivity & scarcity indicators</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {EXCLUSIVITY_TAGS.map((tag) => {
+                      const TagIcon = tag.icon;
+                      const selected = (getAccessRules(editEvent).exclusivity_tags || []).includes(tag.value);
+                      return (
+                        <button
+                          key={tag.value}
+                          type="button"
+                          onClick={() => toggleExclusivityTag(tag.value)}
+                          className={`flex items-center gap-2 p-2.5 rounded-lg border text-xs text-left transition-colors ${
+                            selected
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-border bg-card text-muted-foreground hover:border-primary/50"
+                          }`}
+                        >
+                          <TagIcon className="h-3.5 w-3.5 shrink-0" />
+                          {tag.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {hasAnyAccessRule(editEvent) && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-accent/50 border border-accent">
+                    <Shield className="h-4 w-4 text-primary shrink-0" />
+                    <p className="text-xs text-accent-foreground">
+                      This event has access restrictions. Users who don't meet the requirements will see a restriction message.
+                    </p>
+                  </div>
+                )}
+              </div>
+
               <div className="space-y-4 pt-2 border-t mt-4">
                 <h3 className="font-semibold text-sm">Media Settings</h3>
 
