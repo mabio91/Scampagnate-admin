@@ -131,6 +131,32 @@ export default function EventsPage() {
     updateAccessRules({ exclusivity_tags: updated });
   };
 
+  const getPricingRules = (event: Partial<Event> | null): PricingRule[] => {
+    const rules = getAccessRules(event);
+    return rules.pricing_rules || [];
+  };
+
+  const addPricingRule = () => {
+    const rules = getPricingRules(editEvent);
+    const newRule: PricingRule = {
+      id: crypto.randomUUID(),
+      name: "",
+      price: 0,
+      condition: "has_participated",
+    };
+    updateAccessRules({ pricing_rules: [...rules, newRule] });
+  };
+
+  const updatePricingRule = (id: string, patch: Partial<PricingRule>) => {
+    const rules = getPricingRules(editEvent);
+    updateAccessRules({ pricing_rules: rules.map(r => r.id === id ? { ...r, ...patch } : r) });
+  };
+
+  const removePricingRule = (id: string) => {
+    const rules = getPricingRules(editEvent);
+    updateAccessRules({ pricing_rules: rules.filter(r => r.id !== id) });
+  };
+
   const hasAnyAccessRule = (event: Partial<Event> | null): boolean => {
     const rules = getAccessRules(event);
     return !!(
