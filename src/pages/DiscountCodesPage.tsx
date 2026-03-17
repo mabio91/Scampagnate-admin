@@ -68,6 +68,18 @@ const DiscountCodesPage = () => {
     },
   });
 
+  const { data: profiles = [] } = useQuery({
+    queryKey: ["profiles-for-discount"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, first_name, last_name, email")
+        .order("first_name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const { data: usageData = [] } = useQuery({
     queryKey: ["discount-usage", selectedCodeId],
     enabled: !!selectedCodeId,
