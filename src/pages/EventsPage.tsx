@@ -328,6 +328,7 @@ export default function EventsPage() {
                   <TableRow key={event.id}>
                     <TableCell className="font-medium flex items-center gap-1.5">
                       {hasAnyAccessRule(event) && <Shield className="h-3.5 w-3.5 text-primary shrink-0" />}
+                      {getPricingRules(event).length > 0 && <Tag className="h-3.5 w-3.5 text-accent-foreground shrink-0" />}
                       {event.title}
                     </TableCell>
                     <TableCell className="text-muted-foreground">{event.organizer_name}</TableCell>
