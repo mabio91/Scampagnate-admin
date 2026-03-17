@@ -283,7 +283,10 @@ export default function EventsPage() {
               <TableBody>
                 {filtered.map((event) => (
                   <TableRow key={event.id}>
-                    <TableCell className="font-medium">{event.title}</TableCell>
+                    <TableCell className="font-medium flex items-center gap-1.5">
+                      {hasAnyAccessRule(event) && <Shield className="h-3.5 w-3.5 text-primary shrink-0" />}
+                      {event.title}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">{event.organizer_name}</TableCell>
                     <TableCell><Badge variant="secondary">{getCategoryName(event.category_id)}</Badge></TableCell>
                     <TableCell className="text-muted-foreground">{event.date}</TableCell>
