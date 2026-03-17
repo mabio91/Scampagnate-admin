@@ -376,6 +376,16 @@ export default function EventsPage() {
               <p><strong>Organizer:</strong> {viewEvent.organizer_name}</p>
               <p><strong>Spots:</strong> {viewEvent.spots_taken}/{viewEvent.spots_total}</p>
               <p><strong>Price:</strong> {viewEvent.price > 0 ? `€${viewEvent.price}` : "Free"}</p>
+              {getPricingRules(viewEvent).length > 0 && (
+                <div className="space-y-1.5 pl-2 border-l-2 border-primary/30">
+                  <p className="text-xs font-semibold flex items-center gap-1"><Tag className="h-3 w-3 text-primary" /> Dynamic Pricing</p>
+                  {getPricingRules(viewEvent).map((rule) => (
+                    <p key={rule.id} className="text-xs text-muted-foreground">
+                      • <strong>{rule.name || "Unnamed"}</strong>: €{rule.price} — {PRICING_CONDITIONS.find(c => c.value === rule.condition)?.label}
+                    </p>
+                  ))}
+                </div>
+              )}
               <p><strong>Status:</strong> {viewEvent.status}</p>
               <p><strong>Visibility:</strong> {viewEvent.visibility}</p>
               <p><strong>Description:</strong> {viewEvent.description || "—"}</p>
