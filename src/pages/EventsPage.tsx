@@ -398,6 +398,7 @@ export default function EventsPage() {
               <p><strong>Date:</strong> {viewEvent.date} at {viewEvent.time}</p>
               <p><strong>Organizer:</strong> {viewEvent.organizer_name}</p>
               <p><strong>Spots:</strong> {viewEvent.spots_taken}/{viewEvent.spots_total}</p>
+              <p><strong>Price:</strong> {viewEvent.price > 0 ? `€${viewEvent.price}` : "Free"}</p>
               <p><strong>Status:</strong> {viewEvent.status}</p>
               <p><strong>Visibility:</strong> {viewEvent.visibility}</p>
               <p><strong>Description:</strong> {viewEvent.description || "—"}</p>
