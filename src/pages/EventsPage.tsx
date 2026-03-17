@@ -51,6 +51,9 @@ type AccessRules = {
   restriction_message?: string;
   exclusivity_tags?: string[];
   pricing_rules?: PricingRule[];
+  detail_visibility?: "everyone" | "registered_only" | "eligible_only";
+  registration_rule?: "open" | "eligible_only" | "invite_only";
+  allowed_user_groups?: string[];
 };
 
 const emptyEvent = {
