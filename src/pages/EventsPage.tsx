@@ -34,6 +34,16 @@ const visibilityColors: Record<string, string> = {
   hidden: "text-muted-foreground border-muted-foreground/30",
 };
 
+type AccessRules = {
+  min_trekking_events?: number | null;
+  min_activities?: number | null;
+  required_badge_id?: string | null;
+  require_active_membership?: boolean;
+  require_manual_approval?: boolean;
+  restriction_message?: string;
+  exclusivity_tags?: string[];
+};
+
 const emptyEvent = {
   title: "", description: "", location: "", date: "", time: "09:00",
   spots_total: 20, price: 0, payment_type: "free" as const,
@@ -41,7 +51,15 @@ const emptyEvent = {
   organizer_name: "", category_id: null as string | null,
   image_url: "" as string,
   gallery_images: [] as string[],
+  access_rules: null as AccessRules | null,
 };
+
+const EXCLUSIVITY_TAGS = [
+  { value: "limited_spots", label: "Limited spots available", icon: Users },
+  { value: "exclusive", label: "Exclusive event", icon: Crown },
+  { value: "members_only", label: "Members-only experience", icon: Lock },
+  { value: "community_priority", label: "Community priority access", icon: Star },
+];
 
 export default function EventsPage() {
   const [search, setSearch] = useState("");
