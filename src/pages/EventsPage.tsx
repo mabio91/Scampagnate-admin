@@ -458,7 +458,6 @@ export default function EventsPage() {
                   </div>
                 );
               })()}
-              )}
 
               <div className="space-y-4 pt-4">
                 <p><strong>Cover Image:</strong></p>
