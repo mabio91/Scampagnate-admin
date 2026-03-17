@@ -486,14 +486,59 @@ const DiscountCodesPage = () => {
                 />
               </div>
               <div>
-                <Label>Expires At (optional)</Label>
+                <Label>Starts At (optional)</Label>
                 <Input
                   type="date"
-                  value={form.expires_at}
-                  onChange={(e) => setForm({ ...form, expires_at: e.target.value })}
+                  value={form.starts_at}
+                  onChange={(e) => setForm({ ...form, starts_at: e.target.value })}
                 />
               </div>
             </div>
+            <div>
+              <Label>Expires At (optional)</Label>
+              <Input
+                type="date"
+                value={form.expires_at}
+                onChange={(e) => setForm({ ...form, expires_at: e.target.value })}
+              />
+            </div>
+
+            <div className="border border-border rounded-lg p-4 space-y-4">
+              <h4 className="text-sm font-semibold text-foreground">Advanced Options</h4>
+              <div className="flex items-center gap-3">
+                <Switch
+                  checked={form.is_single_use}
+                  onCheckedChange={(checked) => setForm({ ...form, is_single_use: checked })}
+                />
+                <div>
+                  <Label>Single-use per user</Label>
+                  <p className="text-xs text-muted-foreground">Each user can only use this code once across all events</p>
+                </div>
+              </div>
+              <div>
+                <Label>Assign to specific user (optional)</Label>
+                <Select
+                  value={form.assigned_user_id || "none"}
+                  onValueChange={(v) => setForm({ ...form, assigned_user_id: v === "none" ? "" : v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Available to everyone" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Available to everyone</SelectItem>
+                    {profiles.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        <span className="flex items-center gap-2">
+                          <User className="h-3 w-3" />
+                          {p.first_name} {p.last_name} {p.email ? `(${p.email})` : ""}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             <div className="flex items-center gap-3">
               <Switch
                 checked={form.is_active}
