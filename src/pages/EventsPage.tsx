@@ -334,6 +334,33 @@ export default function EventsPage() {
               <p><strong>Visibility:</strong> {viewEvent.visibility}</p>
               <p><strong>Description:</strong> {viewEvent.description || "—"}</p>
 
+              {hasAnyAccessRule(viewEvent) && (
+                <div className="space-y-2 pt-2 border-t">
+                  <p className="font-semibold flex items-center gap-1.5"><Shield className="h-4 w-4 text-primary" /> Access Rules</p>
+                  {(() => {
+                    const rules = getAccessRules(viewEvent);
+                    return (
+                      <div className="space-y-1 text-xs">
+                        {rules.require_active_membership && <p>• Active membership required</p>}
+                        {rules.require_manual_approval && <p>• Manual approval required</p>}
+                        {rules.min_trekking_events && <p>• Min. {rules.min_trekking_events} trekking events</p>}
+                        {rules.min_activities && <p>• Min. {rules.min_activities} total activities</p>}
+                        {rules.required_badge_id && <p>• Specific badge required</p>}
+                        {rules.restriction_message && <p className="italic text-muted-foreground mt-1">"{rules.restriction_message}"</p>}
+                        {rules.exclusivity_tags && rules.exclusivity_tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {rules.exclusivity_tags.map(tag => {
+                              const tagInfo = EXCLUSIVITY_TAGS.find(t => t.value === tag);
+                              return tagInfo ? <Badge key={tag} variant="secondary" className="text-[10px]">{tagInfo.label}</Badge> : null;
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
               <div className="space-y-4 pt-4">
                 <p><strong>Cover Image:</strong></p>
                 {viewEvent.image_url ? (
