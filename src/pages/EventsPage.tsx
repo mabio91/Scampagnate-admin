@@ -63,6 +63,14 @@ const emptyEvent = {
   access_rules: null as AccessRules | null,
 };
 
+const PRICING_CONDITIONS = [
+  { value: "has_participated", label: "Has participated in at least 1 event" },
+  { value: "has_membership", label: "Has active membership" },
+  { value: "has_badge", label: "Has a specific badge" },
+  { value: "early_community", label: "Early community member" },
+  { value: "min_events", label: "Min. events attended" },
+];
+
 const EXCLUSIVITY_TAGS = [
   { value: "limited_spots", label: "Limited spots available", icon: Users },
   { value: "exclusive", label: "Exclusive event", icon: Crown },
