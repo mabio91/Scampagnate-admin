@@ -88,6 +88,44 @@ export default function EventsPage() {
     },
   });
 
+  const { data: badges = [] } = useQuery({
+    queryKey: ["admin-badges-list"],
+    queryFn: async () => {
+      const { data } = await supabase.from("badges").select("id, name, icon");
+      return data || [];
+    },
+  });
+
+  const getAccessRules = (event: Partial<Event> | null): AccessRules => {
+    if (!event?.access_rules) return {};
+    return event.access_rules as AccessRules;
+  };
+
+  const updateAccessRules = (patch: Partial<AccessRules>) => {
+    if (!editEvent) return;
+    const current = getAccessRules(editEvent);
+    setEditEvent({ ...editEvent, access_rules: { ...current, ...patch } });
+  };
+
+  const toggleExclusivityTag = (tag: string) => {
+    const current = getAccessRules(editEvent);
+    const tags = current.exclusivity_tags || [];
+    const updated = tags.includes(tag) ? tags.filter(t => t !== tag) : [...tags, tag];
+    updateAccessRules({ exclusivity_tags: updated });
+  };
+
+  const hasAnyAccessRule = (event: Partial<Event> | null): boolean => {
+    const rules = getAccessRules(event);
+    return !!(
+      rules.min_trekking_events ||
+      rules.min_activities ||
+      rules.required_badge_id ||
+      rules.require_active_membership ||
+      rules.require_manual_approval ||
+      (rules.exclusivity_tags && rules.exclusivity_tags.length > 0)
+    );
+  };
+
   const { data: registrations = [] } = useQuery({
     queryKey: ["event-registrations", viewEvent?.id],
     enabled: !!viewEvent,
