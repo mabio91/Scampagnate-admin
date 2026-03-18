@@ -368,6 +368,8 @@ export const translations = {
   "merch.uploading": { it: "Caricamento...", en: "Uploading..." },
   "merch.uploadHint": { it: "Clicca per caricare PNG o JPG (max 5MB)", en: "Click to upload PNG or JPG (max 5MB)" },
   "merch.changeImage": { it: "Cambia immagine", en: "Change image" },
+  "merch.whatsappNumber": { it: "Numero WhatsApp", en: "WhatsApp Number" },
+  "merch.whatsappHint": { it: "Formato internazionale senza + (es. 393331234567)", en: "International format without + (e.g. 393331234567)" },
 
   // ── Profile Page ──
   "profile.title": { it: "Il mio Profilo", en: "My Profile" },
