@@ -139,8 +139,9 @@ export default function MerchPage() {
   const getBadge = (p: MerchProduct) => (language === "it" && p.badge_it ? p.badge_it : p.badge);
 
   const openWhatsApp = (product: MerchProduct) => {
+    const number = (product as any).whatsapp_number || "";
     const msg = encodeURIComponent(`Ciao! Sono interessato al prodotto "${getName(product)}" (€${product.price.toFixed(2)}). Vorrei avere maggiori informazioni.`);
-    window.open(`https://wa.me/?text=${msg}`, "_blank");
+    window.open(`https://wa.me/${number}?text=${msg}`, "_blank");
   };
 
   const openEditDialog = (product?: MerchProduct) => {
