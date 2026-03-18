@@ -165,7 +165,7 @@ export default function IssuesPage() {
                       )}
                       {issue.status !== "resolved" && (
                         <Button size="sm" onClick={() => { setResolveIssue(issue); setResolutionNotes(""); }}>
-                          <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Resolve
+                          <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> {t("issues.resolve")}
                         </Button>
                       )}
                       <Button variant="ghost" size="sm" className="text-destructive" onClick={() => { if (confirm("Delete this issue?")) deleteMutation.mutate(issue.id); }}>
