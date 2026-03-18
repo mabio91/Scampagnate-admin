@@ -337,13 +337,13 @@ export default function EventsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Event</TableHead>
-                  <TableHead>Organizer</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Spots</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Visibility</TableHead>
+                  <TableHead>{t("events.event")}</TableHead>
+                  <TableHead>{t("events.organizer")}</TableHead>
+                  <TableHead>{t("events.category")}</TableHead>
+                  <TableHead>{t("common.date")}</TableHead>
+                  <TableHead>{t("events.spots")}</TableHead>
+                  <TableHead>{t("common.status")}</TableHead>
+                  <TableHead>{t("events.visibility")}</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
