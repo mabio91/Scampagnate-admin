@@ -142,7 +142,7 @@ export default function IssuesPage() {
                       <div className="flex-1">
                         <h3 className="font-semibold font-sans">{issue.title}</h3>
                         <p className="text-sm text-muted-foreground mt-1">
-                          Reported by <span className="font-medium text-foreground">{issue.reporter_name}</span>
+                          {t("issues.reportedBy")} <span className="font-medium text-foreground">{issue.reporter_name}</span>
                         </p>
                         {issue.description && <p className="text-sm text-muted-foreground mt-1">{issue.description}</p>}
                         <div className="flex items-center gap-2 mt-2">
