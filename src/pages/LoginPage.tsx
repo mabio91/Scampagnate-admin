@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import logo from "@/assets/logo.png";
 import { AuthPageWrapper } from "@/components/AuthPageWrapper";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
