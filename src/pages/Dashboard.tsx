@@ -710,11 +710,11 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Recent Activity" icon={Activity} className="lg:col-span-2">
+        <ChartCard title={t("dashboard.recentActivity")} icon={Activity} className="lg:col-span-2">
           <div className="space-y-1">
             {recentActivity.length === 0 ? (
               <div className="flex items-center justify-center h-[240px]">
-                <p className="text-sm text-muted-foreground">No recent activity</p>
+                <p className="text-sm text-muted-foreground">{t("dashboard.noRecentActivity")}</p>
               </div>
             ) : (
               recentActivity.map((item, i) => {
