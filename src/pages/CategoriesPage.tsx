@@ -18,6 +18,7 @@ type Category = Tables<"event_categories">;
 const emptyCategory = { name: "", description: "", icon: "📂", sort_order: 0 };
 
 export default function CategoriesPage() {
+  const { t } = useLanguage();
   const [editCat, setEditCat] = useState<(Partial<Category> & { isNew?: boolean }) | null>(null);
   const queryClient = useQueryClient();
 
