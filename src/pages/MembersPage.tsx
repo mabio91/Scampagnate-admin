@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, MoreHorizontal, Edit2, Download, CreditCard } from "lucide-react";
+import { Search, MoreHorizontal, Edit2, Download, CreditCard, AlertTriangle, Bell, CalendarX } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -25,7 +26,12 @@ export default function MembersPage() {
     membership_status: "Inactive",
     membership_year: new Date().getFullYear().toString(),
   });
+  const [showBulkExpireDialog, setShowBulkExpireDialog] = useState(false);
+  const [bulkExpireYear, setBulkExpireYear] = useState((new Date().getFullYear() - 1).toString());
+  const [showRenewalDialog, setShowRenewalDialog] = useState(false);
   const queryClient = useQueryClient();
+
+  const currentYear = new Date().getFullYear();
 
   const { data: members = [], isLoading } = useQuery({
     queryKey: ["admin-members"],
@@ -84,6 +90,62 @@ export default function MembersPage() {
     document.body.removeChild(link);
   };
 
+  const bulkExpireMemberships = useMutation({
+    mutationFn: async () => {
+      const yearNum = parseInt(bulkExpireYear);
+      const { data: toExpire, error: fetchError } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("membership_status", "Active")
+        .lte("membership_year", yearNum);
+      if (fetchError) throw fetchError;
+      if (!toExpire || toExpire.length === 0) throw new Error("No active memberships found for the selected year or earlier.");
+
+      const ids = toExpire.map((p) => p.id);
+      const { error } = await supabase
+        .from("profiles")
+        .update({ membership_status: "Expired", updated_at: new Date().toISOString() })
+        .in("id", ids);
+      if (error) throw error;
+      return ids.length;
+    },
+    onSuccess: (count) => {
+      toast.success(`${count} membership(s) expired successfully`);
+      queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+      setShowBulkExpireDialog(false);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const sendRenewalReminders = useMutation({
+    mutationFn: async () => {
+      const expiredMembers = members.filter(
+        (m) => m.membership_status === "Expired" && m.membership_id
+      );
+      if (expiredMembers.length === 0) throw new Error("No expired members to notify.");
+
+      const notifications = expiredMembers.map((m) => ({
+        user_id: m.id,
+        type: "membership_renewal",
+        title: "Rinnovo tessera richiesto",
+        message: `La tua tessera associativa (anno ${m.membership_year || "precedente"}) è scaduta. Rinnova per continuare a partecipare agli eventi.`,
+      }));
+
+      // Insert in batches of 100
+      for (let i = 0; i < notifications.length; i += 100) {
+        const batch = notifications.slice(i, i + 100);
+        const { error } = await supabase.from("notifications").insert(batch);
+        if (error) throw error;
+      }
+      return expiredMembers.length;
+    },
+    onSuccess: (count) => {
+      toast.success(`Renewal reminders sent to ${count} expired member(s)`);
+      setShowRenewalDialog(false);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   const openEdit = (member: Profile) => {
     setEditMember(member);
     setEditForm({
@@ -99,16 +161,50 @@ export default function MembersPage() {
     (m.membership_id?.toString() || "").includes(search)
   );
 
+  const activeCount = members.filter((m) => m.membership_status === "Active").length;
+  const expiredCount = members.filter((m) => m.membership_status === "Expired").length;
+  const currentYearCount = members.filter((m) => m.membership_year === currentYear && m.membership_status === "Active").length;
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold">Membership Management</h1>
           <p className="text-muted-foreground mt-1">View and manage association members ({members.length} total)</p>
         </div>
-        <Button className="gap-2" onClick={exportMembers} variant="outline">
-          <Download className="h-4 w-4" /> Export CSV
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button variant="destructive" className="gap-2" onClick={() => setShowBulkExpireDialog(true)}>
+            <CalendarX className="h-4 w-4" /> Bulk Expire
+          </Button>
+          <Button variant="secondary" className="gap-2" onClick={() => setShowRenewalDialog(true)}>
+            <Bell className="h-4 w-4" /> Send Renewal Reminders
+          </Button>
+          <Button variant="outline" className="gap-2" onClick={exportMembers}>
+            <Download className="h-4 w-4" /> Export CSV
+          </Button>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-green-600">{activeCount}</div>
+            <p className="text-sm text-muted-foreground">Active Memberships</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-destructive">{expiredCount}</div>
+            <p className="text-sm text-muted-foreground">Expired Memberships</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-primary">{currentYearCount}</div>
+            <p className="text-sm text-muted-foreground">Active for {currentYear}</p>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
@@ -262,6 +358,70 @@ export default function MembersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Bulk Expire Dialog */}
+      <AlertDialog open={showBulkExpireDialog} onOpenChange={setShowBulkExpireDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Bulk Expire Memberships
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will set all <strong>Active</strong> memberships with a membership year of <strong>{bulkExpireYear} or earlier</strong> to <strong>Expired</strong>. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <Label htmlFor="bulk_expire_year">Expire memberships for year ≤</Label>
+            <Input
+              id="bulk_expire_year"
+              type="number"
+              className="mt-2 max-w-[200px]"
+              value={bulkExpireYear}
+              onChange={(e) => setBulkExpireYear(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground mt-2">
+              Members with membership_year ≤ {bulkExpireYear} and status "Active" will be set to "Expired".
+            </p>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => bulkExpireMemberships.mutate()}
+              disabled={bulkExpireMemberships.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {bulkExpireMemberships.isPending ? "Expiring..." : "Expire Memberships"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Send Renewal Reminders Dialog */}
+      <AlertDialog open={showRenewalDialog} onOpenChange={setShowRenewalDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Bell className="h-5 w-5 text-primary" />
+              Send Renewal Reminders
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will send a notification to all members with <strong>Expired</strong> membership status, reminding them to renew their annual membership.
+              <br /><br />
+              <strong>{members.filter((m) => m.membership_status === "Expired" && m.membership_id).length}</strong> expired member(s) will receive a notification.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => sendRenewalReminders.mutate()}
+              disabled={sendRenewalReminders.isPending}
+            >
+              {sendRenewalReminders.isPending ? "Sending..." : "Send Reminders"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
