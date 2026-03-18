@@ -12,8 +12,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 export default function OrganizersPage() {
+  const { t } = useLanguage();
   const [search, setSearch] = useState("");
   const [editOrg, setEditOrg] = useState<any | null>(null);
   const [editForm, setEditForm] = useState({ first_name: "", last_name: "", phone: "", bio: "" });
