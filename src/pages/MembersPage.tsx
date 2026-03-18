@@ -234,25 +234,25 @@ export default function MembersPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-green-600">{activeCount}</div>
-            <p className="text-sm text-muted-foreground">Active Memberships</p>
+            <p className="text-sm text-muted-foreground">{t("members.activeMemberships")}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-destructive">{expiredCount}</div>
-            <p className="text-sm text-muted-foreground">Expired Memberships</p>
+            <p className="text-sm text-muted-foreground">{t("members.expiredMemberships")}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-primary">{currentYearCount}</div>
-            <p className="text-sm text-muted-foreground">Active for {currentYear}</p>
+            <p className="text-sm text-muted-foreground">{t("members.activeFor")} {currentYear}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-amber-500">{foundingCount} <span className="text-sm font-normal text-muted-foreground">/ 150</span></div>
-            <p className="text-sm text-muted-foreground">Founding Members</p>
+            <p className="text-sm text-muted-foreground">{t("members.foundingMembers")}</p>
           </CardContent>
         </Card>
       </div>
