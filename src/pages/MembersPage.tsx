@@ -213,18 +213,18 @@ export default function MembersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Membership Management</h1>
-          <p className="text-muted-foreground mt-1">View and manage association members ({members.length} total)</p>
+          <h1 className="text-2xl md:text-3xl font-bold">{t("members.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("members.subtitle")} ({members.length} {t("common.total").toLowerCase()})</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Button variant="destructive" className="gap-2" onClick={() => setShowBulkExpireDialog(true)}>
-            <CalendarX className="h-4 w-4" /> Bulk Expire
+            <CalendarX className="h-4 w-4" /> {t("members.bulkExpire")}
           </Button>
           <Button variant="secondary" className="gap-2" onClick={() => setShowRenewalDialog(true)}>
-            <Bell className="h-4 w-4" /> Send Renewal Reminders
+            <Bell className="h-4 w-4" /> {t("members.sendRenewalReminders")}
           </Button>
           <Button variant="outline" className="gap-2" onClick={exportMembers}>
-            <Download className="h-4 w-4" /> Export CSV
+            <Download className="h-4 w-4" /> {t("members.exportCsv")}
           </Button>
         </div>
       </div>
