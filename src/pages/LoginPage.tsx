@@ -123,14 +123,14 @@ export default function LoginPage() {
             </div>
             <div className="flex items-center gap-2">
               <Checkbox id="remember" checked={rememberMe} onCheckedChange={(checked) => setRememberMe(checked === true)} />
-              <Label htmlFor="remember" className="text-sm font-normal cursor-pointer">Remember me</Label>
+              <Label htmlFor="remember" className="text-sm font-normal cursor-pointer">{t("login.rememberMe")}</Label>
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Signing in...</> : "Sign In"}
+              {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t("login.signingIn")}</> : t("login.signIn")}
             </Button>
             <div className="text-center">
               <Link to="/forgot-password" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                Forgot password?
+                {t("login.forgotPassword")}
               </Link>
             </div>
           </form>

@@ -112,13 +112,13 @@ export default function ProposalsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-           <h1 className="text-2xl md:text-3xl font-bold text-foreground font-display">Activity Proposals</h1>
-           <p className="text-muted-foreground text-sm mt-1">
-            Review and manage activity proposals submitted by members
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground font-display">{t("proposals.title")}</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            {t("proposals.subtitle")}
           </p>
         </div>
         <Badge variant="outline" className="text-primary border-primary/30">
-          {proposals.length} Total
+          {proposals.length} {t("common.total")}
         </Badge>
       </div>
 
