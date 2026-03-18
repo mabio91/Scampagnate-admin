@@ -140,19 +140,19 @@ export default function OrganizersPage() {
 
       <Dialog open={!!editOrg} onOpenChange={(o) => !o && setEditOrg(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Edit Organizer</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("organizers.editOrganizer")}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>First Name</Label><Input value={editForm.first_name} onChange={(e) => setEditForm({ ...editForm, first_name: e.target.value })} /></div>
-              <div><Label>Last Name</Label><Input value={editForm.last_name} onChange={(e) => setEditForm({ ...editForm, last_name: e.target.value })} /></div>
+              <div><Label>{t("users.firstName")}</Label><Input value={editForm.first_name} onChange={(e) => setEditForm({ ...editForm, first_name: e.target.value })} /></div>
+              <div><Label>{t("users.lastName")}</Label><Input value={editForm.last_name} onChange={(e) => setEditForm({ ...editForm, last_name: e.target.value })} /></div>
             </div>
-            <div><Label>Phone</Label><Input value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} /></div>
+            <div><Label>{t("common.phone")}</Label><Input value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} /></div>
             <div><Label>Bio</Label><Input value={editForm.bio} onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })} /></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditOrg(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setEditOrg(null)}>{t("common.cancel")}</Button>
             <Button onClick={() => updateOrg.mutate()} disabled={updateOrg.isPending}>
-              {updateOrg.isPending ? "Saving..." : "Save"}
+              {updateOrg.isPending ? t("common.saving") : t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>

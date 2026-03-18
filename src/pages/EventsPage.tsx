@@ -382,7 +382,7 @@ export default function EventsPage() {
                   </TableRow>
                 ))}
                 {filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No events found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{t("events.noEventsFound")}</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>

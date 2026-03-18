@@ -123,19 +123,19 @@ export default function CategoriesPage() {
 
       <Dialog open={!!editCat} onOpenChange={(o) => !o && setEditCat(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{editCat?.isNew ? "Create Category" : "Edit Category"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editCat?.isNew ? t("categories.createCategory") : t("categories.editCategory")}</DialogTitle></DialogHeader>
           {editCat && (
             <div className="space-y-4">
-              <div><Label>Name</Label><Input value={editCat.name || ""} onChange={(e) => setEditCat({ ...editCat, name: e.target.value })} /></div>
-              <div><Label>Icon (emoji)</Label><Input value={editCat.icon || ""} onChange={(e) => setEditCat({ ...editCat, icon: e.target.value })} /></div>
-              <div><Label>Description</Label><Input value={editCat.description || ""} onChange={(e) => setEditCat({ ...editCat, description: e.target.value })} /></div>
-              <div><Label>Sort Order</Label><Input type="number" value={editCat.sort_order ?? ""} onChange={(e) => setEditCat({ ...editCat, sort_order: e.target.value === "" ? undefined : parseInt(e.target.value, 10) })} /></div>
+              <div><Label>{t("categories.categoryName")}</Label><Input value={editCat.name || ""} onChange={(e) => setEditCat({ ...editCat, name: e.target.value })} /></div>
+              <div><Label>{t("categories.icon")}</Label><Input value={editCat.icon || ""} onChange={(e) => setEditCat({ ...editCat, icon: e.target.value })} /></div>
+              <div><Label>{t("common.description")}</Label><Input value={editCat.description || ""} onChange={(e) => setEditCat({ ...editCat, description: e.target.value })} /></div>
+              <div><Label>{t("categories.sortOrder")}</Label><Input type="number" value={editCat.sort_order ?? ""} onChange={(e) => setEditCat({ ...editCat, sort_order: e.target.value === "" ? undefined : parseInt(e.target.value, 10) })} /></div>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditCat(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setEditCat(null)}>{t("common.cancel")}</Button>
             <Button onClick={() => saveMutation.mutate(editCat)} disabled={saveMutation.isPending}>
-              {saveMutation.isPending ? "Saving..." : "Save"}
+              {saveMutation.isPending ? t("common.saving") : t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
