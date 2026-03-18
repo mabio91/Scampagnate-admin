@@ -113,12 +113,12 @@ export default function IssuesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Issues</h1>
+          <h1 className="text-2xl md:text-3xl font-bold">Issues</h1>
           <p className="text-muted-foreground mt-1">Intervene and resolve platform issues ({issues.length} total)</p>
         </div>
-        <Button className="gap-2" onClick={() => setCreateOpen(true)}>
+        <Button className="gap-2 w-full sm:w-auto" onClick={() => setCreateOpen(true)}>
           <Plus className="h-4 w-4" /> Report Issue
         </Button>
       </div>
