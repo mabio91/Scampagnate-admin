@@ -363,6 +363,11 @@ export const translations = {
   "merch.badgeIt": { it: "Badge (IT)", en: "Badge (IT)" },
   "merch.imageUrl": { it: "URL Immagine", en: "Image URL" },
   "merch.sortOrder": { it: "Ordine", en: "Sort Order" },
+  "merch.productImage": { it: "Immagine Prodotto", en: "Product Image" },
+  "merch.imageUploaded": { it: "Immagine caricata", en: "Image uploaded" },
+  "merch.uploading": { it: "Caricamento...", en: "Uploading..." },
+  "merch.uploadHint": { it: "Clicca per caricare PNG o JPG (max 5MB)", en: "Click to upload PNG or JPG (max 5MB)" },
+  "merch.changeImage": { it: "Cambia immagine", en: "Change image" },
 
   // ── Profile Page ──
   "profile.title": { it: "Il mio Profilo", en: "My Profile" },
