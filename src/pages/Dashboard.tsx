@@ -536,43 +536,43 @@ export default function Dashboard() {
 
       {/* ── SECONDARY KPI Cards ── */}
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60 mb-3">Secondary Metrics</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60 mb-3">{t("dashboard.secondaryMetrics")}</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           <PremiumStatCard
-            title="Avg Fill Rate"
+            title={t("dashboard.avgFillRate")}
             value={avgFillRate}
             icon={BarChart3}
             iconBg="bg-secondary"
-            subtitle="Avg registrations / capacity"
+            subtitle={t("dashboard.avgFillSub")}
           />
           <PremiumStatCard
-            title="Waitlist Requests"
+            title={t("dashboard.waitlistRequests")}
             value={totalWaitlist.toLocaleString()}
             icon={Clock}
             iconBg="bg-warning"
             changeType={totalWaitlist > 0 ? "negative" : "neutral"}
-            change={totalWaitlist > 0 ? `${totalWaitlist} waiting` : "No waitlist"}
+            change={totalWaitlist > 0 ? `${totalWaitlist} ${t("dashboard.waiting")}` : t("dashboard.noWaitlist")}
           />
           <PremiumStatCard
-            title="Repeat Participants"
+            title={t("dashboard.repeatParticipants")}
             value={repeatParticipants.toLocaleString()}
             icon={Repeat}
             iconBg="bg-accent"
-            subtitle="Attended >3 events"
+            subtitle={t("dashboard.repeatSub")}
           />
           <PremiumStatCard
-            title="New Users (Month)"
+            title={t("dashboard.newUsersMonth")}
             value={newUsersMonth.toLocaleString()}
             icon={UserPlus}
             iconBg="bg-primary"
             subtitle={format(new Date(), "MMMM yyyy")}
           />
           <PremiumStatCard
-            title="Top Category"
+            title={t("dashboard.topCategory")}
             value={topCategory}
             icon={Trophy}
             iconBg="bg-secondary"
-            subtitle="Most popular category"
+            subtitle={t("dashboard.topCategorySub")}
           />
         </div>
       </div>
