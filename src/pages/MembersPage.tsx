@@ -227,7 +227,7 @@ export default function MembersPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-green-600">{activeCount}</div>
@@ -244,6 +244,12 @@ export default function MembersPage() {
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-primary">{currentYearCount}</div>
             <p className="text-sm text-muted-foreground">Active for {currentYear}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-amber-500">{foundingCount} <span className="text-sm font-normal text-muted-foreground">/ 150</span></div>
+            <p className="text-sm text-muted-foreground">Founding Members</p>
           </CardContent>
         </Card>
       </div>
