@@ -206,11 +206,11 @@ export default function UsersPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Users</h1>
-          <p className="text-muted-foreground mt-1">Manage platform users ({users.length} total)</p>
+          <h1 className="text-2xl md:text-3xl font-bold">{t("users.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("users.subtitle")} ({users.length} {t("common.total").toLowerCase()})</p>
         </div>
         <Button className="gap-2 w-full sm:w-auto" onClick={() => setCreateOpen(true)}>
-          <UserPlus className="h-4 w-4" /> Add User
+          <UserPlus className="h-4 w-4" /> {t("users.addUser")}
         </Button>
       </div>
 
