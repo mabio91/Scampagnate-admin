@@ -382,6 +382,15 @@ export default function UsersPage() {
                     )}
                   </div>
 
+                  {viewUser.is_founding_member && (
+                    <div className="mt-4 p-3 rounded-lg border border-amber-500/30 bg-amber-500/5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">🏛️</span>
+                        <span className="font-semibold text-amber-600">Founding Member</span>
+                      </div>
+                    </div>
+                  )}
+
                   {viewUser.bio && (
                     <div className="space-y-1 mt-4">
                       <p className="text-sm text-muted-foreground">Bio</p>

@@ -5,12 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, MoreHorizontal, Edit2, Download, CreditCard, AlertTriangle, Bell, CalendarX } from "lucide-react";
+import { Search, MoreHorizontal, Edit2, Download, CreditCard, AlertTriangle, Bell, CalendarX, Award, Shield } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -25,6 +27,7 @@ export default function MembersPage() {
     membership_id: "",
     membership_status: "Inactive",
     membership_year: new Date().getFullYear().toString(),
+    is_founding_member: false,
   });
   const [showBulkExpireDialog, setShowBulkExpireDialog] = useState(false);
   const [bulkExpireYear, setBulkExpireYear] = useState((new Date().getFullYear() - 1).toString());
@@ -45,6 +48,30 @@ export default function MembersPage() {
     },
   });
 
+  // Fetch all badges and user_badges for badge management
+  const { data: allBadges = [] } = useQuery({
+    queryKey: ["all-badges"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("badges").select("*").order("name");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: userBadgesMap = {} } = useQuery({
+    queryKey: ["all-user-badges"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("user_badges").select("user_id, badge_id, badges(name, icon)");
+      if (error) throw error;
+      const map: Record<string, { badge_id: string; name: string; icon: string }[]> = {};
+      (data || []).forEach((ub: any) => {
+        if (!map[ub.user_id]) map[ub.user_id] = [];
+        map[ub.user_id].push({ badge_id: ub.badge_id, name: ub.badges?.name || "", icon: ub.badges?.icon || "" });
+      });
+      return map;
+    },
+  });
+
   const updateMembership = useMutation({
     mutationFn: async () => {
       if (!editMember) return;
@@ -54,14 +81,27 @@ export default function MembersPage() {
           membership_id: editForm.membership_id ? parseInt(editForm.membership_id) : null,
           membership_status: editForm.membership_status,
           membership_year: editForm.membership_year ? parseInt(editForm.membership_year) : null,
+          is_founding_member: editForm.is_founding_member,
           updated_at: new Date().toISOString(),
         })
         .eq("id", editMember.id);
       if (error) throw error;
+
+      // Handle Founding Member badge sync
+      const foundingBadge = allBadges.find(b => b.name === "Founding Member");
+      if (foundingBadge) {
+        const hasBadge = (userBadgesMap[editMember.id] || []).some(b => b.name === "Founding Member");
+        if (editForm.is_founding_member && !hasBadge) {
+          await supabase.from("user_badges").insert({ user_id: editMember.id, badge_id: foundingBadge.id });
+        } else if (!editForm.is_founding_member && hasBadge) {
+          await supabase.from("user_badges").delete().eq("user_id", editMember.id).eq("badge_id", foundingBadge.id);
+        }
+      }
     },
     onSuccess: () => {
       toast.success("Membership updated");
       queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+      queryClient.invalidateQueries({ queryKey: ["all-user-badges"] });
       setEditMember(null);
     },
     onError: (e: any) => toast.error(e.message),
@@ -152,6 +192,7 @@ export default function MembersPage() {
       membership_id: member.membership_id?.toString() || "",
       membership_status: member.membership_status || "Inactive",
       membership_year: member.membership_year?.toString() || new Date().getFullYear().toString(),
+      is_founding_member: member.is_founding_member || false,
     });
   };
 
@@ -164,6 +205,7 @@ export default function MembersPage() {
   const activeCount = members.filter((m) => m.membership_status === "Active").length;
   const expiredCount = members.filter((m) => m.membership_status === "Expired").length;
   const currentYearCount = members.filter((m) => m.membership_year === currentYear && m.membership_status === "Active").length;
+  const foundingCount = members.filter((m) => m.is_founding_member).length;
 
   return (
     <div className="space-y-6">
@@ -186,7 +228,7 @@ export default function MembersPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-green-600">{activeCount}</div>
@@ -203,6 +245,12 @@ export default function MembersPage() {
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-primary">{currentYearCount}</div>
             <p className="text-sm text-muted-foreground">Active for {currentYear}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-amber-500">{foundingCount} <span className="text-sm font-normal text-muted-foreground">/ 150</span></div>
+            <p className="text-sm text-muted-foreground">Founding Members</p>
           </CardContent>
         </Card>
       </div>
@@ -234,6 +282,7 @@ export default function MembersPage() {
                   <TableHead>Name</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead>Year</TableHead>
+                  <TableHead>Badges</TableHead>
                   <TableHead>Account Status</TableHead>
                   <TableHead>Membership Status</TableHead>
                   <TableHead className="w-10" />
@@ -250,6 +299,16 @@ export default function MembersPage() {
                     </TableCell>
                     <TableCell className="text-muted-foreground">{member.phone || "—"}</TableCell>
                     <TableCell>{member.membership_year || "—"}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-1 flex-wrap">
+                        {(userBadgesMap[member.id] || []).map((b) => (
+                          <Badge key={b.badge_id} variant="outline" className="text-xs gap-1">
+                            <span>{b.icon}</span> {b.name}
+                          </Badge>
+                        ))}
+                        {!(userBadgesMap[member.id] || []).length && <span className="text-muted-foreground text-sm">—</span>}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <Badge 
                         variant={member.account_status === "Active" ? "outline" : "default"}
@@ -288,7 +347,7 @@ export default function MembersPage() {
                 ))}
                 {filtered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                       No members found
                     </TableCell>
                   </TableRow>
@@ -346,6 +405,38 @@ export default function MembersPage() {
                   <SelectItem value="Expired">Expired</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <Separator />
+            <div className="space-y-3">
+              <Label className="text-sm font-semibold flex items-center gap-2">
+                <Shield className="h-4 w-4" /> Founding Member Status
+              </Label>
+              <div className="flex items-center justify-between rounded-lg border p-3 bg-muted/30">
+                <div className="space-y-0.5">
+                  <p className="text-sm font-medium">Founding Member</p>
+                  <p className="text-xs text-muted-foreground">
+                    Grant this user the Founding Member badge and special privileges
+                  </p>
+                </div>
+                <Switch
+                  checked={editForm.is_founding_member}
+                  onCheckedChange={(checked) => setEditForm({ ...editForm, is_founding_member: checked })}
+                />
+              </div>
+              {editMember && (userBadgesMap[editMember.id] || []).length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold flex items-center gap-2">
+                    <Award className="h-4 w-4" /> Current Badges
+                  </Label>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {(userBadgesMap[editMember.id] || []).map((b) => (
+                      <Badge key={b.badge_id} variant="secondary" className="gap-1">
+                        <span>{b.icon}</span> {b.name}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>
