@@ -340,8 +340,8 @@ export default function UsersPage() {
             {viewUser && (
               <Tabs defaultValue="profile" className="w-full mt-2">
                 <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="profile">Profile Overview</TabsTrigger>
-                  <TabsTrigger value="activity">Activity History</TabsTrigger>
+                  <TabsTrigger value="profile">{t("users.profileOverview")}</TabsTrigger>
+                  <TabsTrigger value="activity">{t("users.activityHistory")}</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="profile" className="space-y-4 mt-4">
