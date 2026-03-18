@@ -27,6 +27,7 @@ export default function MembersPage() {
     membership_id: "",
     membership_status: "Inactive",
     membership_year: new Date().getFullYear().toString(),
+    is_founding_member: false,
   });
   const [showBulkExpireDialog, setShowBulkExpireDialog] = useState(false);
   const [bulkExpireYear, setBulkExpireYear] = useState((new Date().getFullYear() - 1).toString());
