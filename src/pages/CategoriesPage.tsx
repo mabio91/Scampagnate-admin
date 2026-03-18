@@ -99,7 +99,7 @@ export default function CategoriesPage() {
                     <div className="p-2.5 rounded-lg bg-primary/10 text-xl">{cat.icon || "📂"}</div>
                     <div>
                       <h3 className="font-semibold font-sans">{cat.name}</h3>
-                      <p className="text-sm text-muted-foreground">{eventCounts[cat.id] || 0} events</p>
+                      <p className="text-sm text-muted-foreground">{eventCounts[cat.id] || 0} {t("categories.events")}</p>
                       {cat.description && <p className="text-xs text-muted-foreground mt-0.5">{cat.description}</p>}
                     </div>
                   </div>
