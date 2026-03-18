@@ -340,7 +340,7 @@ export default function MembersPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => openEdit(member)}>
-                            <Edit2 className="h-4 w-4 mr-2" /> Edit Membership
+                            <Edit2 className="h-4 w-4 mr-2" /> {t("members.editMembership")}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
