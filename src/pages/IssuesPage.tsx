@@ -113,12 +113,12 @@ export default function IssuesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Issues</h1>
+          <h1 className="text-2xl md:text-3xl font-bold">Issues</h1>
           <p className="text-muted-foreground mt-1">Intervene and resolve platform issues ({issues.length} total)</p>
         </div>
-        <Button className="gap-2" onClick={() => setCreateOpen(true)}>
+        <Button className="gap-2 w-full sm:w-auto" onClick={() => setCreateOpen(true)}>
           <Plus className="h-4 w-4" /> Report Issue
         </Button>
       </div>
@@ -155,7 +155,7 @@ export default function IssuesPage() {
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-2 flex-shrink-0">
+                    <div className="flex gap-2 flex-shrink-0 flex-wrap">
                       {issue.status === "open" && (
                         <Button variant="outline" size="sm" onClick={() => updateStatus.mutate({ id: issue.id, status: "in_progress" })}>
                           <Clock className="h-3.5 w-3.5 mr-1" /> In Progress

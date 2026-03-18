@@ -211,7 +211,7 @@ export default function MembersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Membership Management</h1>
+          <h1 className="text-2xl md:text-3xl font-bold">Membership Management</h1>
           <p className="text-muted-foreground mt-1">View and manage association members ({members.length} total)</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -228,7 +228,7 @@ export default function MembersPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-green-600">{activeCount}</div>
@@ -267,7 +267,7 @@ export default function MembersPage() {
             />
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="overflow-x-auto">
           {isLoading ? (
             <div className="space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (
