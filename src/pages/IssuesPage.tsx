@@ -214,12 +214,12 @@ export default function IssuesPage() {
       {/* Resolve Issue */}
       <Dialog open={!!resolveIssue} onOpenChange={(o) => !o && setResolveIssue(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Resolve: {resolveIssue?.title}</DialogTitle></DialogHeader>
-          <div><Label>Resolution Notes</Label><Textarea value={resolutionNotes} onChange={(e) => setResolutionNotes(e.target.value)} rows={3} placeholder="Describe how the issue was resolved..." /></div>
+          <DialogHeader><DialogTitle>{t("issues.resolve")}: {resolveIssue?.title}</DialogTitle></DialogHeader>
+          <div><Label>{t("issues.resolutionNotes")}</Label><Textarea value={resolutionNotes} onChange={(e) => setResolutionNotes(e.target.value)} rows={3} placeholder={t("issues.resolutionPlaceholder")} /></div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setResolveIssue(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setResolveIssue(null)}>{t("common.cancel")}</Button>
             <Button onClick={() => resolveIssue && updateStatus.mutate({ id: resolveIssue.id, status: "resolved", notes: resolutionNotes })} disabled={updateStatus.isPending}>
-              {updateStatus.isPending ? "Resolving..." : "Mark Resolved"}
+              {updateStatus.isPending ? t("issues.resolving") : t("issues.markResolved")}
             </Button>
           </DialogFooter>
         </DialogContent>
