@@ -15,7 +15,7 @@ export function LanguageSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full overflow-hidden p-0 hover:ring-2 hover:ring-primary/30 transition-all">
+        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full overflow-hidden p-0 hover:bg-transparent transition-all">
           <img
             src={language === "it" ? flagIt : flagEn}
             alt={language === "it" ? "Italiano" : "English"}
