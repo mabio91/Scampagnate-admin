@@ -482,7 +482,7 @@ export default function Dashboard() {
 
       {/* ── PRIMARY KPI Cards ── */}
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60 mb-3">Primary Metrics</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60 mb-3">{t("dashboard.primaryMetrics")}</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           {isLoading ? (
             Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-32 rounded-xl" />)
