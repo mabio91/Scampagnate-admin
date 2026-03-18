@@ -130,7 +130,7 @@ export default function OrganizersPage() {
                   </TableRow>
                 ))}
                 {filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No organizers found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">{t("organizers.noOrganizers")}</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
