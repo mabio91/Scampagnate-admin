@@ -107,7 +107,7 @@ export default function CategoriesPage() {
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditCat(cat)}>
                       <Edit2 className="h-3.5 w-3.5" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { if (confirm("Delete this category?")) deleteMutation.mutate(cat.id); }}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { if (confirm(t("categories.deleteConfirm"))) deleteMutation.mutate(cat.id); }}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
