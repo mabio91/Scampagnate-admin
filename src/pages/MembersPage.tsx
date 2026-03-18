@@ -192,6 +192,7 @@ export default function MembersPage() {
       membership_id: member.membership_id?.toString() || "",
       membership_status: member.membership_status || "Inactive",
       membership_year: member.membership_year?.toString() || new Date().getFullYear().toString(),
+      is_founding_member: member.is_founding_member || false,
     });
   };
 
