@@ -31,6 +31,7 @@ const navItems: { titleKey: TranslationKey; url: string; icon: any }[] = [
   { titleKey: "sidebar.issues", url: "/issues", icon: AlertTriangle },
   { titleKey: "sidebar.proposals", url: "/proposals", icon: Lightbulb },
   { titleKey: "sidebar.discountCodes", url: "/discount-codes", icon: TicketPercent },
+  { titleKey: "sidebar.merch", url: "/merch", icon: ShoppingBag },
 ];
 
 export function AdminSidebar() {
