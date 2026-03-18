@@ -267,6 +267,7 @@ export default function EquipmentTemplatesPage() {
             </DialogContent>
           </Dialog>
         </div>
+      </div>
 
       {isLoading ? (
         <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
