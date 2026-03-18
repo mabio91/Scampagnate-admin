@@ -80,8 +80,8 @@ export default function OrganizersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold">Organizers</h1>
-        <p className="text-muted-foreground mt-1">Manage event organizers ({organizers.length} total)</p>
+        <h1 className="text-2xl md:text-3xl font-bold">{t("organizers.title")}</h1>
+        <p className="text-muted-foreground mt-1">{t("organizers.subtitle")} ({organizers.length} {t("common.total").toLowerCase()})</p>
       </div>
 
       <Card>
