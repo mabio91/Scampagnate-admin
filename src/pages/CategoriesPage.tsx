@@ -72,12 +72,12 @@ export default function CategoriesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Event Categories</h1>
+          <h1 className="text-2xl md:text-3xl font-bold">Event Categories</h1>
           <p className="text-muted-foreground mt-1">Manage event categories ({categories.length} total)</p>
         </div>
-        <Button className="gap-2" onClick={() => setEditCat({ ...emptyCategory, isNew: true })}>
+        <Button className="gap-2 w-full sm:w-auto" onClick={() => setEditCat({ ...emptyCategory, isNew: true })}>
           <Plus className="h-4 w-4" /> Add Category
         </Button>
       </div>

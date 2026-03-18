@@ -258,7 +258,7 @@ const DiscountCodesPage = () => {
             <TicketPercent className="h-5 w-5" /> All Discount Codes
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="overflow-x-auto">
           {isLoading ? (
             <p className="text-muted-foreground">Loading...</p>
           ) : codes.length === 0 ? (

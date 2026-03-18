@@ -110,8 +110,8 @@ export default function ProposalsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground font-display">Activity Proposals</h1>
-          <p className="text-muted-foreground text-sm mt-1">
+           <h1 className="text-2xl md:text-3xl font-bold text-foreground font-display">Activity Proposals</h1>
+           <p className="text-muted-foreground text-sm mt-1">
             Review and manage activity proposals submitted by members
           </p>
         </div>

@@ -446,7 +446,7 @@ export default function Dashboard() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <p className="text-sm font-medium text-muted-foreground tracking-wide uppercase">Super Admin</p>
-          <h1 className="text-3xl font-bold mt-1">Analytics Dashboard</h1>
+          <h1 className="text-2xl md:text-3xl font-bold mt-1">Analytics Dashboard</h1>
         </div>
         <div className="flex flex-wrap items-center gap-4">
           {/* Italy Time */}
