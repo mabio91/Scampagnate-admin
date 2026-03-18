@@ -205,6 +205,7 @@ export default function MembersPage() {
   const activeCount = members.filter((m) => m.membership_status === "Active").length;
   const expiredCount = members.filter((m) => m.membership_status === "Expired").length;
   const currentYearCount = members.filter((m) => m.membership_year === currentYear && m.membership_status === "Active").length;
+  const foundingCount = members.filter((m) => m.is_founding_member).length;
 
   return (
     <div className="space-y-6">
