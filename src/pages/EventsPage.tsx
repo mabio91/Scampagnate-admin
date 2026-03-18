@@ -102,6 +102,7 @@ const USER_GROUP_OPTIONS = [
 ];
 
 export default function EventsPage() {
+  const { t } = useLanguage();
   const [search, setSearch] = useState("");
   const [viewEvent, setViewEvent] = useState<EventWithCategory | null>(null);
   const [editEvent, setEditEvent] = useState<(Partial<Event> & { isNew?: boolean }) | null>(null);
