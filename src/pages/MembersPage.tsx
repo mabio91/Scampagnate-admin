@@ -358,6 +358,70 @@ export default function MembersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Bulk Expire Dialog */}
+      <AlertDialog open={showBulkExpireDialog} onOpenChange={setShowBulkExpireDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Bulk Expire Memberships
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will set all <strong>Active</strong> memberships with a membership year of <strong>{bulkExpireYear} or earlier</strong> to <strong>Expired</strong>. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <Label htmlFor="bulk_expire_year">Expire memberships for year ≤</Label>
+            <Input
+              id="bulk_expire_year"
+              type="number"
+              className="mt-2 max-w-[200px]"
+              value={bulkExpireYear}
+              onChange={(e) => setBulkExpireYear(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground mt-2">
+              Members with membership_year ≤ {bulkExpireYear} and status "Active" will be set to "Expired".
+            </p>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => bulkExpireMemberships.mutate()}
+              disabled={bulkExpireMemberships.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {bulkExpireMemberships.isPending ? "Expiring..." : "Expire Memberships"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Send Renewal Reminders Dialog */}
+      <AlertDialog open={showRenewalDialog} onOpenChange={setShowRenewalDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Bell className="h-5 w-5 text-primary" />
+              Send Renewal Reminders
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will send a notification to all members with <strong>Expired</strong> membership status, reminding them to renew their annual membership.
+              <br /><br />
+              <strong>{members.filter((m) => m.membership_status === "Expired" && m.membership_id).length}</strong> expired member(s) will receive a notification.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => sendRenewalReminders.mutate()}
+              disabled={sendRenewalReminders.isPending}
+            >
+              {sendRenewalReminders.isPending ? "Sending..." : "Send Reminders"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
