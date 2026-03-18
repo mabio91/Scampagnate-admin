@@ -289,10 +289,10 @@ export default function UsersPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => setViewUser(user)}>
-                            <Search className="h-4 w-4 mr-2" /> View Details & Activity
+                            <Search className="h-4 w-4 mr-2" /> {t("users.viewDetails")}
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => openEdit(user)}>
-                            <Edit2 className="h-4 w-4 mr-2" /> Edit Details
+                            <Edit2 className="h-4 w-4 mr-2" /> {t("users.editDetails")}
                           </DropdownMenuItem>
                           {user.account_status !== "Suspended" && (
                             <DropdownMenuItem onClick={() => setConfirmAction({ type: "suspend", userId: user.id, userName: `${user.first_name} ${user.last_name}` })}>
