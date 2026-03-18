@@ -724,7 +724,11 @@ export default function Dashboard() {
                     <div className="flex items-center gap-3">
                       <div className={cn("h-2 w-2 rounded-full shrink-0", config.dot)} />
                       <div>
-                        <p className="text-sm font-medium group-hover:text-foreground transition-colors">{item.action}</p>
+                        <p className="text-sm font-medium group-hover:text-foreground transition-colors">
+                          {item.action === "new_user" ? t("dashboard.newUserRegistered") :
+                           item.action === "event_created" ? t("dashboard.eventCreated") :
+                           t("dashboard.issueReported")}
+                        </p>
                         <p className="text-xs text-muted-foreground mt-0.5">{item.detail}</p>
                       </div>
                     </div>
