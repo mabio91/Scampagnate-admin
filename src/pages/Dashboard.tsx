@@ -580,36 +580,36 @@ export default function Dashboard() {
       {/* ── Operational Quick Stats ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <PremiumStatCard
-          title="Organizers"
+          title={t("dashboard.organizers")}
           value={totalOrganizers.toLocaleString()}
           icon={Building2}
           iconBg="bg-secondary"
         />
         <PremiumStatCard
-          title="Open Issues"
+          title={t("dashboard.openIssues")}
           value={openIssues.toLocaleString()}
           icon={AlertTriangle}
           changeType={openIssues > 0 ? "negative" : "positive"}
-          change={openIssues === 0 ? "All clear" : `${openIssues} need attention`}
+          change={openIssues === 0 ? t("dashboard.allClear") : `${openIssues} ${t("dashboard.needAttention")}`}
           iconBg="bg-destructive"
         />
         <PremiumStatCard
-          title="Total Events"
+          title={t("dashboard.totalEvents")}
           value={(eventsThisYear).toLocaleString()}
           icon={Calendar}
           iconBg="bg-accent"
-          subtitle="All time"
+          subtitle={t("dashboard.allTime")}
         />
         <PremiumStatCard
-          title="Community Health"
+          title={t("dashboard.communityHealth")}
           value={
-            Number(attendanceRate.replace('%', '')) > 70 ? "Excellent" :
-            Number(attendanceRate.replace('%', '')) > 40 ? "Good" : "Needs Work"
+            Number(attendanceRate.replace('%', '')) > 70 ? t("dashboard.excellent") :
+            Number(attendanceRate.replace('%', '')) > 40 ? t("dashboard.good") : t("dashboard.needsWork")
           }
           icon={Activity}
           iconBg="bg-success"
           changeType={Number(attendanceRate.replace('%', '')) > 40 ? "positive" : "negative"}
-          change={`${attendanceRate} attendance`}
+          change={`${attendanceRate} ${t("dashboard.attendance")}`}
         />
       </div>
 
