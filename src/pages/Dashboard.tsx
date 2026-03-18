@@ -615,7 +615,7 @@ export default function Dashboard() {
 
       {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <ChartCard title="Events & Registrations" icon={Calendar} className="lg:col-span-2">
+        <ChartCard title={t("dashboard.eventsRegistrations")} icon={Calendar} className="lg:col-span-2">
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={eventsByMonth} barGap={4}>
               <defs>
