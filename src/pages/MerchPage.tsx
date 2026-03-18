@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Edit2, Trash2, MessageCircle, ExternalLink } from "lucide-react";
+import { Plus, Edit2, Trash2, MessageCircle, Upload, ImageIcon, X } from "lucide-react";
 import RefreshButton from "@/components/RefreshButton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -34,6 +34,9 @@ const emptyProduct = {
 export default function MerchPage() {
   const { t, language } = useLanguage();
   const [editProduct, setEditProduct] = useState<(Partial<MerchProduct> & { isNew?: boolean }) | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
   const { data: products = [], isLoading } = useQuery({
@@ -44,6 +47,59 @@ export default function MerchPage() {
       return data || [];
     },
   });
+
+  const uploadImage = async (file: File): Promise<string> => {
+    const fileExt = file.name.split(".").pop()?.toLowerCase();
+    if (!fileExt || !["png", "jpg", "jpeg"].includes(fileExt)) {
+      throw new Error("Only PNG and JPG files are supported");
+    }
+    const fileName = `merch/${crypto.randomUUID()}.${fileExt}`;
+    const { error } = await supabase.storage.from("event-images").upload(fileName, file, {
+      contentType: file.type,
+      upsert: false,
+    });
+    if (error) throw error;
+    const { data: pub } = supabase.storage.from("event-images").getPublicUrl(fileName);
+    return pub.publicUrl;
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = ["image/png", "image/jpeg", "image/jpg"];
+    if (!validTypes.includes(file.type)) {
+      toast.error("Only PNG and JPG files are supported");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("File size must be less than 5MB");
+      return;
+    }
+
+    // Show preview immediately
+    const reader = new FileReader();
+    reader.onload = (ev) => setImagePreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+
+    setUploading(true);
+    try {
+      const url = await uploadImage(file);
+      setEditProduct((prev) => prev ? { ...prev, image_url: url } : null);
+      toast.success(t("merch.imageUploaded"));
+    } catch (err: any) {
+      toast.error(err.message);
+      setImagePreview(null);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const removeImage = () => {
+    setEditProduct((prev) => prev ? { ...prev, image_url: "" } : null);
+    setImagePreview(null);
+  };
 
   const saveMutation = useMutation({
     mutationFn: async (product: any) => {
@@ -60,6 +116,7 @@ export default function MerchPage() {
       toast.success(t("merch.saved"));
       queryClient.invalidateQueries({ queryKey: ["admin-merch"] });
       setEditProduct(null);
+      setImagePreview(null);
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -85,6 +142,17 @@ export default function MerchPage() {
     window.open(`https://wa.me/?text=${msg}`, "_blank");
   };
 
+  const openEditDialog = (product?: MerchProduct) => {
+    setImagePreview(null);
+    if (product) {
+      setEditProduct(product);
+    } else {
+      setEditProduct({ ...emptyProduct, isNew: true });
+    }
+  };
+
+  const currentImageUrl = imagePreview || editProduct?.image_url;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -96,7 +164,7 @@ export default function MerchPage() {
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <RefreshButton queryKeys={[["admin-merch"]]} />
-          <Button className="gap-2 flex-1 sm:flex-initial" onClick={() => setEditProduct({ ...emptyProduct, isNew: true })}>
+          <Button className="gap-2 flex-1 sm:flex-initial" onClick={() => openEditDialog()}>
             <Plus className="h-4 w-4" /> {t("merch.addProduct")}
           </Button>
         </div>
@@ -131,7 +199,7 @@ export default function MerchPage() {
                   </Badge>
                 )}
                 <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button variant="secondary" size="icon" className="h-8 w-8" onClick={() => setEditProduct(product)}>
+                  <Button variant="secondary" size="icon" className="h-8 w-8" onClick={() => openEditDialog(product)}>
                     <Edit2 className="h-3.5 w-3.5" />
                   </Button>
                   <Button variant="secondary" size="icon" className="h-8 w-8 text-destructive" onClick={() => { if (confirm(t("merch.deleteConfirm"))) deleteMutation.mutate(product.id); }}>
@@ -162,7 +230,7 @@ export default function MerchPage() {
       )}
 
       {/* Edit/Create Dialog */}
-      <Dialog open={!!editProduct} onOpenChange={(o) => !o && setEditProduct(null)}>
+      <Dialog open={!!editProduct} onOpenChange={(o) => { if (!o) { setEditProduct(null); setImagePreview(null); } }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editProduct?.isNew ? t("merch.createProduct") : t("merch.editProduct")}</DialogTitle>
@@ -199,10 +267,71 @@ export default function MerchPage() {
                   <Input type="number" value={editProduct.sort_order ?? 0} onChange={(e) => setEditProduct({ ...editProduct, sort_order: parseInt(e.target.value) || 0 })} />
                 </div>
               </div>
+
+              {/* Image Upload */}
               <div>
-                <Label>{t("merch.imageUrl")}</Label>
-                <Input value={editProduct.image_url || ""} onChange={(e) => setEditProduct({ ...editProduct, image_url: e.target.value })} placeholder="https://..." />
+                <Label>{t("merch.productImage")}</Label>
+                <div className="mt-2">
+                  {currentImageUrl ? (
+                    <div className="relative rounded-lg border border-border overflow-hidden bg-muted/30">
+                      <img
+                        src={currentImageUrl}
+                        alt="Preview"
+                        className="w-full h-48 object-contain p-2"
+                      />
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-2 right-2 h-7 w-7"
+                        onClick={removeImage}
+                        type="button"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-full h-36 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center gap-2 text-muted-foreground hover:border-primary/50 hover:bg-muted/20 transition-colors cursor-pointer"
+                      disabled={uploading}
+                    >
+                      {uploading ? (
+                        <>
+                          <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                          <span className="text-sm">{t("merch.uploading")}</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-8 w-8" />
+                          <span className="text-sm">{t("merch.uploadHint")}</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                  {currentImageUrl && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-2 gap-2"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                      type="button"
+                    >
+                      <Upload className="h-3.5 w-3.5" />
+                      {uploading ? t("merch.uploading") : t("merch.changeImage")}
+                    </Button>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg"
+                    className="hidden"
+                    onChange={handleFileSelect}
+                  />
+                </div>
               </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>{t("merch.badgeEn")}</Label>
@@ -223,8 +352,8 @@ export default function MerchPage() {
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditProduct(null)}>{t("common.cancel")}</Button>
-            <Button onClick={() => saveMutation.mutate(editProduct)} disabled={saveMutation.isPending}>
+            <Button variant="outline" onClick={() => { setEditProduct(null); setImagePreview(null); }}>{t("common.cancel")}</Button>
+            <Button onClick={() => saveMutation.mutate(editProduct)} disabled={saveMutation.isPending || uploading}>
               {saveMutation.isPending ? t("common.saving") : t("common.save")}
             </Button>
           </DialogFooter>
