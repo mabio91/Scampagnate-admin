@@ -17,10 +17,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 type Profile = Tables<"profiles">;
 
 export default function MembersPage() {
+  const { t } = useLanguage();
   const [search, setSearch] = useState("");
   const [editMember, setEditMember] = useState<Profile | null>(null);
   const [editForm, setEditForm] = useState({
@@ -211,18 +213,18 @@ export default function MembersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Membership Management</h1>
-          <p className="text-muted-foreground mt-1">View and manage association members ({members.length} total)</p>
+          <h1 className="text-2xl md:text-3xl font-bold">{t("members.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("members.subtitle")} ({members.length} {t("common.total").toLowerCase()})</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Button variant="destructive" className="gap-2" onClick={() => setShowBulkExpireDialog(true)}>
-            <CalendarX className="h-4 w-4" /> Bulk Expire
+            <CalendarX className="h-4 w-4" /> {t("members.bulkExpire")}
           </Button>
           <Button variant="secondary" className="gap-2" onClick={() => setShowRenewalDialog(true)}>
-            <Bell className="h-4 w-4" /> Send Renewal Reminders
+            <Bell className="h-4 w-4" /> {t("members.sendRenewalReminders")}
           </Button>
           <Button variant="outline" className="gap-2" onClick={exportMembers}>
-            <Download className="h-4 w-4" /> Export CSV
+            <Download className="h-4 w-4" /> {t("members.exportCsv")}
           </Button>
         </div>
       </div>
@@ -232,25 +234,25 @@ export default function MembersPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-green-600">{activeCount}</div>
-            <p className="text-sm text-muted-foreground">Active Memberships</p>
+            <p className="text-sm text-muted-foreground">{t("members.activeMemberships")}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-destructive">{expiredCount}</div>
-            <p className="text-sm text-muted-foreground">Expired Memberships</p>
+            <p className="text-sm text-muted-foreground">{t("members.expiredMemberships")}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-primary">{currentYearCount}</div>
-            <p className="text-sm text-muted-foreground">Active for {currentYear}</p>
+            <p className="text-sm text-muted-foreground">{t("members.activeFor")} {currentYear}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-amber-500">{foundingCount} <span className="text-sm font-normal text-muted-foreground">/ 150</span></div>
-            <p className="text-sm text-muted-foreground">Founding Members</p>
+            <p className="text-sm text-muted-foreground">{t("members.foundingMembers")}</p>
           </CardContent>
         </Card>
       </div>
@@ -260,7 +262,7 @@ export default function MembersPage() {
           <div className="relative max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search members by name, phone or ID..."
+              placeholder={t("members.searchPlaceholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9"
@@ -278,13 +280,13 @@ export default function MembersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Membership ID</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Year</TableHead>
-                  <TableHead>Badges</TableHead>
-                  <TableHead>Account Status</TableHead>
-                  <TableHead>Membership Status</TableHead>
+                  <TableHead>{t("members.membershipId")}</TableHead>
+                  <TableHead>{t("common.name")}</TableHead>
+                  <TableHead>{t("common.phone")}</TableHead>
+                  <TableHead>{t("members.year")}</TableHead>
+                  <TableHead>{t("members.badges")}</TableHead>
+                  <TableHead>{t("users.accountStatus")}</TableHead>
+                  <TableHead>{t("members.membershipStatus")}</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
@@ -338,7 +340,7 @@ export default function MembersPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => openEdit(member)}>
-                            <Edit2 className="h-4 w-4 mr-2" /> Edit Membership
+                            <Edit2 className="h-4 w-4 mr-2" /> {t("members.editMembership")}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -348,7 +350,7 @@ export default function MembersPage() {
                 {filtered.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
-                      No members found
+                      {t("members.noMembersFound")}
                     </TableCell>
                   </TableRow>
                 )}

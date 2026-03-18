@@ -3,6 +3,8 @@ import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import logo from "@/assets/logo.png";
 import { supabase } from "@/integrations/supabase/client";
+import { useLanguage } from "@/i18n/LanguageContext";
+import type { TranslationKey } from "@/i18n/translations";
 
 import {
   Sidebar,
@@ -18,17 +20,17 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-const navItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Users", url: "/users", icon: Users },
-  { title: "Members", url: "/members", icon: IdCard },
-  { title: "Organizers", url: "/organizers", icon: Building2 },
-  { title: "Event Categories", url: "/categories", icon: Tags },
-  { title: "Events", url: "/events", icon: Calendar },
-  { title: "Equipment Templates", url: "/equipment-templates", icon: Package },
-  { title: "Issues", url: "/issues", icon: AlertTriangle },
-  { title: "Proposals", url: "/proposals", icon: Lightbulb },
-  { title: "Discount Codes", url: "/discount-codes", icon: TicketPercent },
+const navItems: { titleKey: TranslationKey; url: string; icon: any }[] = [
+  { titleKey: "sidebar.dashboard", url: "/", icon: LayoutDashboard },
+  { titleKey: "sidebar.users", url: "/users", icon: Users },
+  { titleKey: "sidebar.members", url: "/members", icon: IdCard },
+  { titleKey: "sidebar.organizers", url: "/organizers", icon: Building2 },
+  { titleKey: "sidebar.eventCategories", url: "/categories", icon: Tags },
+  { titleKey: "sidebar.events", url: "/events", icon: Calendar },
+  { titleKey: "sidebar.equipmentTemplates", url: "/equipment-templates", icon: Package },
+  { titleKey: "sidebar.issues", url: "/issues", icon: AlertTriangle },
+  { titleKey: "sidebar.proposals", url: "/proposals", icon: Lightbulb },
+  { titleKey: "sidebar.discountCodes", url: "/discount-codes", icon: TicketPercent },
 ];
 
 export function AdminSidebar() {
@@ -36,6 +38,7 @@ export function AdminSidebar() {
   const collapsed = state === "collapsed";
   const location = useLocation();
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -49,7 +52,7 @@ export function AdminSidebar() {
           <img src={logo} alt="Gruppo Scampagnate" className="w-10 h-10 rounded-full" />
           {!collapsed && (
             <div>
-              <h2 className="text-sm font-bold text-sidebar-foreground font-sans">Super Admin</h2>
+              <h2 className="text-sm font-bold text-sidebar-foreground font-sans">{t("sidebar.superAdmin")}</h2>
               <p className="text-xs text-sidebar-accent-foreground/60">Gruppo Scampagnate</p>
             </div>
           )}
@@ -59,12 +62,12 @@ export function AdminSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="text-sidebar-accent-foreground/50 uppercase text-[10px] tracking-widest">
-            Management
+            {t("sidebar.management")}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {navItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
+                <SidebarMenuItem key={item.titleKey}>
                   <SidebarMenuButton asChild>
                     <NavLink
                       to={item.url}
@@ -73,7 +76,7 @@ export function AdminSidebar() {
                       activeClassName="bg-sidebar-accent text-sidebar-primary font-semibold"
                     >
                       <item.icon className="mr-2 h-4 w-4" />
-                      {!collapsed && <span>{item.title}</span>}
+                      {!collapsed && <span>{t(item.titleKey)}</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -93,7 +96,7 @@ export function AdminSidebar() {
                 activeClassName="bg-sidebar-accent text-sidebar-primary font-semibold"
               >
                 <User className="mr-2 h-4 w-4" />
-                {!collapsed && <span>My Profile</span>}
+                {!collapsed && <span>{t("sidebar.myProfile")}</span>}
               </NavLink>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -103,7 +106,7 @@ export function AdminSidebar() {
               className="hover:bg-destructive/10 text-destructive cursor-pointer"
             >
               <LogOut className="mr-2 h-4 w-4" />
-              {!collapsed && <span>Logout</span>}
+              {!collapsed && <span>{t("sidebar.logout")}</span>}
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

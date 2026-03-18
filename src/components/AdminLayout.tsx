@@ -3,11 +3,13 @@ import { AdminSidebar } from "@/components/AdminSidebar";
 import { Outlet, useNavigate } from "react-router-dom";
 import { Shield } from "lucide-react";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useEffect } from "react";
 import { toast } from "sonner";
+import { useLanguage } from "@/i18n/LanguageContext";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +19,7 @@ import {
 
 export function AdminLayout() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   const { data: session } = useQuery({
     queryKey: ["session"],
@@ -68,10 +71,11 @@ export function AdminLayout() {
           <header className="h-14 flex items-center border-b bg-card px-4 gap-3">
             <SidebarTrigger />
             <div className="flex items-center gap-2 ml-auto">
+              <LanguageSwitcher />
               <ThemeSwitcher />
               <div className="flex items-center gap-2 bg-primary/10 text-primary px-3 py-1.5 rounded-full text-xs font-semibold">
                 <Shield className="h-3.5 w-3.5" />
-                Super Admin
+                {t("header.superAdmin")}
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -86,10 +90,10 @@ export function AdminLayout() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onClick={() => navigate("/profile")}>
-                    My Profile
+                    {t("header.myProfile")}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleLogout} className="text-destructive">
-                    Logout
+                    {t("header.logout")}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

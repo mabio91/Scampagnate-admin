@@ -18,10 +18,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Tables, Database } from "@/integrations/supabase/types";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 type Profile = Tables<"profiles">;
 
 export default function UsersPage() {
+  const { t } = useLanguage();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
   const [viewUser, setViewUser] = useState<(Profile & { roles: string[] }) | null>(null);
@@ -204,11 +206,11 @@ export default function UsersPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Users</h1>
-          <p className="text-muted-foreground mt-1">Manage platform users ({users.length} total)</p>
+          <h1 className="text-2xl md:text-3xl font-bold">{t("users.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("users.subtitle")} ({users.length} {t("common.total").toLowerCase()})</p>
         </div>
         <Button className="gap-2 w-full sm:w-auto" onClick={() => setCreateOpen(true)}>
-          <UserPlus className="h-4 w-4" /> Add User
+          <UserPlus className="h-4 w-4" /> {t("users.addUser")}
         </Button>
       </div>
 
@@ -217,18 +219,18 @@ export default function UsersPage() {
           <div className="flex flex-wrap gap-4">
             <div className="relative max-w-sm flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search by name, email, phone, or member ID..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+              <Input placeholder={t("users.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
             </div>
             <div className="w-[180px]">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Filter by status" />
+                  <SelectValue placeholder={t("users.filterByStatus")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="All">All Statuses</SelectItem>
-                  <SelectItem value="Active">Active</SelectItem>
-                  <SelectItem value="Suspended">Suspended</SelectItem>
-                  <SelectItem value="Banned">Banned</SelectItem>
+                  <SelectItem value="All">{t("users.allStatuses")}</SelectItem>
+                  <SelectItem value="Active">{t("common.active")}</SelectItem>
+                  <SelectItem value="Suspended">{t("users.suspended")}</SelectItem>
+                  <SelectItem value="Banned">{t("users.banned")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -241,14 +243,14 @@ export default function UsersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Events</TableHead>
-                  <TableHead>Joined</TableHead>
-                  <TableHead>Last Login</TableHead>
+                  <TableHead>{t("common.name")}</TableHead>
+                  <TableHead>{t("common.email")}</TableHead>
+                  <TableHead>{t("common.phone")}</TableHead>
+                  <TableHead>{t("users.role")}</TableHead>
+                  <TableHead>{t("common.status")}</TableHead>
+                  <TableHead>{t("users.events")}</TableHead>
+                  <TableHead>{t("users.joined")}</TableHead>
+                  <TableHead>{t("users.lastLogin")}</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
@@ -279,7 +281,7 @@ export default function UsersPage() {
                     </TableCell>
                     <TableCell>{regCounts[user.id] || 0}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">{new Date(user.created_at).toLocaleDateString()}</TableCell>
-                    <TableCell className="text-muted-foreground text-sm">{user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString() : "Never"}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString() : t("users.never")}</TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -287,10 +289,10 @@ export default function UsersPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => setViewUser(user)}>
-                            <Search className="h-4 w-4 mr-2" /> View Details & Activity
+                            <Search className="h-4 w-4 mr-2" /> {t("users.viewDetails")}
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => openEdit(user)}>
-                            <Edit2 className="h-4 w-4 mr-2" /> Edit Details
+                            <Edit2 className="h-4 w-4 mr-2" /> {t("users.editDetails")}
                           </DropdownMenuItem>
                           {user.account_status !== "Suspended" && (
                             <DropdownMenuItem onClick={() => setConfirmAction({ type: "suspend", userId: user.id, userName: `${user.first_name} ${user.last_name}` })}>
@@ -319,7 +321,7 @@ export default function UsersPage() {
                   </TableRow>
                 ))}
                 {filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No users found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">{t("users.noUsersFound")}</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -331,15 +333,15 @@ export default function UsersPage() {
       <Dialog open={!!viewUser} onOpenChange={(o) => !o && setViewUser(null)}>
         <DialogContent className="max-w-3xl h-[80vh] flex flex-col pl-6 pr-2">
           <DialogHeader className="pr-4">
-            <DialogTitle>User Details: {viewUser?.first_name} {viewUser?.last_name}</DialogTitle>
+            <DialogTitle>{t("users.userDetails")}: {viewUser?.first_name} {viewUser?.last_name}</DialogTitle>
           </DialogHeader>
 
           <ScrollArea className="flex-1 pr-4">
             {viewUser && (
               <Tabs defaultValue="profile" className="w-full mt-2">
                 <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="profile">Profile Overview</TabsTrigger>
-                  <TabsTrigger value="activity">Activity History</TabsTrigger>
+                  <TabsTrigger value="profile">{t("users.profileOverview")}</TabsTrigger>
+                  <TabsTrigger value="activity">{t("users.activityHistory")}</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="profile" className="space-y-4 mt-4">

@@ -12,8 +12,10 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { Camera, Loader2, Save, KeyRound, User, Activity } from "lucide-react";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 export default function ProfilePage() {
+  const { t } = useLanguage();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -183,8 +185,8 @@ export default function ProfilePage() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold font-display text-foreground">My Profile</h1>
-        <p className="text-muted-foreground text-sm">Manage your account settings</p>
+        <h1 className="text-2xl font-bold font-display text-foreground">{t("profile.title")}</h1>
+        <p className="text-muted-foreground text-sm">{t("profile.subtitle")}</p>
       </div>
 
       {/* Avatar Section */}

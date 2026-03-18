@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format, subMonths, startOfMonth } from "date-fns";
 import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 const PIE_COLORS = [
   "hsl(150, 40%, 20%)",
@@ -192,6 +193,7 @@ export default function Dashboard() {
   const { italyTime, italyDate } = useItalyTime();
   const { data: weather } = useItalyWeather();
   const chartTheme = useChartTheme();
+  const { t } = useLanguage();
 
   const currentYear = new Date().getFullYear();
   const yearStart = `${currentYear}-01-01`;
@@ -413,11 +415,11 @@ export default function Dashboard() {
     queryFn: async () => {
       const activities: { action: string; detail: string; time: string; type: string }[] = [];
       const { data: recentUsers } = await supabase.from("profiles").select("first_name, last_name, created_at").order("created_at", { ascending: false }).limit(3);
-      recentUsers?.forEach((u) => activities.push({ action: "New user registered", detail: `${u.first_name} ${u.last_name}`, time: u.created_at, type: "user" }));
+      recentUsers?.forEach((u) => activities.push({ action: "new_user", detail: `${u.first_name} ${u.last_name}`, time: u.created_at, type: "user" }));
       const { data: recentEvents } = await supabase.from("events").select("title, created_at").order("created_at", { ascending: false }).limit(3);
-      recentEvents?.forEach((e) => activities.push({ action: "Event created", detail: e.title, time: e.created_at, type: "event" }));
+      recentEvents?.forEach((e) => activities.push({ action: "event_created", detail: e.title, time: e.created_at, type: "event" }));
       const { data: recentIssues } = await supabase.from("issues").select("title, created_at").order("created_at", { ascending: false }).limit(3);
-      recentIssues?.forEach((is) => activities.push({ action: "Issue reported", detail: is.title, time: is.created_at, type: "issue" }));
+      recentIssues?.forEach((is) => activities.push({ action: "issue_reported", detail: is.title, time: is.created_at, type: "issue" }));
       return activities.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 6);
     },
   });
@@ -445,8 +447,8 @@ export default function Dashboard() {
       {/* ── Header with Italy Time & Weather ── */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-muted-foreground tracking-wide uppercase">Super Admin</p>
-          <h1 className="text-2xl md:text-3xl font-bold mt-1">Analytics Dashboard</h1>
+          <p className="text-sm font-medium text-muted-foreground tracking-wide uppercase">{t("header.superAdmin")}</p>
+          <h1 className="text-2xl md:text-3xl font-bold mt-1">{t("dashboard.title")}</h1>
         </div>
         <div className="flex flex-wrap items-center gap-4">
           {/* Italy Time */}
@@ -480,52 +482,52 @@ export default function Dashboard() {
 
       {/* ── PRIMARY KPI Cards ── */}
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60 mb-3">Primary Metrics</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60 mb-3">{t("dashboard.primaryMetrics")}</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           {isLoading ? (
             Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-32 rounded-xl" />)
           ) : (
             <>
               <PremiumStatCard
-                title="Total Users"
+                title={t("dashboard.totalUsers")}
                 value={totalUsers.toLocaleString()}
                 icon={Users}
                 iconBg="bg-primary"
               />
               <PremiumStatCard
-                title="Active Members"
+                title={t("dashboard.activeMembers")}
                 value={activeMembers.toLocaleString()}
                 icon={UserCheck}
                 iconBg="bg-success"
-                subtitle={`Paid membership ${currentYear}`}
+                subtitle={`${t("dashboard.paidMembership")} ${currentYear}`}
               />
               <PremiumStatCard
-                title="Users Attended"
+                title={t("dashboard.usersAttended")}
                 value={usersAttended.toLocaleString()}
                 icon={CheckCircle2}
                 iconBg="bg-secondary"
-                subtitle={`At least 1 event in ${currentYear}`}
+                subtitle={`${t("dashboard.atLeast1Event")} ${currentYear}`}
               />
               <PremiumStatCard
-                title="Events Created"
+                title={t("dashboard.eventsCreated")}
                 value={eventsThisYear.toLocaleString()}
                 icon={Calendar}
                 iconBg="bg-accent"
-                subtitle={`In ${currentYear}`}
+                subtitle={`${t("dashboard.in")} ${currentYear}`}
               />
               <PremiumStatCard
-                title="Participation Rate"
+                title={t("dashboard.participationRate")}
                 value={participationRate}
                 icon={Percent}
                 iconBg="bg-primary"
-                subtitle="Joined ≥1 event / Total users"
+                subtitle={t("dashboard.participationSub")}
               />
               <PremiumStatCard
-                title="Attendance Rate"
+                title={t("dashboard.attendanceRate")}
                 value={attendanceRate}
                 icon={ListChecks}
                 iconBg="bg-success"
-                subtitle="Checked-in / Total registrations"
+                subtitle={t("dashboard.attendanceSub")}
               />
             </>
           )}
@@ -534,43 +536,43 @@ export default function Dashboard() {
 
       {/* ── SECONDARY KPI Cards ── */}
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60 mb-3">Secondary Metrics</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60 mb-3">{t("dashboard.secondaryMetrics")}</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           <PremiumStatCard
-            title="Avg Fill Rate"
+            title={t("dashboard.avgFillRate")}
             value={avgFillRate}
             icon={BarChart3}
             iconBg="bg-secondary"
-            subtitle="Avg registrations / capacity"
+            subtitle={t("dashboard.avgFillSub")}
           />
           <PremiumStatCard
-            title="Waitlist Requests"
+            title={t("dashboard.waitlistRequests")}
             value={totalWaitlist.toLocaleString()}
             icon={Clock}
             iconBg="bg-warning"
             changeType={totalWaitlist > 0 ? "negative" : "neutral"}
-            change={totalWaitlist > 0 ? `${totalWaitlist} waiting` : "No waitlist"}
+            change={totalWaitlist > 0 ? `${totalWaitlist} ${t("dashboard.waiting")}` : t("dashboard.noWaitlist")}
           />
           <PremiumStatCard
-            title="Repeat Participants"
+            title={t("dashboard.repeatParticipants")}
             value={repeatParticipants.toLocaleString()}
             icon={Repeat}
             iconBg="bg-accent"
-            subtitle="Attended >3 events"
+            subtitle={t("dashboard.repeatSub")}
           />
           <PremiumStatCard
-            title="New Users (Month)"
+            title={t("dashboard.newUsersMonth")}
             value={newUsersMonth.toLocaleString()}
             icon={UserPlus}
             iconBg="bg-primary"
             subtitle={format(new Date(), "MMMM yyyy")}
           />
           <PremiumStatCard
-            title="Top Category"
+            title={t("dashboard.topCategory")}
             value={topCategory}
             icon={Trophy}
             iconBg="bg-secondary"
-            subtitle="Most popular category"
+            subtitle={t("dashboard.topCategorySub")}
           />
         </div>
       </div>
@@ -578,42 +580,42 @@ export default function Dashboard() {
       {/* ── Operational Quick Stats ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <PremiumStatCard
-          title="Organizers"
+          title={t("dashboard.organizers")}
           value={totalOrganizers.toLocaleString()}
           icon={Building2}
           iconBg="bg-secondary"
         />
         <PremiumStatCard
-          title="Open Issues"
+          title={t("dashboard.openIssues")}
           value={openIssues.toLocaleString()}
           icon={AlertTriangle}
           changeType={openIssues > 0 ? "negative" : "positive"}
-          change={openIssues === 0 ? "All clear" : `${openIssues} need attention`}
+          change={openIssues === 0 ? t("dashboard.allClear") : `${openIssues} ${t("dashboard.needAttention")}`}
           iconBg="bg-destructive"
         />
         <PremiumStatCard
-          title="Total Events"
+          title={t("dashboard.totalEvents")}
           value={(eventsThisYear).toLocaleString()}
           icon={Calendar}
           iconBg="bg-accent"
-          subtitle="All time"
+          subtitle={t("dashboard.allTime")}
         />
         <PremiumStatCard
-          title="Community Health"
+          title={t("dashboard.communityHealth")}
           value={
-            Number(attendanceRate.replace('%', '')) > 70 ? "Excellent" :
-            Number(attendanceRate.replace('%', '')) > 40 ? "Good" : "Needs Work"
+            Number(attendanceRate.replace('%', '')) > 70 ? t("dashboard.excellent") :
+            Number(attendanceRate.replace('%', '')) > 40 ? t("dashboard.good") : t("dashboard.needsWork")
           }
           icon={Activity}
           iconBg="bg-success"
           changeType={Number(attendanceRate.replace('%', '')) > 40 ? "positive" : "negative"}
-          change={`${attendanceRate} attendance`}
+          change={`${attendanceRate} ${t("dashboard.attendance")}`}
         />
       </div>
 
       {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <ChartCard title="Events & Registrations" icon={Calendar} className="lg:col-span-2">
+        <ChartCard title={t("dashboard.eventsRegistrations")} icon={Calendar} className="lg:col-span-2">
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={eventsByMonth} barGap={4}>
               <defs>
@@ -637,10 +639,10 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Category Distribution">
+        <ChartCard title={t("dashboard.categoryDistribution")}>
           {categoryData.length === 0 ? (
             <div className="flex items-center justify-center h-[280px]">
-              <p className="text-muted-foreground text-sm">No events with categories yet</p>
+              <p className="text-muted-foreground text-sm">{t("dashboard.noCategoriesYet")}</p>
             </div>
           ) : (
             <div>
@@ -694,7 +696,7 @@ export default function Dashboard() {
 
       {/* Charts Row 2 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <ChartCard title="Issues Trend">
+        <ChartCard title={t("dashboard.issuesTrend")}>
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={issuesTrend}>
               <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridStroke} vertical={false} />
@@ -708,11 +710,11 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Recent Activity" icon={Activity} className="lg:col-span-2">
+        <ChartCard title={t("dashboard.recentActivity")} icon={Activity} className="lg:col-span-2">
           <div className="space-y-1">
             {recentActivity.length === 0 ? (
               <div className="flex items-center justify-center h-[240px]">
-                <p className="text-sm text-muted-foreground">No recent activity</p>
+                <p className="text-sm text-muted-foreground">{t("dashboard.noRecentActivity")}</p>
               </div>
             ) : (
               recentActivity.map((item, i) => {
@@ -722,7 +724,11 @@ export default function Dashboard() {
                     <div className="flex items-center gap-3">
                       <div className={cn("h-2 w-2 rounded-full shrink-0", config.dot)} />
                       <div>
-                        <p className="text-sm font-medium group-hover:text-foreground transition-colors">{item.action}</p>
+                        <p className="text-sm font-medium group-hover:text-foreground transition-colors">
+                          {item.action === "new_user" ? t("dashboard.newUserRegistered") :
+                           item.action === "event_created" ? t("dashboard.eventCreated") :
+                           t("dashboard.issueReported")}
+                        </p>
                         <p className="text-xs text-muted-foreground mt-0.5">{item.detail}</p>
                       </div>
                     </div>

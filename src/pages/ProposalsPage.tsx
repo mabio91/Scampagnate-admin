@@ -13,6 +13,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
+import { useLanguage } from "@/i18n/LanguageContext";
 import { useNavigate } from "react-router-dom";
 
 type Proposal = Tables<"activity_proposals">;
@@ -26,6 +27,7 @@ const statusColors: Record<string, string> = {
 };
 
 export default function ProposalsPage() {
+  const { t } = useLanguage();
   const [search, setSearch] = useState("");
   const [viewProposal, setViewProposal] = useState<Proposal | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ proposal: Proposal; action: "archive" | "discard" } | null>(null);
@@ -110,13 +112,13 @@ export default function ProposalsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-           <h1 className="text-2xl md:text-3xl font-bold text-foreground font-display">Activity Proposals</h1>
-           <p className="text-muted-foreground text-sm mt-1">
-            Review and manage activity proposals submitted by members
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground font-display">{t("proposals.title")}</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            {t("proposals.subtitle")}
           </p>
         </div>
         <Badge variant="outline" className="text-primary border-primary/30">
-          {proposals.length} Total
+          {proposals.length} {t("common.total")}
         </Badge>
       </div>
 

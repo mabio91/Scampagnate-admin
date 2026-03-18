@@ -18,6 +18,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 type Event = Tables<"events">;
 type EventWithCategory = Event & { event_categories: { name: string; icon: string } | null };
@@ -101,6 +102,7 @@ const USER_GROUP_OPTIONS = [
 ];
 
 export default function EventsPage() {
+  const { t } = useLanguage();
   const [search, setSearch] = useState("");
   const [viewEvent, setViewEvent] = useState<EventWithCategory | null>(null);
   const [editEvent, setEditEvent] = useState<(Partial<Event> & { isNew?: boolean }) | null>(null);
@@ -313,11 +315,11 @@ export default function EventsPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Events</h1>
-          <p className="text-muted-foreground mt-1">Manage all events ({events.length} total)</p>
+          <h1 className="text-2xl md:text-3xl font-bold">{t("events.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("events.subtitle")} ({events.length} {t("common.total").toLowerCase()})</p>
         </div>
         <Button className="gap-2 w-full sm:w-auto" onClick={() => setEditEvent({ ...emptyEvent, isNew: true })}>
-          <Plus className="h-4 w-4" /> Add Event
+          <Plus className="h-4 w-4" /> {t("events.addEvent")}
         </Button>
       </div>
 
@@ -325,7 +327,7 @@ export default function EventsPage() {
         <CardHeader className="pb-3">
           <div className="relative max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search events..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+            <Input placeholder={t("events.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
           </div>
         </CardHeader>
         <CardContent className="overflow-x-auto">
@@ -335,13 +337,13 @@ export default function EventsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Event</TableHead>
-                  <TableHead>Organizer</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Spots</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Visibility</TableHead>
+                  <TableHead>{t("events.event")}</TableHead>
+                  <TableHead>{t("events.organizer")}</TableHead>
+                  <TableHead>{t("events.category")}</TableHead>
+                  <TableHead>{t("common.date")}</TableHead>
+                  <TableHead>{t("events.spots")}</TableHead>
+                  <TableHead>{t("common.status")}</TableHead>
+                  <TableHead>{t("events.visibility")}</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
@@ -380,7 +382,7 @@ export default function EventsPage() {
                   </TableRow>
                 ))}
                 {filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No events found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{t("events.noEventsFound")}</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>

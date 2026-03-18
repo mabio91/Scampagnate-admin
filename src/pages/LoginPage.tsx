@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import logo from "@/assets/logo.png";
 import { AuthPageWrapper } from "@/components/AuthPageWrapper";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -19,6 +21,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -95,7 +98,8 @@ export default function LoginPage() {
 
   return (
     <AuthPageWrapper>
-      <div className="absolute top-4 right-4">
+      <div className="absolute top-4 right-4 flex items-center gap-2">
+        <LanguageSwitcher />
         <ThemeSwitcher />
       </div>
 
@@ -104,29 +108,29 @@ export default function LoginPage() {
           <div className="mx-auto w-fit mb-2">
             <img src={logo} alt="Logo" className="h-16 w-auto" />
           </div>
-          <CardTitle className="text-2xl tracking-tight">Super Admin</CardTitle>
-          <p className="text-sm text-muted-foreground">Sign in to access the dashboard</p>
+          <CardTitle className="text-2xl tracking-tight">{t("login.title")}</CardTitle>
+          <p className="text-sm text-muted-foreground">{t("login.subtitle")}</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-1.5">
-              <Label>Email</Label>
+              <Label>{t("common.email")}</Label>
               <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="bg-background/60" />
             </div>
             <div className="space-y-1.5">
-              <Label>Password</Label>
+              <Label>{t("users.password")}</Label>
               <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="bg-background/60" />
             </div>
             <div className="flex items-center gap-2">
               <Checkbox id="remember" checked={rememberMe} onCheckedChange={(checked) => setRememberMe(checked === true)} />
-              <Label htmlFor="remember" className="text-sm font-normal cursor-pointer">Remember me</Label>
+              <Label htmlFor="remember" className="text-sm font-normal cursor-pointer">{t("login.rememberMe")}</Label>
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Signing in...</> : "Sign In"}
+              {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t("login.signingIn")}</> : t("login.signIn")}
             </Button>
             <div className="text-center">
               <Link to="/forgot-password" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                Forgot password?
+                {t("login.forgotPassword")}
               </Link>
             </div>
           </form>
