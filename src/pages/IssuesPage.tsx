@@ -152,7 +152,7 @@ export default function IssuesPage() {
                         </div>
                         {issue.resolution_notes && (
                           <p className="text-xs mt-2 p-2 bg-success/5 rounded text-success border border-success/20">
-                            Resolution: {issue.resolution_notes}
+                            {t("issues.resolution")}: {issue.resolution_notes}
                           </p>
                         )}
                       </div>
