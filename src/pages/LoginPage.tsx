@@ -98,7 +98,8 @@ export default function LoginPage() {
 
   return (
     <AuthPageWrapper>
-      <div className="absolute top-4 right-4">
+      <div className="absolute top-4 right-4 flex items-center gap-2">
+        <LanguageSwitcher />
         <ThemeSwitcher />
       </div>
 
