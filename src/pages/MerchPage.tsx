@@ -121,7 +121,7 @@ export default function MerchPage() {
                   <div className="text-muted-foreground text-sm">{t("merch.noImage")}</div>
                 )}
                 {getBadge(product) && (
-                  <Badge className="absolute top-3 left-3 bg-orange-500 hover:bg-orange-600 text-white border-0">
+                  <Badge className="absolute top-3 left-3 bg-primary hover:bg-primary/90 text-primary-foreground border-0">
                     {getBadge(product)}
                   </Badge>
                 )}
