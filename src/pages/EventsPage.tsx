@@ -311,12 +311,12 @@ export default function EventsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Events</h1>
+          <h1 className="text-2xl md:text-3xl font-bold">Events</h1>
           <p className="text-muted-foreground mt-1">Manage all events ({events.length} total)</p>
         </div>
-        <Button className="gap-2" onClick={() => setEditEvent({ ...emptyEvent, isNew: true })}>
+        <Button className="gap-2 w-full sm:w-auto" onClick={() => setEditEvent({ ...emptyEvent, isNew: true })}>
           <Plus className="h-4 w-4" /> Add Event
         </Button>
       </div>
