@@ -168,8 +168,8 @@ export default function IssuesPage() {
                           <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> {t("issues.resolve")}
                         </Button>
                       )}
-                      <Button variant="ghost" size="sm" className="text-destructive" onClick={() => { if (confirm("Delete this issue?")) deleteMutation.mutate(issue.id); }}>
-                        Delete
+                      <Button variant="ghost" size="sm" className="text-destructive" onClick={() => { if (confirm(t("issues.deleteConfirm"))) deleteMutation.mutate(issue.id); }}>
+                        {t("common.delete")}
                       </Button>
                     </div>
                   </div>
