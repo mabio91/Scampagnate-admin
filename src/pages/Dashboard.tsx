@@ -489,45 +489,45 @@ export default function Dashboard() {
           ) : (
             <>
               <PremiumStatCard
-                title="Total Users"
+                title={t("dashboard.totalUsers")}
                 value={totalUsers.toLocaleString()}
                 icon={Users}
                 iconBg="bg-primary"
               />
               <PremiumStatCard
-                title="Active Members"
+                title={t("dashboard.activeMembers")}
                 value={activeMembers.toLocaleString()}
                 icon={UserCheck}
                 iconBg="bg-success"
-                subtitle={`Paid membership ${currentYear}`}
+                subtitle={`${t("dashboard.paidMembership")} ${currentYear}`}
               />
               <PremiumStatCard
-                title="Users Attended"
+                title={t("dashboard.usersAttended")}
                 value={usersAttended.toLocaleString()}
                 icon={CheckCircle2}
                 iconBg="bg-secondary"
-                subtitle={`At least 1 event in ${currentYear}`}
+                subtitle={`${t("dashboard.atLeast1Event")} ${currentYear}`}
               />
               <PremiumStatCard
-                title="Events Created"
+                title={t("dashboard.eventsCreated")}
                 value={eventsThisYear.toLocaleString()}
                 icon={Calendar}
                 iconBg="bg-accent"
-                subtitle={`In ${currentYear}`}
+                subtitle={`${t("dashboard.in")} ${currentYear}`}
               />
               <PremiumStatCard
-                title="Participation Rate"
+                title={t("dashboard.participationRate")}
                 value={participationRate}
                 icon={Percent}
                 iconBg="bg-primary"
-                subtitle="Joined ≥1 event / Total users"
+                subtitle={t("dashboard.participationSub")}
               />
               <PremiumStatCard
-                title="Attendance Rate"
+                title={t("dashboard.attendanceRate")}
                 value={attendanceRate}
                 icon={ListChecks}
                 iconBg="bg-success"
-                subtitle="Checked-in / Total registrations"
+                subtitle={t("dashboard.attendanceSub")}
               />
             </>
           )}
