@@ -26,7 +26,12 @@ export default function MembersPage() {
     membership_status: "Inactive",
     membership_year: new Date().getFullYear().toString(),
   });
+  const [showBulkExpireDialog, setShowBulkExpireDialog] = useState(false);
+  const [bulkExpireYear, setBulkExpireYear] = useState((new Date().getFullYear() - 1).toString());
+  const [showRenewalDialog, setShowRenewalDialog] = useState(false);
   const queryClient = useQueryClient();
+
+  const currentYear = new Date().getFullYear();
 
   const { data: members = [], isLoading } = useQuery({
     queryKey: ["admin-members"],
