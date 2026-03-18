@@ -27,6 +27,7 @@ const statusColors: Record<string, string> = {
 };
 
 export default function ProposalsPage() {
+  const { t } = useLanguage();
   const [search, setSearch] = useState("");
   const [viewProposal, setViewProposal] = useState<Proposal | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ proposal: Proposal; action: "archive" | "discard" } | null>(null);
