@@ -98,10 +98,10 @@ export default function OrganizersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Events</TableHead>
-                  <TableHead>Joined</TableHead>
+                  <TableHead>{t("common.name")}</TableHead>
+                  <TableHead>{t("common.phone")}</TableHead>
+                  <TableHead>{t("users.events")}</TableHead>
+                  <TableHead>{t("users.joined")}</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
