@@ -398,6 +398,38 @@ export default function MembersPage() {
                 </SelectContent>
               </Select>
             </div>
+            <Separator />
+            <div className="space-y-3">
+              <Label className="text-sm font-semibold flex items-center gap-2">
+                <Shield className="h-4 w-4" /> Founding Member Status
+              </Label>
+              <div className="flex items-center justify-between rounded-lg border p-3 bg-muted/30">
+                <div className="space-y-0.5">
+                  <p className="text-sm font-medium">Founding Member</p>
+                  <p className="text-xs text-muted-foreground">
+                    Grant this user the Founding Member badge and special privileges
+                  </p>
+                </div>
+                <Switch
+                  checked={editForm.is_founding_member}
+                  onCheckedChange={(checked) => setEditForm({ ...editForm, is_founding_member: checked })}
+                />
+              </div>
+              {editMember && (userBadgesMap[editMember.id] || []).length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold flex items-center gap-2">
+                    <Award className="h-4 w-4" /> Current Badges
+                  </Label>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {(userBadgesMap[editMember.id] || []).map((b) => (
+                      <Badge key={b.badge_id} variant="secondary" className="gap-1">
+                        <span>{b.icon}</span> {b.name}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditMember(null)}>
