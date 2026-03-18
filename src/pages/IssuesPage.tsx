@@ -186,18 +186,18 @@ export default function IssuesPage() {
       {/* Create Issue */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Report Issue</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("issues.reportIssue")}</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <div><Label>Title</Label><Input value={newIssue.title} onChange={(e) => setNewIssue({ ...newIssue, title: e.target.value })} /></div>
-            <div><Label>Description</Label><Textarea value={newIssue.description} onChange={(e) => setNewIssue({ ...newIssue, description: e.target.value })} rows={3} /></div>
+            <div><Label>{t("issues.issueTitle")}</Label><Input value={newIssue.title} onChange={(e) => setNewIssue({ ...newIssue, title: e.target.value })} /></div>
+            <div><Label>{t("common.description")}</Label><Textarea value={newIssue.description} onChange={(e) => setNewIssue({ ...newIssue, description: e.target.value })} rows={3} /></div>
             <div>
-              <Label>Priority</Label>
+              <Label>{t("issues.priority")}</Label>
               <Select value={newIssue.priority} onValueChange={(v) => setNewIssue({ ...newIssue, priority: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="low">{t("issues.low")}</SelectItem>
+                  <SelectItem value="medium">{t("issues.medium")}</SelectItem>
+                  <SelectItem value="high">{t("issues.high")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
