@@ -280,13 +280,13 @@ export default function MembersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Membership ID</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Year</TableHead>
-                  <TableHead>Badges</TableHead>
-                  <TableHead>Account Status</TableHead>
-                  <TableHead>Membership Status</TableHead>
+                  <TableHead>{t("members.membershipId")}</TableHead>
+                  <TableHead>{t("common.name")}</TableHead>
+                  <TableHead>{t("common.phone")}</TableHead>
+                  <TableHead>{t("members.year")}</TableHead>
+                  <TableHead>{t("members.badges")}</TableHead>
+                  <TableHead>{t("users.accountStatus")}</TableHead>
+                  <TableHead>{t("members.membershipStatus")}</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
