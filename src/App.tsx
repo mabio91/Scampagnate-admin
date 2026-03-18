@@ -18,6 +18,7 @@ import ProfilePage from "@/pages/ProfilePage";
 import MembersPage from "@/pages/MembersPage";
 import ProposalsPage from "@/pages/ProposalsPage";
 import DiscountCodesPage from "@/pages/DiscountCodesPage";
+import MerchPage from "@/pages/MerchPage";
 import LoginPage from "@/pages/LoginPage";
 import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
