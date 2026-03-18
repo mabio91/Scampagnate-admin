@@ -275,6 +275,7 @@ export default function MembersPage() {
                   <TableHead>Name</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead>Year</TableHead>
+                  <TableHead>Badges</TableHead>
                   <TableHead>Account Status</TableHead>
                   <TableHead>Membership Status</TableHead>
                   <TableHead className="w-10" />
