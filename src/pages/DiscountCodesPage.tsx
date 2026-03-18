@@ -211,12 +211,12 @@ const DiscountCodesPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Discount Codes</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground">Discount Codes</h1>
           <p className="text-muted-foreground">Manage promotional discount codes for events</p>
         </div>
-        <Button onClick={() => setDialogOpen(true)}>
+        <Button className="w-full sm:w-auto" onClick={() => setDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" /> Create Code
         </Button>
       </div>
