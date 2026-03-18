@@ -415,11 +415,11 @@ export default function Dashboard() {
     queryFn: async () => {
       const activities: { action: string; detail: string; time: string; type: string }[] = [];
       const { data: recentUsers } = await supabase.from("profiles").select("first_name, last_name, created_at").order("created_at", { ascending: false }).limit(3);
-      recentUsers?.forEach((u) => activities.push({ action: "New user registered", detail: `${u.first_name} ${u.last_name}`, time: u.created_at, type: "user" }));
+      recentUsers?.forEach((u) => activities.push({ action: "new_user", detail: `${u.first_name} ${u.last_name}`, time: u.created_at, type: "user" }));
       const { data: recentEvents } = await supabase.from("events").select("title, created_at").order("created_at", { ascending: false }).limit(3);
-      recentEvents?.forEach((e) => activities.push({ action: "Event created", detail: e.title, time: e.created_at, type: "event" }));
+      recentEvents?.forEach((e) => activities.push({ action: "event_created", detail: e.title, time: e.created_at, type: "event" }));
       const { data: recentIssues } = await supabase.from("issues").select("title, created_at").order("created_at", { ascending: false }).limit(3);
-      recentIssues?.forEach((is) => activities.push({ action: "Issue reported", detail: is.title, time: is.created_at, type: "issue" }));
+      recentIssues?.forEach((is) => activities.push({ action: "issue_reported", detail: is.title, time: is.created_at, type: "issue" }));
       return activities.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 6);
     },
   });
