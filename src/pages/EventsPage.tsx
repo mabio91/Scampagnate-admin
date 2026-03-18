@@ -315,11 +315,11 @@ export default function EventsPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Events</h1>
-          <p className="text-muted-foreground mt-1">Manage all events ({events.length} total)</p>
+          <h1 className="text-2xl md:text-3xl font-bold">{t("events.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("events.subtitle")} ({events.length} {t("common.total").toLowerCase()})</p>
         </div>
         <Button className="gap-2 w-full sm:w-auto" onClick={() => setEditEvent({ ...emptyEvent, isNew: true })}>
-          <Plus className="h-4 w-4" /> Add Event
+          <Plus className="h-4 w-4" /> {t("events.addEvent")}
         </Button>
       </div>
 
