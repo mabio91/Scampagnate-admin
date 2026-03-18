@@ -26,14 +26,14 @@ export function LanguageSwitcher() {
       <DropdownMenuContent align="end" className="min-w-[150px]">
         <DropdownMenuItem
           onClick={() => setLanguage("it")}
-          className={`flex items-center gap-2 cursor-pointer ${language === "it" ? "bg-accent font-medium" : ""}`}
+          className={`flex items-center gap-2 cursor-pointer hover:!bg-transparent focus:!bg-transparent ${language === "it" ? "font-medium" : ""}`}
         >
           <img src={flagIt} alt="Italiano" className="h-5 w-5 object-contain" />
           Italiano
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={() => setLanguage("en")}
-          className={`flex items-center gap-2 cursor-pointer ${language === "en" ? "bg-accent font-medium" : ""}`}
+          className={`flex items-center gap-2 cursor-pointer hover:!bg-transparent focus:!bg-transparent ${language === "en" ? "font-medium" : ""}`}
         >
           <img src={flagEn} alt="English" className="h-5 w-5 object-contain" />
           English
