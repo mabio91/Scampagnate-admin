@@ -224,13 +224,13 @@ export default function UsersPage() {
             <div className="w-[180px]">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Filter by status" />
+                  <SelectValue placeholder={t("users.filterByStatus")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="All">All Statuses</SelectItem>
-                  <SelectItem value="Active">Active</SelectItem>
-                  <SelectItem value="Suspended">Suspended</SelectItem>
-                  <SelectItem value="Banned">Banned</SelectItem>
+                  <SelectItem value="All">{t("users.allStatuses")}</SelectItem>
+                  <SelectItem value="Active">{t("common.active")}</SelectItem>
+                  <SelectItem value="Suspended">{t("users.suspended")}</SelectItem>
+                  <SelectItem value="Banned">{t("users.banned")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
