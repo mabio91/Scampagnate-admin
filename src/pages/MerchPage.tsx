@@ -146,7 +146,8 @@ export default function MerchPage() {
                   <p className="text-sm text-muted-foreground line-clamp-2">{getDesc(product)}</p>
                 )}
                 <Button
-                  className="w-full mt-2 gap-2 bg-green-500 hover:bg-green-600 text-white"
+                  variant="default"
+                  className="w-full mt-2 gap-2"
                   onClick={() => openWhatsApp(product)}
                 >
                   <MessageCircle className="h-4 w-4" /> WhatsApp
