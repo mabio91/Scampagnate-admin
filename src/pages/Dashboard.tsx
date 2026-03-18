@@ -639,10 +639,10 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Category Distribution">
+        <ChartCard title={t("dashboard.categoryDistribution")}>
           {categoryData.length === 0 ? (
             <div className="flex items-center justify-center h-[280px]">
-              <p className="text-muted-foreground text-sm">No events with categories yet</p>
+              <p className="text-muted-foreground text-sm">{t("dashboard.noCategoriesYet")}</p>
             </div>
           ) : (
             <div>
