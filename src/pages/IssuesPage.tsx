@@ -13,6 +13,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 type Issue = Tables<"issues">;
 
@@ -41,6 +42,7 @@ const statusText: Record<string, string> = {
 };
 
 export default function IssuesPage() {
+  const { t } = useLanguage();
   const [createOpen, setCreateOpen] = useState(false);
   const [resolveIssue, setResolveIssue] = useState<Issue | null>(null);
   const [resolutionNotes, setResolutionNotes] = useState("");
