@@ -243,14 +243,14 @@ export default function UsersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Events</TableHead>
-                  <TableHead>Joined</TableHead>
-                  <TableHead>Last Login</TableHead>
+                  <TableHead>{t("common.name")}</TableHead>
+                  <TableHead>{t("common.email")}</TableHead>
+                  <TableHead>{t("common.phone")}</TableHead>
+                  <TableHead>{t("users.role")}</TableHead>
+                  <TableHead>{t("common.status")}</TableHead>
+                  <TableHead>{t("users.events")}</TableHead>
+                  <TableHead>{t("users.joined")}</TableHead>
+                  <TableHead>{t("users.lastLogin")}</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
