@@ -302,6 +302,7 @@ export default function MembersPage() {
                         {!(userBadgesMap[member.id] || []).length && <span className="text-muted-foreground text-sm">—</span>}
                       </div>
                     </TableCell>
+                    <TableCell>
                       <Badge 
                         variant={member.account_status === "Active" ? "outline" : "default"}
                         className={
