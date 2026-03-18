@@ -696,7 +696,7 @@ export default function Dashboard() {
 
       {/* Charts Row 2 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <ChartCard title="Issues Trend">
+        <ChartCard title={t("dashboard.issuesTrend")}>
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={issuesTrend}>
               <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridStroke} vertical={false} />
