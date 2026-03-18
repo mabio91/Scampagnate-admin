@@ -76,11 +76,12 @@ export default function CategoriesPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Event Categories</h1>
-          <p className="text-muted-foreground mt-1">Manage event categories ({categories.length} total)</p>
+          <h1 className="text-2xl md:text-3xl font-bold">{t("categories.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("categories.subtitle")} ({categories.length} {t("common.total").toLowerCase()})</p>
         </div>
         <Button className="gap-2 w-full sm:w-auto" onClick={() => setEditCat({ ...emptyCategory, isNew: true })}>
-          <Plus className="h-4 w-4" /> Add Category
+          <Plus className="h-4 w-4" /> {t("categories.addCategory")}
+        </Button>
         </Button>
       </div>
 
