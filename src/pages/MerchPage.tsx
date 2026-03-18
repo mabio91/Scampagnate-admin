@@ -334,6 +334,17 @@ export default function MerchPage() {
                 </div>
               </div>
 
+              {/* WhatsApp Number */}
+              <div>
+                <Label>{t("merch.whatsappNumber")}</Label>
+                <Input
+                  value={(editProduct as any).whatsapp_number || ""}
+                  onChange={(e) => setEditProduct({ ...editProduct, whatsapp_number: e.target.value } as any)}
+                  placeholder="e.g. 393331234567"
+                />
+                <p className="text-xs text-muted-foreground mt-1">{t("merch.whatsappHint")}</p>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>{t("merch.badgeEn")}</Label>
