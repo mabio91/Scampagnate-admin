@@ -293,6 +293,15 @@ export default function MembersPage() {
                     <TableCell className="text-muted-foreground">{member.phone || "—"}</TableCell>
                     <TableCell>{member.membership_year || "—"}</TableCell>
                     <TableCell>
+                      <div className="flex gap-1 flex-wrap">
+                        {(userBadgesMap[member.id] || []).map((b) => (
+                          <Badge key={b.badge_id} variant="outline" className="text-xs gap-1">
+                            <span>{b.icon}</span> {b.name}
+                          </Badge>
+                        ))}
+                        {!(userBadgesMap[member.id] || []).length && <span className="text-muted-foreground text-sm">—</span>}
+                      </div>
+                    </TableCell>
                       <Badge 
                         variant={member.account_status === "Active" ? "outline" : "default"}
                         className={
