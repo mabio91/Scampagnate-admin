@@ -119,10 +119,10 @@ export default function OrganizersPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => openEdit(org)}>
-                            <Edit2 className="h-4 w-4 mr-2" /> Edit
+                            <Edit2 className="h-4 w-4 mr-2" /> {t("common.edit")}
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive" onClick={() => { if (confirm("Remove organizer role?")) removeOrgRole.mutate(org.id); }}>
-                            <Trash2 className="h-4 w-4 mr-2" /> Remove Role
+                          <DropdownMenuItem className="text-destructive" onClick={() => { if (confirm(t("organizers.removeConfirm"))) removeOrgRole.mutate(org.id); }}>
+                            <Trash2 className="h-4 w-4 mr-2" /> {t("organizers.removeRole")}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
