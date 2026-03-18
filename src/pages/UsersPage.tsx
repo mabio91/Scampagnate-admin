@@ -321,7 +321,7 @@ export default function UsersPage() {
                   </TableRow>
                 ))}
                 {filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No users found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">{t("users.noUsersFound")}</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
