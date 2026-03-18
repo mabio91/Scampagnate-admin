@@ -452,6 +452,7 @@ export default function Dashboard() {
           <h1 className="text-2xl md:text-3xl font-bold mt-1">{t("dashboard.title")}</h1>
         </div>
         <div className="flex flex-wrap items-center gap-4">
+          <RefreshButton queryKeys={[["kpi-total-users"], ["kpi-active-members"], ["kpi-users-attended"], ["kpi-events-year"], ["kpi-participation-rate"], ["kpi-attendance-rate"], ["stats-issues"], ["stats-organizers"], ["stats-categories"], ["stats-events-month"], ["stats-issues-trend"], ["stats-recent"]]} />
           {/* Italy Time */}
           <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-4 py-2.5 shadow-sm">
             <MapPin className="h-4 w-4 text-accent" />
