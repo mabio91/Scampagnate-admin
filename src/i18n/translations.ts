@@ -343,6 +343,27 @@ export const translations = {
   "discounts.never": { it: "Mai", en: "Never" },
   "discounts.duplicate": { it: "Duplica", en: "Duplicate" },
 
+  // ── Merch Page ──
+  "sidebar.merch": { it: "Merchandising", en: "Merch" },
+  "merch.title": { it: "Merchandising", en: "Merch Products" },
+  "merch.subtitle": { it: "Gestisci i prodotti merchandising", en: "Manage merch products" },
+  "merch.addProduct": { it: "Aggiungi Prodotto", en: "Add Product" },
+  "merch.createProduct": { it: "Crea Prodotto", en: "Create Product" },
+  "merch.editProduct": { it: "Modifica Prodotto", en: "Edit Product" },
+  "merch.saved": { it: "Prodotto salvato", en: "Product saved" },
+  "merch.deleted": { it: "Prodotto eliminato", en: "Product deleted" },
+  "merch.deleteConfirm": { it: "Eliminare questo prodotto?", en: "Delete this product?" },
+  "merch.noProducts": { it: "Nessun prodotto. Aggiungine uno per iniziare.", en: "No products yet. Add one to get started." },
+  "merch.noImage": { it: "Nessuna immagine", en: "No image" },
+  "merch.nameEn": { it: "Nome (EN)", en: "Name (EN)" },
+  "merch.nameIt": { it: "Nome (IT)", en: "Name (IT)" },
+  "merch.descEn": { it: "Descrizione (EN)", en: "Description (EN)" },
+  "merch.descIt": { it: "Descrizione (IT)", en: "Description (IT)" },
+  "merch.badgeEn": { it: "Badge (EN)", en: "Badge (EN)" },
+  "merch.badgeIt": { it: "Badge (IT)", en: "Badge (IT)" },
+  "merch.imageUrl": { it: "URL Immagine", en: "Image URL" },
+  "merch.sortOrder": { it: "Ordine", en: "Sort Order" },
+
   // ── Profile Page ──
   "profile.title": { it: "Il mio Profilo", en: "My Profile" },
   "profile.subtitle": { it: "Gestisci le impostazioni del tuo account", en: "Manage your account settings" },

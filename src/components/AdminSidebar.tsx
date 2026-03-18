@@ -1,4 +1,4 @@
-import { Users, Building2, Tags, Calendar, AlertTriangle, LayoutDashboard, Shield, IdCard, Package, User, LogOut, Lightbulb, TicketPercent } from "lucide-react";
+import { Users, Building2, Tags, Calendar, AlertTriangle, LayoutDashboard, Shield, IdCard, Package, User, LogOut, Lightbulb, TicketPercent, ShoppingBag } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import logo from "@/assets/logo.png";
@@ -31,6 +31,7 @@ const navItems: { titleKey: TranslationKey; url: string; icon: any }[] = [
   { titleKey: "sidebar.issues", url: "/issues", icon: AlertTriangle },
   { titleKey: "sidebar.proposals", url: "/proposals", icon: Lightbulb },
   { titleKey: "sidebar.discountCodes", url: "/discount-codes", icon: TicketPercent },
+  { titleKey: "sidebar.merch", url: "/merch", icon: ShoppingBag },
 ];
 
 export function AdminSidebar() {
