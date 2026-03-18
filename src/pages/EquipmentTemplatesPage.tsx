@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Pencil, Trash2, Package, GripVertical, Loader2 } from "lucide-react";
+import RefreshButton from "@/components/RefreshButton";
 import { useToast } from "@/hooks/use-toast";
 
 interface TemplateItem {
@@ -180,89 +181,92 @@ export default function EquipmentTemplatesPage() {
           <h1 className="text-2xl md:text-3xl font-bold text-foreground">Equipment Templates</h1>
           <p className="text-muted-foreground mt-1">Manage predefined equipment lists for event categories</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) resetForm(); else setDialogOpen(true); }}>
-          <DialogTrigger asChild>
-            <Button onClick={() => { resetForm(); setDialogOpen(true); }}>
-              <Plus className="mr-2 h-4 w-4" /> Add Template
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>{editingTemplate ? "Edit Template" : "Create Equipment Template"}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 pt-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Template Name</Label>
-                  <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Trekking Essentials" />
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <RefreshButton queryKeys={[["equipment-templates"], ["equipment-template-items"]]} />
+          <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) resetForm(); else setDialogOpen(true); }}>
+            <DialogTrigger asChild>
+              <Button onClick={() => { resetForm(); setDialogOpen(true); }}>
+                <Plus className="mr-2 h-4 w-4" /> Add Template
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>{editingTemplate ? "Edit Template" : "Create Equipment Template"}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Template Name</Label>
+                    <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Trekking Essentials" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Category</Label>
+                    <Select value={categoryId} onValueChange={setCategoryId}>
+                      <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+                      <SelectContent>
+                        {categories?.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Category</Label>
-                  <Select value={categoryId} onValueChange={setCategoryId}>
-                    <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
-                    <SelectContent>
-                      {categories?.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label>Description</Label>
+                  <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe this template..." />
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Description</Label>
-                <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe this template..." />
-              </div>
 
-              {/* Items */}
-              <div className="space-y-3">
-                <Label className="text-base font-semibold">Equipment Items</Label>
-                {items.length > 0 && (
-                  <div className="border rounded-lg divide-y">
-                    {items.map((item, i) => (
-                      <div key={i} className="flex items-center gap-3 p-3">
-                        <GripVertical className="h-4 w-4 text-muted-foreground" />
-                        <span className="flex-1 text-sm">{item.name}</span>
-                        {item.is_mandatory && <Badge variant="destructive" className="text-xs">Mandatory</Badge>}
-                        {item.notes && <span className="text-xs text-muted-foreground max-w-[150px] truncate">{item.notes}</span>}
-                        <Button variant="ghost" size="icon" onClick={() => removeItem(i)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                {/* Items */}
+                <div className="space-y-3">
+                  <Label className="text-base font-semibold">Equipment Items</Label>
+                  {items.length > 0 && (
+                    <div className="border rounded-lg divide-y">
+                      {items.map((item, i) => (
+                        <div key={i} className="flex items-center gap-3 p-3">
+                          <GripVertical className="h-4 w-4 text-muted-foreground" />
+                          <span className="flex-1 text-sm">{item.name}</span>
+                          {item.is_mandatory && <Badge variant="destructive" className="text-xs">Mandatory</Badge>}
+                          {item.notes && <span className="text-xs text-muted-foreground max-w-[150px] truncate">{item.notes}</span>}
+                          <Button variant="ghost" size="icon" onClick={() => removeItem(i)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <Card>
+                    <CardContent className="pt-4 space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Item Name</Label>
+                          <Input value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder="e.g. Trekking boots" onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addItem())} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Notes</Label>
+                          <Input value={newItemNotes} onChange={(e) => setNewItemNotes(e.target.value)} placeholder="e.g. min 2L water" />
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Switch checked={newItemMandatory} onCheckedChange={setNewItemMandatory} />
+                          <Label className="text-xs">Mandatory</Label>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={addItem} disabled={!newItemName.trim()}>
+                          <Plus className="mr-1 h-3 w-3" /> Add Item
                         </Button>
                       </div>
-                    ))}
-                  </div>
-                )}
+                    </CardContent>
+                  </Card>
+                </div>
 
-                <Card>
-                  <CardContent className="pt-4 space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Item Name</Label>
-                        <Input value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder="e.g. Trekking boots" onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addItem())} />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Notes</Label>
-                        <Input value={newItemNotes} onChange={(e) => setNewItemNotes(e.target.value)} placeholder="e.g. min 2L water" />
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Switch checked={newItemMandatory} onCheckedChange={setNewItemMandatory} />
-                        <Label className="text-xs">Mandatory</Label>
-                      </div>
-                      <Button variant="outline" size="sm" onClick={addItem} disabled={!newItemName.trim()}>
-                        <Plus className="mr-1 h-3 w-3" /> Add Item
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                <Button className="w-full" onClick={() => saveMutation.mutate()} disabled={!name.trim() || saveMutation.isPending}>
+                  {saveMutation.isPending ? "Saving..." : editingTemplate ? "Update Template" : "Create Template"}
+                </Button>
               </div>
-
-              <Button className="w-full" onClick={() => saveMutation.mutate()} disabled={!name.trim() || saveMutation.isPending}>
-                {saveMutation.isPending ? "Saving..." : editingTemplate ? "Update Template" : "Create Template"}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {isLoading ? (

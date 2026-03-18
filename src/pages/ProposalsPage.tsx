@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, MoreHorizontal, Eye, CalendarPlus, Archive, Trash2, Mail, Lightbulb, CheckCircle } from "lucide-react";
+import RefreshButton from "@/components/RefreshButton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -117,9 +118,12 @@ export default function ProposalsPage() {
             {t("proposals.subtitle")}
           </p>
         </div>
-        <Badge variant="outline" className="text-primary border-primary/30">
-          {proposals.length} {t("common.total")}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <RefreshButton queryKeys={[["admin-proposals"]]} />
+          <Badge variant="outline" className="text-primary border-primary/30">
+            {proposals.length} {t("common.total")}
+          </Badge>
+        </div>
       </div>
 
       <Card>

@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, MoreHorizontal, Trash2, Edit2, UserPlus } from "lucide-react";
+import RefreshButton from "@/components/RefreshButton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -209,9 +210,12 @@ export default function UsersPage() {
           <h1 className="text-2xl md:text-3xl font-bold">{t("users.title")}</h1>
           <p className="text-muted-foreground mt-1">{t("users.subtitle")} ({users.length} {t("common.total").toLowerCase()})</p>
         </div>
-        <Button className="gap-2 w-full sm:w-auto" onClick={() => setCreateOpen(true)}>
-          <UserPlus className="h-4 w-4" /> {t("users.addUser")}
-        </Button>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <RefreshButton queryKeys={[["admin-users"], ["admin-user-reg-counts"]]} />
+          <Button className="gap-2 flex-1 sm:flex-initial" onClick={() => setCreateOpen(true)}>
+            <UserPlus className="h-4 w-4" /> {t("users.addUser")}
+          </Button>
+        </div>
       </div>
 
       <Card>

@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, MoreHorizontal, Plus, Trash2, Edit2 } from "lucide-react";
+import RefreshButton from "@/components/RefreshButton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -79,9 +80,12 @@ export default function OrganizersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl md:text-3xl font-bold">{t("organizers.title")}</h1>
-        <p className="text-muted-foreground mt-1">{t("organizers.subtitle")} ({organizers.length} {t("common.total").toLowerCase()})</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold">{t("organizers.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("organizers.subtitle")} ({organizers.length} {t("common.total").toLowerCase()})</p>
+        </div>
+        <RefreshButton queryKeys={[["admin-organizers"]]} />
       </div>
 
       <Card>
