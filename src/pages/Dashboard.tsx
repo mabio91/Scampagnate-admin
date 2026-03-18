@@ -193,6 +193,7 @@ export default function Dashboard() {
   const { italyTime, italyDate } = useItalyTime();
   const { data: weather } = useItalyWeather();
   const chartTheme = useChartTheme();
+  const { t } = useLanguage();
 
   const currentYear = new Date().getFullYear();
   const yearStart = `${currentYear}-01-01`;
