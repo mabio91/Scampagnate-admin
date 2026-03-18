@@ -181,12 +181,14 @@ export default function EquipmentTemplatesPage() {
           <h1 className="text-2xl md:text-3xl font-bold text-foreground">Equipment Templates</h1>
           <p className="text-muted-foreground mt-1">Manage predefined equipment lists for event categories</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) resetForm(); else setDialogOpen(true); }}>
-          <DialogTrigger asChild>
-            <Button onClick={() => { resetForm(); setDialogOpen(true); }}>
-              <Plus className="mr-2 h-4 w-4" /> Add Template
-            </Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <RefreshButton queryKeys={[["equipment-templates"], ["equipment-template-items"]]} />
+          <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) resetForm(); else setDialogOpen(true); }}>
+            <DialogTrigger asChild>
+              <Button onClick={() => { resetForm(); setDialogOpen(true); }}>
+                <Plus className="mr-2 h-4 w-4" /> Add Template
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingTemplate ? "Edit Template" : "Create Equipment Template"}</DialogTitle>

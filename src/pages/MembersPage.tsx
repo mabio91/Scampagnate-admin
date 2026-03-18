@@ -218,6 +218,7 @@ export default function MembersPage() {
           <p className="text-muted-foreground mt-1">{t("members.subtitle")} ({members.length} {t("common.total").toLowerCase()})</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <RefreshButton queryKeys={[["admin-members"], ["all-badges"], ["all-user-badges"]]} />
           <Button variant="destructive" className="gap-2" onClick={() => setShowBulkExpireDialog(true)}>
             <CalendarX className="h-4 w-4" /> {t("members.bulkExpire")}
           </Button>

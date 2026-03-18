@@ -121,9 +121,12 @@ export default function IssuesPage() {
           <h1 className="text-2xl md:text-3xl font-bold">{t("issues.title")}</h1>
           <p className="text-muted-foreground mt-1">{t("issues.subtitle")} ({issues.length} {t("common.total").toLowerCase()})</p>
         </div>
-        <Button className="gap-2 w-full sm:w-auto" onClick={() => setCreateOpen(true)}>
-          <Plus className="h-4 w-4" /> {t("issues.reportIssue")}
-        </Button>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <RefreshButton queryKeys={[["admin-issues"]]} />
+          <Button className="gap-2 flex-1 sm:flex-initial" onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4" /> {t("issues.reportIssue")}
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (

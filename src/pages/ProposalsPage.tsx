@@ -118,9 +118,12 @@ export default function ProposalsPage() {
             {t("proposals.subtitle")}
           </p>
         </div>
-        <Badge variant="outline" className="text-primary border-primary/30">
-          {proposals.length} {t("common.total")}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <RefreshButton queryKeys={[["admin-proposals"]]} />
+          <Badge variant="outline" className="text-primary border-primary/30">
+            {proposals.length} {t("common.total")}
+          </Badge>
+        </div>
       </div>
 
       <Card>

@@ -80,9 +80,12 @@ export default function OrganizersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl md:text-3xl font-bold">{t("organizers.title")}</h1>
-        <p className="text-muted-foreground mt-1">{t("organizers.subtitle")} ({organizers.length} {t("common.total").toLowerCase()})</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold">{t("organizers.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("organizers.subtitle")} ({organizers.length} {t("common.total").toLowerCase()})</p>
+        </div>
+        <RefreshButton queryKeys={[["admin-organizers"]]} />
       </div>
 
       <Card>

@@ -217,9 +217,12 @@ const DiscountCodesPage = () => {
           <h1 className="text-2xl md:text-3xl font-bold text-foreground">Discount Codes</h1>
           <p className="text-muted-foreground">Manage promotional discount codes for events</p>
         </div>
-        <Button className="w-full sm:w-auto" onClick={() => setDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" /> Create Code
-        </Button>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <RefreshButton queryKeys={[["discount-codes"], ["events-for-discount"]]} />
+          <Button className="flex-1 sm:flex-initial" onClick={() => setDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" /> Create Code
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
