@@ -29,6 +29,7 @@ const emptyProduct = {
   badge_it: "",
   is_active: true,
   sort_order: 0,
+  whatsapp_number: "",
 };
 
 export default function MerchPage() {
@@ -138,8 +139,9 @@ export default function MerchPage() {
   const getBadge = (p: MerchProduct) => (language === "it" && p.badge_it ? p.badge_it : p.badge);
 
   const openWhatsApp = (product: MerchProduct) => {
+    const number = (product as any).whatsapp_number || "";
     const msg = encodeURIComponent(`Ciao! Sono interessato al prodotto "${getName(product)}" (€${product.price.toFixed(2)}). Vorrei avere maggiori informazioni.`);
-    window.open(`https://wa.me/?text=${msg}`, "_blank");
+    window.open(`https://wa.me/${number}?text=${msg}`, "_blank");
   };
 
   const openEditDialog = (product?: MerchProduct) => {
@@ -330,6 +332,17 @@ export default function MerchPage() {
                     onChange={handleFileSelect}
                   />
                 </div>
+              </div>
+
+              {/* WhatsApp Number */}
+              <div>
+                <Label>{t("merch.whatsappNumber")}</Label>
+                <Input
+                  value={(editProduct as any).whatsapp_number || ""}
+                  onChange={(e) => setEditProduct({ ...editProduct, whatsapp_number: e.target.value } as any)}
+                  placeholder="e.g. 393331234567"
+                />
+                <p className="text-xs text-muted-foreground mt-1">{t("merch.whatsappHint")}</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

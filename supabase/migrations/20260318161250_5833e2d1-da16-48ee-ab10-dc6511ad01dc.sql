@@ -1,0 +1,1 @@
+ALTER TABLE public.merch_products ADD COLUMN whatsapp_number TEXT DEFAULT '';
