@@ -15,6 +15,7 @@ import { Camera, Loader2, Save, KeyRound, User, Activity } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 
 export default function ProfilePage() {
+  const { t } = useLanguage();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
