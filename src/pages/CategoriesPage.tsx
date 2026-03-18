@@ -116,7 +116,7 @@ export default function CategoriesPage() {
             </Card>
           ))}
           {categories.length === 0 && (
-            <p className="text-muted-foreground col-span-full text-center py-8">No categories yet</p>
+            <p className="text-muted-foreground col-span-full text-center py-8">{t("categories.noCategories")}</p>
           )}
         </div>
       )}
