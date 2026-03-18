@@ -29,6 +29,7 @@ const emptyProduct = {
   badge_it: "",
   is_active: true,
   sort_order: 0,
+  whatsapp_number: "",
 };
 
 export default function MerchPage() {
