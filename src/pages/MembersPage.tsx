@@ -81,14 +81,27 @@ export default function MembersPage() {
           membership_id: editForm.membership_id ? parseInt(editForm.membership_id) : null,
           membership_status: editForm.membership_status,
           membership_year: editForm.membership_year ? parseInt(editForm.membership_year) : null,
+          is_founding_member: editForm.is_founding_member,
           updated_at: new Date().toISOString(),
         })
         .eq("id", editMember.id);
       if (error) throw error;
+
+      // Handle Founding Member badge sync
+      const foundingBadge = allBadges.find(b => b.name === "Founding Member");
+      if (foundingBadge) {
+        const hasBadge = (userBadgesMap[editMember.id] || []).some(b => b.name === "Founding Member");
+        if (editForm.is_founding_member && !hasBadge) {
+          await supabase.from("user_badges").insert({ user_id: editMember.id, badge_id: foundingBadge.id });
+        } else if (!editForm.is_founding_member && hasBadge) {
+          await supabase.from("user_badges").delete().eq("user_id", editMember.id).eq("badge_id", foundingBadge.id);
+        }
+      }
     },
     onSuccess: () => {
       toast.success("Membership updated");
       queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+      queryClient.invalidateQueries({ queryKey: ["all-user-badges"] });
       setEditMember(null);
     },
     onError: (e: any) => toast.error(e.message),
