@@ -333,7 +333,7 @@ export default function UsersPage() {
       <Dialog open={!!viewUser} onOpenChange={(o) => !o && setViewUser(null)}>
         <DialogContent className="max-w-3xl h-[80vh] flex flex-col pl-6 pr-2">
           <DialogHeader className="pr-4">
-            <DialogTitle>User Details: {viewUser?.first_name} {viewUser?.last_name}</DialogTitle>
+            <DialogTitle>{t("users.userDetails")}: {viewUser?.first_name} {viewUser?.last_name}</DialogTitle>
           </DialogHeader>
 
           <ScrollArea className="flex-1 pr-4">
