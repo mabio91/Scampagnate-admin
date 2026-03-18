@@ -48,6 +48,30 @@ export default function MembersPage() {
     },
   });
 
+  // Fetch all badges and user_badges for badge management
+  const { data: allBadges = [] } = useQuery({
+    queryKey: ["all-badges"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("badges").select("*").order("name");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: userBadgesMap = {} } = useQuery({
+    queryKey: ["all-user-badges"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("user_badges").select("user_id, badge_id, badges(name, icon)");
+      if (error) throw error;
+      const map: Record<string, { badge_id: string; name: string; icon: string }[]> = {};
+      (data || []).forEach((ub: any) => {
+        if (!map[ub.user_id]) map[ub.user_id] = [];
+        map[ub.user_id].push({ badge_id: ub.badge_id, name: ub.badges?.name || "", icon: ub.badges?.icon || "" });
+      });
+      return map;
+    },
+  });
+
   const updateMembership = useMutation({
     mutationFn: async () => {
       if (!editMember) return;
