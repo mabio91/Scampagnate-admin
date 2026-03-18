@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { Camera, Loader2, Save, KeyRound, User, Activity } from "lucide-react";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 export default function ProfilePage() {
   const queryClient = useQueryClient();
