@@ -219,7 +219,7 @@ export default function UsersPage() {
           <div className="flex flex-wrap gap-4">
             <div className="relative max-w-sm flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search by name, email, phone, or member ID..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+              <Input placeholder={t("users.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
             </div>
             <div className="w-[180px]">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
