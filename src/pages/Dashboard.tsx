@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format, subMonths, startOfMonth } from "date-fns";
 import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 const PIE_COLORS = [
   "hsl(150, 40%, 20%)",
