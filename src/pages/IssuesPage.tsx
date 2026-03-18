@@ -178,7 +178,7 @@ export default function IssuesPage() {
             );
           })}
           {issues.length === 0 && (
-            <p className="text-muted-foreground text-center py-8">No issues reported</p>
+            <p className="text-muted-foreground text-center py-8">{t("issues.noIssues")}</p>
           )}
         </div>
       )}
