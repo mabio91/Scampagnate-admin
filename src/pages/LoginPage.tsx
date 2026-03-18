@@ -108,8 +108,8 @@ export default function LoginPage() {
           <div className="mx-auto w-fit mb-2">
             <img src={logo} alt="Logo" className="h-16 w-auto" />
           </div>
-          <CardTitle className="text-2xl tracking-tight">Super Admin</CardTitle>
-          <p className="text-sm text-muted-foreground">Sign in to access the dashboard</p>
+          <CardTitle className="text-2xl tracking-tight">{t("login.title")}</CardTitle>
+          <p className="text-sm text-muted-foreground">{t("login.subtitle")}</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
