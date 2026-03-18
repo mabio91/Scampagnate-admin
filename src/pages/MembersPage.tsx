@@ -90,6 +90,62 @@ export default function MembersPage() {
     document.body.removeChild(link);
   };
 
+  const bulkExpireMemberships = useMutation({
+    mutationFn: async () => {
+      const yearNum = parseInt(bulkExpireYear);
+      const { data: toExpire, error: fetchError } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("membership_status", "Active")
+        .lte("membership_year", yearNum);
+      if (fetchError) throw fetchError;
+      if (!toExpire || toExpire.length === 0) throw new Error("No active memberships found for the selected year or earlier.");
+
+      const ids = toExpire.map((p) => p.id);
+      const { error } = await supabase
+        .from("profiles")
+        .update({ membership_status: "Expired", updated_at: new Date().toISOString() })
+        .in("id", ids);
+      if (error) throw error;
+      return ids.length;
+    },
+    onSuccess: (count) => {
+      toast.success(`${count} membership(s) expired successfully`);
+      queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+      setShowBulkExpireDialog(false);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const sendRenewalReminders = useMutation({
+    mutationFn: async () => {
+      const expiredMembers = members.filter(
+        (m) => m.membership_status === "Expired" && m.membership_id
+      );
+      if (expiredMembers.length === 0) throw new Error("No expired members to notify.");
+
+      const notifications = expiredMembers.map((m) => ({
+        user_id: m.id,
+        type: "membership_renewal",
+        title: "Rinnovo tessera richiesto",
+        message: `La tua tessera associativa (anno ${m.membership_year || "precedente"}) è scaduta. Rinnova per continuare a partecipare agli eventi.`,
+      }));
+
+      // Insert in batches of 100
+      for (let i = 0; i < notifications.length; i += 100) {
+        const batch = notifications.slice(i, i + 100);
+        const { error } = await supabase.from("notifications").insert(batch);
+        if (error) throw error;
+      }
+      return expiredMembers.length;
+    },
+    onSuccess: (count) => {
+      toast.success(`Renewal reminders sent to ${count} expired member(s)`);
+      setShowRenewalDialog(false);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   const openEdit = (member: Profile) => {
     setEditMember(member);
     setEditForm({
@@ -105,16 +161,50 @@ export default function MembersPage() {
     (m.membership_id?.toString() || "").includes(search)
   );
 
+  const activeCount = members.filter((m) => m.membership_status === "Active").length;
+  const expiredCount = members.filter((m) => m.membership_status === "Expired").length;
+  const currentYearCount = members.filter((m) => m.membership_year === currentYear && m.membership_status === "Active").length;
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold">Membership Management</h1>
           <p className="text-muted-foreground mt-1">View and manage association members ({members.length} total)</p>
         </div>
-        <Button className="gap-2" onClick={exportMembers} variant="outline">
-          <Download className="h-4 w-4" /> Export CSV
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button variant="destructive" className="gap-2" onClick={() => setShowBulkExpireDialog(true)}>
+            <CalendarX className="h-4 w-4" /> Bulk Expire
+          </Button>
+          <Button variant="secondary" className="gap-2" onClick={() => setShowRenewalDialog(true)}>
+            <Bell className="h-4 w-4" /> Send Renewal Reminders
+          </Button>
+          <Button variant="outline" className="gap-2" onClick={exportMembers}>
+            <Download className="h-4 w-4" /> Export CSV
+          </Button>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-green-600">{activeCount}</div>
+            <p className="text-sm text-muted-foreground">Active Memberships</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-destructive">{expiredCount}</div>
+            <p className="text-sm text-muted-foreground">Expired Memberships</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-primary">{currentYearCount}</div>
+            <p className="text-sm text-muted-foreground">Active for {currentYear}</p>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
