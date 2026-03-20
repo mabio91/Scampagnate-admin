@@ -71,7 +71,7 @@ export default function OrganizersPage() {
 
       return (profiles || []).map((p) => ({
         ...p,
-        roles: (allRoles || []).filter((r) => r.user_id === p.id).map((r) => r.role),
+        roles: (allRoles || []).filter((r) => r.user_id === p.id).map((r) => r.role) || [],
         eventCount: events?.filter((e) => e.organizer_id === p.id).length || 0,
         email: authMap.get(p.id)?.email || p.email || "—",
         last_sign_in_at: authMap.get(p.id)?.last_sign_in_at || null,
@@ -224,7 +224,7 @@ export default function OrganizersPage() {
                     <TableCell className="text-muted-foreground">{org.phone || "—"}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        {org.roles.map((r) => (
+                        {(org.roles || []).map((r) => (
                           <Badge key={r} variant={r === "admin" ? "default" : r === "organizer" ? "secondary" : "outline"}>{r}</Badge>
                         ))}
                       </div>
@@ -325,7 +325,7 @@ export default function OrganizersPage() {
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">{t("users.role")}</p>
                       <div className="flex gap-1 flex-wrap">
-                        {viewOrg.roles.map((r) => <Badge key={r} variant="secondary">{r}</Badge>)}
+                        {(viewOrg.roles || []).map((r) => <Badge key={r} variant="secondary">{r}</Badge>)}
                       </div>
                     </div>
                     <div className="space-y-1">
