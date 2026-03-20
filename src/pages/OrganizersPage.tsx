@@ -113,7 +113,7 @@ export default function OrganizersPage() {
       }
     },
     onSuccess: () => {
-      toast.success(t("organizers.updated"));
+      toast.success("Organizer updated");
       queryClient.invalidateQueries({ queryKey: ["admin-organizers"] });
       setEditOrg(null);
     },
