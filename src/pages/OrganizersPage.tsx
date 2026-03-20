@@ -357,7 +357,7 @@ export default function OrganizersPage() {
                     <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
                   ) : !orgActivity || orgActivity.length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground border rounded-lg bg-muted/10">
-                      {t("organizers.noEvents") || "No events organized yet."}
+                      No events organized yet.
                     </div>
                   ) : (
                     <div className="border rounded-md">
