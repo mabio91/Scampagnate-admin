@@ -258,7 +258,7 @@ export default function OrganizersPage() {
                           </DropdownMenuItem>
                           {org.account_status !== "Suspended" && (
                             <DropdownMenuItem onClick={() => setConfirmAction({ type: "suspend", userId: org.id, userName: `${org.first_name} ${org.last_name}` })}>
-                              <MoreHorizontal className="h-4 w-4 mr-2" /> {t("users.suspendAccount") || "Suspend Account"}
+                              <MoreHorizontal className="h-4 w-4 mr-2" /> Suspend Account
                             </DropdownMenuItem>
                           )}
                           {org.account_status === "Suspended" && (
