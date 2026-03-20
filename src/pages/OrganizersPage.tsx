@@ -365,7 +365,7 @@ export default function OrganizersPage() {
                         <TableHeader>
                           <TableRow>
                             <TableHead>{t("events.eventTitle") || "Event"}</TableHead>
-                            <TableHead>{t("events.date") || "Date"}</TableHead>
+                            <TableHead>Date</TableHead>
                             <TableHead>{t("common.status")}</TableHead>
                             <TableHead>{t("events.spots") || "Spots"}</TableHead>
                           </TableRow>
