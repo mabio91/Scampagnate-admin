@@ -263,7 +263,7 @@ export default function OrganizersPage() {
                           )}
                           {org.account_status === "Suspended" && (
                             <DropdownMenuItem onClick={() => updateStatus.mutate({ userId: org.id, status: "Active" })}>
-                              <Edit2 className="h-4 w-4 mr-2" /> {t("users.reactivate") || "Reactivate Account"}
+                              <Edit2 className="h-4 w-4 mr-2" /> Reactivate Account
                             </DropdownMenuItem>
                           )}
                           {org.account_status !== "Banned" && (
