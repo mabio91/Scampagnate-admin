@@ -76,55 +76,49 @@ interface PremiumStatCardProps {
   subtitle?: string;
 }
 
-function PremiumStatCard({ title, value, icon: Icon, change, changeType = "neutral", gradient = "bg-card", iconBg, subtitle }: PremiumStatCardProps) {
+function PremiumStatCard({ title, value, icon: Icon, change, changeType = "neutral", iconBg, subtitle }: PremiumStatCardProps) {
   const ChangeIcon = changeType === "positive" ? ArrowUpRight : changeType === "negative" ? ArrowDownRight : Minus;
   return (
-    <Card className={cn(
-      "relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5",
-      gradient
-    )}>
-      <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-[0.07] -translate-y-8 translate-x-8 bg-foreground" />
-      <CardContent className="p-5 relative z-10">
-        <div className="flex items-start justify-between">
-          <div className="space-y-1 min-w-0 flex-1">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80 truncate">{title}</p>
-            <p className="text-3xl font-bold tracking-tight" style={{ fontFamily: "'Source Sans 3', sans-serif" }}>{value}</p>
-            {subtitle && <p className="text-[11px] text-muted-foreground/70 truncate">{subtitle}</p>}
-            {change && (
-              <div className={cn(
-                "flex items-center gap-1 text-xs font-medium mt-1",
-                changeType === "positive" ? "text-success" : changeType === "negative" ? "text-destructive" : "text-muted-foreground"
-              )}>
-                <ChangeIcon className="h-3.5 w-3.5" />
-                <span>{change}</span>
-              </div>
-            )}
-          </div>
-          <div className={cn("p-3 rounded-xl shadow-sm shrink-0", iconBg)}>
-            <Icon className="h-5 w-5 text-primary-foreground" />
-          </div>
+    <div className="relative rounded-xl bg-card border border-border/60 p-5 overflow-hidden">
+      {/* Colored top bar */}
+      <div className={cn("absolute top-0 left-0 right-0 h-1 rounded-t-xl", iconBg)} />
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1.5 min-w-0 flex-1 pt-1">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/70 truncate">{title}</p>
+          <p className="text-2xl font-bold tracking-tight text-foreground" style={{ fontFamily: "'Source Sans 3', sans-serif" }}>{value}</p>
+          {subtitle && <p className="text-[11px] text-muted-foreground/60 truncate leading-tight">{subtitle}</p>}
+          {change && (
+            <div className={cn(
+              "inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full mt-0.5",
+              changeType === "positive" ? "text-success bg-success/10" : changeType === "negative" ? "text-destructive bg-destructive/10" : "text-muted-foreground bg-muted"
+            )}>
+              <ChangeIcon className="h-3 w-3" />
+              <span>{change}</span>
+            </div>
+          )}
         </div>
-      </CardContent>
-    </Card>
+        <div className={cn("p-2.5 rounded-xl shrink-0 mt-1", iconBg)}>
+          <Icon className="h-[18px] w-[18px] text-primary-foreground" />
+        </div>
+      </div>
+    </div>
   );
 }
 
 /* ── Chart Card Wrapper ── */
 function ChartCard({ title, icon: Icon, children, className }: { title: string; icon?: LucideIcon; children: React.ReactNode; className?: string }) {
   return (
-    <Card className={cn("border-0 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden", className)}>
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2.5 text-base font-semibold" style={{ fontFamily: "'Source Sans 3', sans-serif" }}>
-          {Icon && (
-            <div className="p-1.5 rounded-lg bg-accent/10">
-              <Icon className="h-4 w-4 text-accent" />
-            </div>
-          )}
-          {title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>{children}</CardContent>
-    </Card>
+    <div className={cn("rounded-xl bg-card border border-border/60 overflow-hidden", className)}>
+      <div className="flex items-center gap-2.5 px-6 pt-5 pb-3">
+        {Icon && (
+          <div className="p-1.5 rounded-lg bg-muted">
+            <Icon className="h-4 w-4 text-muted-foreground" />
+          </div>
+        )}
+        <h3 className="text-sm font-semibold text-foreground tracking-tight" style={{ fontFamily: "'Source Sans 3', sans-serif" }}>{title}</h3>
+      </div>
+      <div className="px-6 pb-5">{children}</div>
+    </div>
   );
 }
 
