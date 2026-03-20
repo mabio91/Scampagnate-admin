@@ -325,7 +325,7 @@ export default function OrganizersPage() {
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">{t("users.role")}</p>
                       <div className="flex gap-1 flex-wrap">
-                        {viewOrg.roles.map((r) => <Badge key={r} variant="secondary">{r}</Badge>)}
+                        {(viewOrg.roles || []).map((r) => <Badge key={r} variant="secondary">{r}</Badge>)}
                       </div>
                     </div>
                     <div className="space-y-1">
