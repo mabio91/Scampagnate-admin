@@ -224,7 +224,7 @@ export default function OrganizersPage() {
                     <TableCell className="text-muted-foreground">{org.phone || "—"}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        {org.roles.map((r) => (
+                        {(org.roles || []).map((r) => (
                           <Badge key={r} variant={r === "admin" ? "default" : r === "organizer" ? "secondary" : "outline"}>{r}</Badge>
                         ))}
                       </div>
