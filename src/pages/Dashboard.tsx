@@ -716,7 +716,7 @@ export default function Dashboard() {
               recentActivity.map((item, i) => {
                 const config = typeConfig[item.type] || typeConfig.user;
                 return (
-                  <div key={i} className="flex items-center justify-between py-3 px-3 rounded-lg hover:bg-muted/50 transition-colors group">
+                  <div key={i} className="flex items-center justify-between py-3 px-3 rounded-lg">
                     <div className="flex items-center gap-3">
                       <div className={cn("h-2 w-2 rounded-full shrink-0", config.dot)} />
                       <div>
