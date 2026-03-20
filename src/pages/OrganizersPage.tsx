@@ -71,7 +71,7 @@ export default function OrganizersPage() {
 
       return (profiles || []).map((p) => ({
         ...p,
-        roles: (allRoles || []).filter((r) => r.user_id === p.id).map((r) => r.role),
+        roles: (allRoles || []).filter((r) => r.user_id === p.id).map((r) => r.role) || [],
         eventCount: events?.filter((e) => e.organizer_id === p.id).length || 0,
         email: authMap.get(p.id)?.email || p.email || "—",
         last_sign_in_at: authMap.get(p.id)?.last_sign_in_at || null,
