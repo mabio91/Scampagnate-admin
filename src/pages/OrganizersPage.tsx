@@ -141,7 +141,7 @@ export default function OrganizersPage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success(t("organizers.roleRemoved"));
+      toast.success("Organizer role removed");
       queryClient.invalidateQueries({ queryKey: ["admin-organizers"] });
       setConfirmAction(null);
     },
