@@ -268,7 +268,7 @@ export default function OrganizersPage() {
                           )}
                           {org.account_status !== "Banned" && (
                             <DropdownMenuItem className="text-destructive" onClick={() => setConfirmAction({ type: "ban", userId: org.id, userName: `${org.first_name} ${org.last_name}` })}>
-                              <Trash2 className="h-4 w-4 mr-2" /> {t("users.banUser") || "Ban User"}
+                              <Trash2 className="h-4 w-4 mr-2" /> Ban User
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuItem className="text-destructive" onClick={() => setConfirmAction({ type: "remove_role", userId: org.id, userName: `${org.first_name} ${org.last_name}` })}>
