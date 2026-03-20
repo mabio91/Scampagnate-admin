@@ -367,7 +367,7 @@ export default function OrganizersPage() {
                             <TableHead>Event</TableHead>
                             <TableHead>Date</TableHead>
                             <TableHead>{t("common.status")}</TableHead>
-                            <TableHead>{t("events.spots") || "Spots"}</TableHead>
+                            <TableHead>Spots</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
