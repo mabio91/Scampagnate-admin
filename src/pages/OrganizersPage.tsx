@@ -337,7 +337,7 @@ export default function OrganizersPage() {
                       <p className="font-medium text-lg">{viewOrg.eventCount}</p>
                     </div>
                     <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">{t("users.membershipStatus") || "Membership"}</p>
+                      <p className="text-sm text-muted-foreground">Membership</p>
                       <Badge variant={viewOrg.membership_status === "Active" ? "outline" : "secondary"}>
                         {viewOrg.membership_status || "None"}
                       </Badge>
