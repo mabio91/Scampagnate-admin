@@ -24,14 +24,14 @@ const statusColors: Record<string, string> = {
   approved: "text-success border-success/30 bg-success/10",
   converted: "text-primary border-primary/30 bg-primary/10",
   archived: "text-muted-foreground border-muted-foreground/30 bg-muted",
-  discarded: "text-destructive border-destructive/30 bg-destructive/10",
 };
 
 export default function ProposalsPage() {
   const { t } = useLanguage();
   const [search, setSearch] = useState("");
   const [viewProposal, setViewProposal] = useState<Proposal | null>(null);
-  const [confirmAction, setConfirmAction] = useState<{ proposal: Proposal; action: "archive" | "discard" } | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ proposal: Proposal; action: "archive" } | null>(null);
+  const [deleteProposal, setDeleteProposal] = useState<Proposal | null>(null);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -59,6 +59,23 @@ export default function ProposalsPage() {
       queryClient.invalidateQueries({ queryKey: ["admin-proposals"] });
       toast.success("Proposal updated successfully");
       setConfirmAction(null);
+      setViewProposal(null);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("activity_proposals")
+        .delete()
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-proposals"] });
+      toast.success("Proposal deleted permanently");
+      setDeleteProposal(null);
       setViewProposal(null);
     },
     onError: (err: Error) => toast.error(err.message),
@@ -214,13 +231,15 @@ export default function ProposalsPage() {
                                 <DropdownMenuItem onClick={() => setConfirmAction({ proposal, action: "archive" })}>
                                   <Archive className="mr-2 h-4 w-4" /> Archive
                                 </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => setConfirmAction({ proposal, action: "discard" })}
-                                  className="text-destructive focus:text-destructive"
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4" /> Discard
-                                </DropdownMenuItem>
                               </>
+                            )}
+                            {proposal.status === "archived" && (
+                              <DropdownMenuItem
+                                onClick={() => setDeleteProposal(proposal)}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" /> Delete Permanently
+                              </DropdownMenuItem>
                             )}
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -305,12 +324,19 @@ export default function ProposalsPage() {
                     >
                       <Archive className="mr-2 h-4 w-4" /> Archive
                     </Button>
+                  </div>
+                </>
+              )}
+              {viewProposal.status === "archived" && (
+                <>
+                  <Separator />
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       size="sm"
                       variant="destructive"
-                      onClick={() => setConfirmAction({ proposal: viewProposal, action: "discard" })}
+                      onClick={() => setDeleteProposal(viewProposal)}
                     >
-                      <Trash2 className="mr-2 h-4 w-4" /> Discard
+                      <Trash2 className="mr-2 h-4 w-4" /> Delete Permanently
                     </Button>
                   </div>
                 </>
@@ -320,40 +346,60 @@ export default function ProposalsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Confirm Archive/Discard Dialog */}
+      {/* Confirm Archive Dialog */}
       <Dialog open={!!confirmAction} onOpenChange={() => setConfirmAction(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>
-              {confirmAction?.action === "archive" ? "Archive Proposal" : "Discard Proposal"}
-            </DialogTitle>
+            <DialogTitle>Archive Proposal</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            {confirmAction?.action === "archive"
-              ? `Are you sure you want to archive "${confirmAction?.proposal.activity_title}"? You can still view it later.`
-              : `Are you sure you want to discard "${confirmAction?.proposal.activity_title}"? This marks it as rejected.`}
+            Are you sure you want to archive "{confirmAction?.proposal.activity_title}"? You can delete it permanently later.
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmAction(null)}>
               Cancel
             </Button>
             <Button
-              variant={confirmAction?.action === "discard" ? "destructive" : "default"}
               onClick={() => {
                 if (confirmAction) {
                   updateStatusMutation.mutate({
                     id: confirmAction.proposal.id,
-                    status: confirmAction.action === "archive" ? "archived" : "discarded",
+                    status: "archived",
                   });
                 }
               }}
               disabled={updateStatusMutation.isPending}
             >
-              {confirmAction?.action === "archive" ? "Archive" : "Discard"}
+              Archive
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Confirm Delete Dialog */}
+      <AlertDialog open={!!deleteProposal} onOpenChange={() => setDeleteProposal(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Proposal Permanently</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete "{deleteProposal?.activity_title}". This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteProposal) {
+                  deleteMutation.mutate(deleteProposal.id);
+                }
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
