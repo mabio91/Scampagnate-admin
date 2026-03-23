@@ -1,0 +1,1 @@
+UPDATE activity_proposals SET status = 'archived' WHERE status = 'discarded';
