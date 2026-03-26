@@ -369,6 +369,7 @@ export const translations = {
   "merch.galleryImages": { it: "Galleria immagini", en: "Gallery images" },
   "merch.setAsHero": { it: "Imposta come principale", en: "Set as hero" },
   "merch.addImage": { it: "Aggiungi", en: "Add" },
+  "merch.dragToReorder": { it: "Trascina per riordinare", en: "Drag to reorder" },
   "merch.whatsappNumber": { it: "Numero WhatsApp", en: "WhatsApp Number" },
   "merch.whatsappHint": { it: "Formato internazionale senza + (es. 393331234567)", en: "International format without + (e.g. 393331234567)" },
 
