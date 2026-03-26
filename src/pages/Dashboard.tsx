@@ -752,8 +752,8 @@ export default function Dashboard() {
           title={t("dashboard.openIssues")}
           value={openIssues.toLocaleString()}
           icon={AlertTriangle}
-          changeType={openIssues > 0 ? "negative" : "positive"}
-          change={openIssues === 0 ? t("dashboard.allClear") : `${openIssues} ${t("dashboard.needAttention")}`}
+          change={trendIssues.change}
+          changeType={trendIssues.changeType}
           iconBg="bg-destructive"
           onClick={() => openKPI("open-issues")}
         />
