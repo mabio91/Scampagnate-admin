@@ -1193,7 +1193,7 @@ function RepeatParticipantsDetail({ filters }: { filters: DashboardFilterValues 
         <MiniStat label="Totale presenze cumulate" value={totalEvents} />
       </div>
 
-      <SectionTitle>🏆 Classifica partecipanti abituali</SectionTitle>
+      <SectionTitle><Trophy className="h-4 w-4 inline-block mr-1" /> Classifica partecipanti abituali</SectionTitle>
       <div className="rounded-xl border overflow-auto">
         <Table>
           <TableHeader>

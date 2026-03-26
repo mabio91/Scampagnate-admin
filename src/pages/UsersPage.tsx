@@ -391,7 +391,7 @@ export default function UsersPage() {
                   {viewUser.is_founding_member && (
                     <div className="mt-4 p-3 rounded-lg border border-amber-500/30 bg-amber-500/5">
                       <div className="flex items-center gap-2">
-                        <span className="text-lg">🏛️</span>
+                        <Landmark className="h-5 w-5 text-amber-600" />
                         <span className="font-semibold text-amber-600">Founding Member</span>
                       </div>
                     </div>
