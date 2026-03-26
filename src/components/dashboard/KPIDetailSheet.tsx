@@ -809,7 +809,7 @@ export function KPIDetailSheet({ open, onClose, filters }: KPIDetailSheetProps) 
 
   return (
     <Sheet open={!!open} onOpenChange={(v) => !v && onClose()}>
-      <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
+      <SheetContent side="right" className="w-[90vw] sm:w-[600px] sm:max-w-[600px] overflow-y-auto">
         <SheetHeader className="pb-4">
           <SheetTitle>{language === "it" ? meta?.titleIt : meta?.title}</SheetTitle>
           <SheetDescription>{language === "it" ? meta?.descriptionIt : meta?.description}</SheetDescription>
