@@ -22,6 +22,7 @@ import ProposalsPage from "@/pages/ProposalsPage";
 import DiscountCodesPage from "@/pages/DiscountCodesPage";
 import MerchPage from "@/pages/MerchPage";
 import ContentPagesPage from "@/pages/ContentPagesPage";
+import ContentPageView from "@/pages/ContentPageView";
 import KPIDetailPage from "@/pages/KPIDetailPage";
 import LoginPage from "@/pages/LoginPage";
 import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
@@ -48,6 +49,7 @@ const App = () => (
           <BrowserRouter>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/page/:slug" element={<ContentPageView />} />
             <Route element={<ProtectedLayout />}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/users" element={<UsersPage />} />
