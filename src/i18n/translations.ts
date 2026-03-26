@@ -53,6 +53,8 @@ export const translations = {
   "sidebar.discountCodes": { it: "Codici Sconto", en: "Discount Codes" },
   "sidebar.contentPages": { it: "Pagine Contenuto", en: "Content Pages" },
   "sidebar.myProfile": { it: "Il mio profilo", en: "My Profile" },
+  "sidebar.missions": { it: "Missioni", en: "Missions" },
+  "sidebar.gamificationSettings": { it: "Gamification", en: "Gamification" },
   "sidebar.logout": { it: "Esci", en: "Logout" },
 
   // ── Dashboard ──
