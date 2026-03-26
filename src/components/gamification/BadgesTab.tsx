@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Trash2, Pencil } from "lucide-react";
+import { Plus, Trash2, Pencil, UserPlus } from "lucide-react";
 
 interface BadgeForm {
   name: string;
@@ -39,6 +39,10 @@ export default function BadgesTab() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<BadgeForm>(emptyBadge);
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignBadgeId, setAssignBadgeId] = useState<string | null>(null);
+  const [assignSearch, setAssignSearch] = useState("");
+  const [assignUserId, setAssignUserId] = useState<string | null>(null);
 
   const { data: badges = [] } = useQuery({
     queryKey: ["badges-admin"],
