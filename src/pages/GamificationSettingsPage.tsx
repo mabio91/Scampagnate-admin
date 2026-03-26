@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { RefreshButton } from "@/components/RefreshButton";
+import RefreshButton from "@/components/RefreshButton";
 import { Save } from "lucide-react";
 
 export default function GamificationSettingsPage() {
