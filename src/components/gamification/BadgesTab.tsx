@@ -100,6 +100,50 @@ export default function BadgesTab() {
     },
   });
 
+  // Search users for manual assignment
+  const { data: searchResults = [] } = useQuery({
+    queryKey: ["users-search-badge", assignSearch],
+    queryFn: async () => {
+      if (assignSearch.length < 2) return [];
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, first_name, last_name, email")
+        .or(`first_name.ilike.%${assignSearch}%,last_name.ilike.%${assignSearch}%,email.ilike.%${assignSearch}%`)
+        .limit(10);
+      return data || [];
+    },
+    enabled: assignSearch.length >= 2,
+  });
+
+  const assignBadgeMutation = useMutation({
+    mutationFn: async () => {
+      if (!assignBadgeId || !assignUserId) return;
+      const { error } = await supabase.from("user_badges").insert({
+        user_id: assignUserId,
+        badge_id: assignBadgeId,
+      });
+      if (error) {
+        if (error.code === "23505") throw new Error("Questo utente ha già questo badge");
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      toast.success("Badge assegnato manualmente");
+      setAssignOpen(false);
+      setAssignBadgeId(null);
+      setAssignUserId(null);
+      setAssignSearch("");
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const openAssign = (badgeId: string) => {
+    setAssignBadgeId(badgeId);
+    setAssignUserId(null);
+    setAssignSearch("");
+    setAssignOpen(true);
+  };
+
   const openEdit = (badge: any) => {
     setEditingId(badge.id);
     setForm({
