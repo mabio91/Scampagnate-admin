@@ -9,6 +9,8 @@ import RefreshButton from "@/components/RefreshButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DashboardFilters, type DashboardFilterValues } from "@/components/dashboard/DashboardFilters";
+import { KPIDetailSheet, type KPIType } from "@/components/dashboard/KPIDetailSheet";
 import {
   BarChart, Bar, PieChart, Pie, Cell, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
