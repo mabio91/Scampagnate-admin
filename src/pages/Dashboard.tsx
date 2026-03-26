@@ -826,7 +826,7 @@ export default function Dashboard() {
         <div>
           <div className="flex items-center gap-2 mb-3">
             <ShieldAlert className="h-4 w-4 text-destructive" />
-            <p className="text-xs font-semibold uppercase tracking-wider text-destructive">Attenzione richiesta</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-destructive">👉 Attenzione richiesta</p>
             <Badge variant="destructive" className="h-5 px-1.5 text-[10px] font-bold">{alerts.length}</Badge>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
@@ -903,7 +903,7 @@ export default function Dashboard() {
                 change={trendAttended.change}
                 changeType={trendAttended.changeType}
                 onClick={() => openKPI("participating-users")}
-                kpiInfo={{ definition: "Utenti con almeno 1 iscrizione", formula: "COUNT(DISTINCT user_id) da registrazioni" }}
+                kpiInfo={{ definition: "Utenti partecipanti", formula: "COUNT(DISTINCT user_id) con almeno 1 iscrizione" }}
               />
               <PremiumStatCard
                 title={t("dashboard.eventsCreated")}
@@ -954,7 +954,7 @@ export default function Dashboard() {
             change={trendFillRate.change}
             changeType={trendFillRate.changeType}
             onClick={() => openKPI("fill-rate")}
-            kpiInfo={{ definition: "Tasso riempimento medio", formula: "Iscrizioni / capacità totale × 100" }}
+            kpiInfo={{ definition: "Tasso riempimento medio", formula: "Iscrizioni / capacità evento × 100" }}
           />
           <PremiumStatCard
             title={t("dashboard.waitlistRequests")}
@@ -973,7 +973,7 @@ export default function Dashboard() {
             iconBg="bg-accent"
             subtitle={t("dashboard.repeatSub")}
             onClick={() => openKPI("repeat-participants")}
-            kpiInfo={{ definition: "Utenti con più di un evento", formula: "COUNT(utenti con ≥2 iscrizioni)" }}
+            kpiInfo={{ definition: "Partecipanti abituali", formula: "COUNT(utenti con >3 eventi)" }}
           />
           <PremiumStatCard
             title={t("dashboard.newUsersMonth")}
@@ -1037,7 +1037,7 @@ export default function Dashboard() {
           changeType={Number(attendanceRate.replace('%', '')) > 40 ? "positive" : "negative"}
           change={`${attendanceRate} ${t("dashboard.attendance")}`}
           onClick={() => openKPI("community-health")}
-          kpiInfo={{ definition: "Salute della community", formula: "Basata su tasso presenza: >70% Ottima, >40% Buona, ≤40% Da migliorare" }}
+          kpiInfo={{ definition: "Salute community", formula: "Basata su tasso presenza: >70% Ottima, >40% Buona, ≤40% Da migliorare" }}
         />
       </div>
 
