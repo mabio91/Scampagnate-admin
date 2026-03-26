@@ -954,6 +954,7 @@ export default function Dashboard() {
             change={trendFillRate.change}
             changeType={trendFillRate.changeType}
             onClick={() => openKPI("fill-rate")}
+            kpiInfo={{ definition: "Tasso riempimento medio", formula: "Iscrizioni / capacità totale × 100" }}
           />
           <PremiumStatCard
             title={t("dashboard.waitlistRequests")}
@@ -963,6 +964,7 @@ export default function Dashboard() {
             change={trendWaitlist.change}
             changeType={trendWaitlist.changeType}
             onClick={() => openKPI("waitlist")}
+            kpiInfo={{ definition: "Richieste in lista d'attesa", formula: "COUNT(status = 'waitlist')" }}
           />
           <PremiumStatCard
             title={t("dashboard.repeatParticipants")}
@@ -971,6 +973,7 @@ export default function Dashboard() {
             iconBg="bg-accent"
             subtitle={t("dashboard.repeatSub")}
             onClick={() => openKPI("repeat-participants")}
+            kpiInfo={{ definition: "Utenti con più di un evento", formula: "COUNT(utenti con ≥2 iscrizioni)" }}
           />
           <PremiumStatCard
             title={t("dashboard.newUsersMonth")}
@@ -981,6 +984,7 @@ export default function Dashboard() {
             change={trendNewUsers.change}
             changeType={trendNewUsers.changeType}
             onClick={() => openKPI("total-users")}
+            kpiInfo={{ definition: "Nuovi utenti nel mese corrente", formula: "COUNT(created_at nel mese corrente)" }}
           />
           <PremiumStatCard
             title={t("dashboard.topCategory")}
@@ -989,6 +993,7 @@ export default function Dashboard() {
             iconBg="bg-secondary"
             subtitle={t("dashboard.topCategorySub")}
             onClick={() => openKPI("top-category")}
+            kpiInfo={{ definition: "Categoria con più iscrizioni", formula: "MAX(registrazioni) per categoria" }}
           />
         </div>
       </div>
