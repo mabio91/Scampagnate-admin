@@ -21,6 +21,7 @@ import MembersPage from "@/pages/MembersPage";
 import ProposalsPage from "@/pages/ProposalsPage";
 import DiscountCodesPage from "@/pages/DiscountCodesPage";
 import MerchPage from "@/pages/MerchPage";
+import ContentPagesPage from "@/pages/ContentPagesPage";
 import KPIDetailPage from "@/pages/KPIDetailPage";
 import LoginPage from "@/pages/LoginPage";
 import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
@@ -61,6 +62,7 @@ const App = () => (
               <Route path="/proposals" element={<ProposalsPage />} />
               <Route path="/discount-codes" element={<DiscountCodesPage />} />
               <Route path="/merch" element={<MerchPage />} />
+              <Route path="/content-pages" element={<ContentPagesPage />} />
               <Route path="/kpi" element={<KPIDetailPage />} />
               <Route path="/profile" element={<ProfilePage />} />
             </Route>
