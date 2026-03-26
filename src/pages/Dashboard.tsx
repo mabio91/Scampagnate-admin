@@ -1056,6 +1056,11 @@ export default function Dashboard() {
                     paddingAngle={4}
                     dataKey="value"
                     strokeWidth={0}
+                    className="cursor-pointer"
+                    onClick={(_, index) => {
+                      const cat = categoryData[index];
+                      if (cat?.id) navigate(`/events?categoryId=${cat.id}`);
+                    }}
                     label={({ percent, cx: cxPos, cy: cyPos, midAngle, outerRadius: oR }) => {
                       const RADIAN = Math.PI / 180;
                       const radius = oR + 18;
@@ -1069,7 +1074,7 @@ export default function Dashboard() {
                     }}
                   >
                     {categoryData.map((_, i) => (
-                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} className="cursor-pointer hover:opacity-80 transition-opacity" />
                     ))}
                   </Pie>
                   <Tooltip {...chartTheme.tooltipStyle} />
