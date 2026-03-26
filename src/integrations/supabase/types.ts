@@ -428,6 +428,7 @@ export type Database = {
           price_option_id: string | null
           sport_level: string | null
           status: Database["public"]["Enums"]["registration_status"]
+          stripe_payment_intent_id: string | null
           user_id: string
         }
         Insert: {
@@ -440,6 +441,7 @@ export type Database = {
           price_option_id?: string | null
           sport_level?: string | null
           status?: Database["public"]["Enums"]["registration_status"]
+          stripe_payment_intent_id?: string | null
           user_id: string
         }
         Update: {
@@ -452,6 +454,7 @@ export type Database = {
           price_option_id?: string | null
           sport_level?: string | null
           status?: Database["public"]["Enums"]["registration_status"]
+          stripe_payment_intent_id?: string | null
           user_id?: string
         }
         Relationships: [
@@ -740,6 +743,45 @@ export type Database = {
           },
         ]
       }
+      phone_otps: {
+        Row: {
+          attempts: number
+          channel: string
+          created_at: string
+          expires_at: string
+          id: string
+          max_attempts: number
+          otp_hash: string
+          phone_number: string
+          user_id: string
+          verified: boolean
+        }
+        Insert: {
+          attempts?: number
+          channel?: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          max_attempts?: number
+          otp_hash: string
+          phone_number: string
+          user_id: string
+          verified?: boolean
+        }
+        Update: {
+          attempts?: number
+          channel?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          max_attempts?: number
+          otp_hash?: string
+          phone_number?: string
+          user_id?: string
+          verified?: boolean
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           account_status: Database["public"]["Enums"]["account_status"] | null
@@ -748,17 +790,25 @@ export type Database = {
           bio: string | null
           created_at: string
           email: string | null
+          event_motivation: string | null
           experience_grade: number | null
           first_name: string
+          has_car: string | null
           id: string
+          interests: string[] | null
           is_founding_member: boolean
           last_name: string
           membership_id: number | null
           membership_registration_date: string | null
           membership_status: string | null
           membership_year: number | null
+          onboarding_completed: boolean | null
           phone: string
+          phone_verification_method: string | null
+          phone_verified: boolean | null
+          phone_verified_at: string | null
           preferences: Json | null
+          self_level: string | null
           total_points: number
           trekking_experience: string | null
           updated_at: string
@@ -770,17 +820,25 @@ export type Database = {
           bio?: string | null
           created_at?: string
           email?: string | null
+          event_motivation?: string | null
           experience_grade?: number | null
           first_name?: string
+          has_car?: string | null
           id: string
+          interests?: string[] | null
           is_founding_member?: boolean
           last_name?: string
           membership_id?: number | null
           membership_registration_date?: string | null
           membership_status?: string | null
           membership_year?: number | null
+          onboarding_completed?: boolean | null
           phone?: string
+          phone_verification_method?: string | null
+          phone_verified?: boolean | null
+          phone_verified_at?: string | null
           preferences?: Json | null
+          self_level?: string | null
           total_points?: number
           trekking_experience?: string | null
           updated_at?: string
@@ -792,17 +850,25 @@ export type Database = {
           bio?: string | null
           created_at?: string
           email?: string | null
+          event_motivation?: string | null
           experience_grade?: number | null
           first_name?: string
+          has_car?: string | null
           id?: string
+          interests?: string[] | null
           is_founding_member?: boolean
           last_name?: string
           membership_id?: number | null
           membership_registration_date?: string | null
           membership_status?: string | null
           membership_year?: number | null
+          onboarding_completed?: boolean | null
           phone?: string
+          phone_verification_method?: string | null
+          phone_verified?: boolean | null
+          phone_verified_at?: string | null
           preferences?: Json | null
+          self_level?: string | null
           total_points?: number
           trekking_experience?: string | null
           updated_at?: string

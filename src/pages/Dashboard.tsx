@@ -9,6 +9,8 @@ import RefreshButton from "@/components/RefreshButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DashboardFilters, type DashboardFilterValues } from "@/components/dashboard/DashboardFilters";
+import { KPIDetailSheet, type KPIType } from "@/components/dashboard/KPIDetailSheet";
 import {
   BarChart, Bar, PieChart, Pie, Cell, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -74,12 +76,19 @@ interface PremiumStatCardProps {
   gradient?: string;
   iconBg: string;
   subtitle?: string;
+  onClick?: () => void;
 }
 
-function PremiumStatCard({ title, value, icon: Icon, change, changeType = "neutral", iconBg, subtitle }: PremiumStatCardProps) {
+function PremiumStatCard({ title, value, icon: Icon, change, changeType = "neutral", iconBg, subtitle, onClick }: PremiumStatCardProps) {
   const ChangeIcon = changeType === "positive" ? ArrowUpRight : changeType === "negative" ? ArrowDownRight : Minus;
   return (
-    <div className="relative rounded-xl bg-card border border-border/60 p-5 overflow-hidden">
+    <div
+      className={cn(
+        "relative rounded-xl bg-card border border-border/60 p-5 overflow-hidden transition-all",
+        onClick && "cursor-pointer hover:border-primary/40 hover:shadow-md active:scale-[0.98]"
+      )}
+      onClick={onClick}
+    >
       {/* Colored top bar */}
       <div className={cn("absolute top-0 left-0 right-0 h-1 rounded-t-xl", iconBg)} />
       <div className="flex items-start justify-between gap-3">
@@ -189,6 +198,14 @@ export default function Dashboard() {
   const { data: weather } = useItalyWeather();
   const chartTheme = useChartTheme();
   const { t } = useLanguage();
+
+  const [activeKPI, setActiveKPI] = useState<KPIType>(null);
+  const [filters, setFilters] = useState<DashboardFilterValues>({
+    dateFrom: undefined,
+    dateTo: undefined,
+    categoryId: undefined,
+    organizerId: undefined,
+  });
 
   const currentYear = new Date().getFullYear();
   const yearStart = `${currentYear}-01-01`;
@@ -476,6 +493,9 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* ── Filters ── */}
+      <DashboardFilters filters={filters} onChange={setFilters} />
+
       {/* ── PRIMARY KPI Cards ── */}
       <div>
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60 mb-3">{t("dashboard.primaryMetrics")}</p>
@@ -489,6 +509,7 @@ export default function Dashboard() {
                 value={totalUsers.toLocaleString()}
                 icon={Users}
                 iconBg="bg-primary"
+                onClick={() => setActiveKPI("total-users")}
               />
               <PremiumStatCard
                 title={t("dashboard.activeMembers")}
@@ -496,6 +517,7 @@ export default function Dashboard() {
                 icon={UserCheck}
                 iconBg="bg-success"
                 subtitle={`${t("dashboard.paidMembership")} ${currentYear}`}
+                onClick={() => setActiveKPI("active-members")}
               />
               <PremiumStatCard
                 title={t("dashboard.usersAttended")}
@@ -503,6 +525,7 @@ export default function Dashboard() {
                 icon={CheckCircle2}
                 iconBg="bg-secondary"
                 subtitle={`${t("dashboard.atLeast1Event")} ${currentYear}`}
+                onClick={() => setActiveKPI("participating-users")}
               />
               <PremiumStatCard
                 title={t("dashboard.eventsCreated")}
@@ -510,6 +533,7 @@ export default function Dashboard() {
                 icon={Calendar}
                 iconBg="bg-accent"
                 subtitle={`${t("dashboard.in")} ${currentYear}`}
+                onClick={() => setActiveKPI("events-created")}
               />
               <PremiumStatCard
                 title={t("dashboard.participationRate")}
@@ -517,6 +541,7 @@ export default function Dashboard() {
                 icon={Percent}
                 iconBg="bg-primary"
                 subtitle={t("dashboard.participationSub")}
+                onClick={() => setActiveKPI("participation-rate")}
               />
               <PremiumStatCard
                 title={t("dashboard.attendanceRate")}
@@ -524,6 +549,7 @@ export default function Dashboard() {
                 icon={ListChecks}
                 iconBg="bg-success"
                 subtitle={t("dashboard.attendanceSub")}
+                onClick={() => setActiveKPI("attendance-rate")}
               />
             </>
           )}
@@ -540,6 +566,7 @@ export default function Dashboard() {
             icon={BarChart3}
             iconBg="bg-secondary"
             subtitle={t("dashboard.avgFillSub")}
+            onClick={() => setActiveKPI("fill-rate")}
           />
           <PremiumStatCard
             title={t("dashboard.waitlistRequests")}
@@ -548,6 +575,7 @@ export default function Dashboard() {
             iconBg="bg-warning"
             changeType={totalWaitlist > 0 ? "negative" : "neutral"}
             change={totalWaitlist > 0 ? `${totalWaitlist} ${t("dashboard.waiting")}` : t("dashboard.noWaitlist")}
+            onClick={() => setActiveKPI("waitlist")}
           />
           <PremiumStatCard
             title={t("dashboard.repeatParticipants")}
@@ -555,6 +583,7 @@ export default function Dashboard() {
             icon={Repeat}
             iconBg="bg-accent"
             subtitle={t("dashboard.repeatSub")}
+            onClick={() => setActiveKPI("repeat-participants")}
           />
           <PremiumStatCard
             title={t("dashboard.newUsersMonth")}
@@ -562,6 +591,7 @@ export default function Dashboard() {
             icon={UserPlus}
             iconBg="bg-primary"
             subtitle={format(new Date(), "MMMM yyyy")}
+            onClick={() => setActiveKPI("total-users")}
           />
           <PremiumStatCard
             title={t("dashboard.topCategory")}
@@ -569,6 +599,7 @@ export default function Dashboard() {
             icon={Trophy}
             iconBg="bg-secondary"
             subtitle={t("dashboard.topCategorySub")}
+            onClick={() => setActiveKPI("top-category")}
           />
         </div>
       </div>
@@ -588,6 +619,7 @@ export default function Dashboard() {
           changeType={openIssues > 0 ? "negative" : "positive"}
           change={openIssues === 0 ? t("dashboard.allClear") : `${openIssues} ${t("dashboard.needAttention")}`}
           iconBg="bg-destructive"
+          onClick={() => setActiveKPI("open-issues")}
         />
         <PremiumStatCard
           title={t("dashboard.totalEvents")}
@@ -595,6 +627,7 @@ export default function Dashboard() {
           icon={Calendar}
           iconBg="bg-accent"
           subtitle={t("dashboard.allTime")}
+          onClick={() => setActiveKPI("events-created")}
         />
         <PremiumStatCard
           title={t("dashboard.communityHealth")}
@@ -606,6 +639,7 @@ export default function Dashboard() {
           iconBg="bg-success"
           changeType={Number(attendanceRate.replace('%', '')) > 40 ? "positive" : "negative"}
           change={`${attendanceRate} ${t("dashboard.attendance")}`}
+          onClick={() => setActiveKPI("community-health")}
         />
       </div>
 
@@ -741,6 +775,9 @@ export default function Dashboard() {
           </div>
         </ChartCard>
       </div>
+
+      {/* KPI Detail Drawer */}
+      <KPIDetailSheet open={activeKPI} onClose={() => setActiveKPI(null)} filters={filters} />
     </div>
   );
 }
