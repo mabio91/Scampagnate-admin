@@ -205,6 +205,8 @@ export default function Dashboard() {
     dateTo: undefined,
     categoryId: undefined,
     organizerId: undefined,
+    eventStatus: undefined,
+    membershipYear: undefined,
   });
 
   const openKPI = (type: string) => {
