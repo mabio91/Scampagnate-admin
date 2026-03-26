@@ -93,6 +93,8 @@ function GalleryEditor({
   onUpload: (target: "hero" | "gallery") => void;
 }) {
   const { t } = useLanguage();
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const removeGalleryImage = (index: number) => {
     onGalleryChange(galleryImages.filter((_, i) => i !== index));
@@ -104,6 +106,34 @@ function GalleryEditor({
     newGallery[index] = heroUrl;
     onHeroChange(newHero);
     onGalleryChange(newGallery.filter(Boolean));
+  };
+
+  const handleDragStart = (index: number) => {
+    setDragIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    setDragOverIndex(index);
+  };
+
+  const handleDrop = (index: number) => {
+    if (dragIndex === null || dragIndex === index) {
+      setDragIndex(null);
+      setDragOverIndex(null);
+      return;
+    }
+    const reordered = [...galleryImages];
+    const [moved] = reordered.splice(dragIndex, 1);
+    reordered.splice(index, 0, moved);
+    onGalleryChange(reordered);
+    setDragIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDragIndex(null);
+    setDragOverIndex(null);
   };
 
   return (
@@ -159,11 +189,33 @@ function GalleryEditor({
 
       {/* Gallery Images */}
       <div>
-        <Label>{t("merch.galleryImages")} ({galleryImages.length}/{MAX_GALLERY_IMAGES})</Label>
+        <div className="flex items-center justify-between">
+          <Label>{t("merch.galleryImages")} ({galleryImages.length}/{MAX_GALLERY_IMAGES})</Label>
+          {galleryImages.length > 1 && (
+            <span className="text-xs text-muted-foreground flex items-center gap-1">
+              <GripVertical className="h-3 w-3" /> {t("merch.dragToReorder")}
+            </span>
+          )}
+        </div>
         <div className="mt-1.5 grid grid-cols-3 gap-2">
           {galleryImages.map((url, i) => (
-            <div key={i} className="relative rounded-lg border border-border overflow-hidden bg-muted/30 aspect-square group/thumb">
+            <div
+              key={`${url}-${i}`}
+              draggable
+              onDragStart={() => handleDragStart(i)}
+              onDragOver={(e) => handleDragOver(e, i)}
+              onDrop={() => handleDrop(i)}
+              onDragEnd={handleDragEnd}
+              className={cn(
+                "relative rounded-lg border overflow-hidden bg-muted/30 aspect-square group/thumb cursor-grab active:cursor-grabbing transition-all",
+                dragOverIndex === i && dragIndex !== i ? "border-primary ring-2 ring-primary/30" : "border-border",
+                dragIndex === i ? "opacity-50" : ""
+              )}
+            >
               <img src={url} alt={`Gallery ${i + 1}`} className="w-full h-full object-contain p-1" />
+              <div className="absolute top-1 left-1 bg-background/70 rounded px-1 text-[10px] font-medium text-muted-foreground">
+                {i + 1}
+              </div>
               <div className="absolute inset-0 bg-background/60 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center gap-1">
                 <Button variant="secondary" size="icon" className="h-7 w-7" onClick={() => promoteToHero(i)} type="button" title={t("merch.setAsHero")}>
                   <Star className="h-3.5 w-3.5" />
