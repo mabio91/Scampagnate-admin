@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -106,9 +106,9 @@ const USER_GROUP_OPTIONS = [
 
 export default function EventsPage() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { t } = useLanguage();
   const [search, setSearch] = useState(searchParams.get("search") || "");
-  const [viewEvent, setViewEvent] = useState<EventWithCategory | null>(null);
   const [editEvent, setEditEvent] = useState<(Partial<Event> & { isNew?: boolean }) | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const queryClient = useQueryClient();
@@ -356,7 +356,7 @@ export default function EventsPage() {
               </TableHeader>
               <TableBody>
                 {filtered.map((event) => (
-                  <TableRow key={event.id}>
+                  <TableRow key={event.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/events/${event.id}`)}>
                     <TableCell className="font-medium flex items-center gap-1.5">
                       {hasAnyAccessRule(event) && <Shield className="h-3.5 w-3.5 text-primary shrink-0" />}
                       {getPricingRules(event).length > 0 && <Tag className="h-3.5 w-3.5 text-accent-foreground shrink-0" />}
@@ -372,13 +372,13 @@ export default function EventsPage() {
                     <TableCell>
                       <Badge variant="outline" className={visibilityColors[event.visibility] || ""}>{event.visibility}</Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => setViewEvent(event)}><Eye className="h-4 w-4 mr-2" /> View</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => navigate(`/events/${event.id}`)}><Eye className="h-4 w-4 mr-2" /> View</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => setEditEvent(event)}><Edit2 className="h-4 w-4 mr-2" /> Edit</DropdownMenuItem>
                           <DropdownMenuItem className="text-destructive" onClick={() => { if (confirm("Delete this event?")) deleteMutation.mutate(event.id); }}>
                             <Trash2 className="h-4 w-4 mr-2" /> Delete
