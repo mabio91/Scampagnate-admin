@@ -461,6 +461,11 @@ export const translations = {
   "notFound.title": { it: "404", en: "404" },
   "notFound.message": { it: "Oops! Pagina non trovata", en: "Oops! Page not found" },
   "notFound.returnHome": { it: "Torna alla Home", en: "Return to Home" },
+
+  // ── Global Search ──
+  "globalSearch.placeholder": { it: "Cerca utenti, eventi, prodotti...", en: "Search users, events, products..." },
+  "globalSearch.searching": { it: "Ricerca in corso...", en: "Searching..." },
+  "globalSearch.noResults": { it: "Nessun risultato trovato", en: "No results found" },
 } as const;
 
 export type TranslationKey = keyof typeof translations;

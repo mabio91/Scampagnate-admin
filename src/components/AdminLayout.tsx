@@ -4,6 +4,7 @@ import { Outlet, useNavigate } from "react-router-dom";
 import { Shield } from "lucide-react";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { GlobalSearch } from "@/components/GlobalSearch";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
