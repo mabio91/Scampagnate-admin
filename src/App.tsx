@@ -14,6 +14,7 @@ import OrganizersPage from "@/pages/OrganizersPage";
 import OrganizerDetailPage from "@/pages/OrganizerDetailPage";
 import CategoriesPage from "@/pages/CategoriesPage";
 import EventsPage from "@/pages/EventsPage";
+import EventDetailPage from "@/pages/EventDetailPage";
 import IssuesPage from "@/pages/IssuesPage";
 import EquipmentTemplatesPage from "@/pages/EquipmentTemplatesPage";
 import ProfilePage from "@/pages/ProfilePage";
@@ -60,6 +61,7 @@ const App = () => (
               <Route path="/organizers/:id" element={<OrganizerDetailPage />} />
               <Route path="/categories" element={<CategoriesPage />} />
               <Route path="/events" element={<EventsPage />} />
+              <Route path="/events/:id" element={<EventDetailPage />} />
               <Route path="/equipment-templates" element={<EquipmentTemplatesPage />} />
               <Route path="/issues" element={<IssuesPage />} />
               <Route path="/members" element={<MembersPage />} />
