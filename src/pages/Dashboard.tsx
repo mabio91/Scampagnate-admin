@@ -1102,14 +1102,21 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <ChartCard title={t("dashboard.issuesTrend")}>
           <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={issuesTrend}>
+            <LineChart data={issuesTrend} className="cursor-pointer"
+              onClick={(data) => {
+                if (data?.activePayload?.[0]?.payload) {
+                  const payload = data.activePayload[0].payload;
+                  navigate(`/issues?dateFrom=${encodeURIComponent(payload.dateFrom)}&dateTo=${encodeURIComponent(payload.dateTo)}`);
+                }
+              }}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridStroke} vertical={false} />
               <XAxis dataKey="week" tick={{ fontSize: 12, fill: chartTheme.tickFill }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 12, fill: chartTheme.tickFill }} axisLine={false} tickLine={false} />
               <Tooltip {...chartTheme.tooltipStyle} />
               <Legend wrapperStyle={{ fontSize: "12px", paddingTop: "8px" }} />
-              <Line type="monotone" dataKey="opened" stroke="hsl(0, 65%, 50%)" strokeWidth={2.5} dot={{ r: 4, strokeWidth: 2, fill: chartTheme.dotFill }} activeDot={{ r: 6 }} />
-              <Line type="monotone" dataKey="resolved" stroke="hsl(140, 50%, 40%)" strokeWidth={2.5} dot={{ r: 4, strokeWidth: 2, fill: chartTheme.dotFill }} activeDot={{ r: 6 }} />
+              <Line type="monotone" dataKey="opened" stroke="hsl(0, 65%, 50%)" strokeWidth={2.5} dot={{ r: 4, strokeWidth: 2, fill: chartTheme.dotFill }} activeDot={{ r: 7, className: "cursor-pointer" }} />
+              <Line type="monotone" dataKey="resolved" stroke="hsl(140, 50%, 40%)" strokeWidth={2.5} dot={{ r: 4, strokeWidth: 2, fill: chartTheme.dotFill }} activeDot={{ r: 7, className: "cursor-pointer" }} />
             </LineChart>
           </ResponsiveContainer>
         </ChartCard>
