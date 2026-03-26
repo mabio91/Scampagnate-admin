@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, MoreHorizontal, Eye, Edit2, Trash2, Plus, Upload, X, ArrowUp, ArrowDown, Image as ImageIcon, Loader2, Shield, Lock, Star, Users, Award, Crown, CheckCircle2, DollarSign, Tag } from "lucide-react";
 import RefreshButton from "@/components/RefreshButton";
+import { EventParticipantsList } from "@/components/participants/EventParticipantsList";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -456,6 +457,14 @@ export default function EventsPage() {
                   </div>
                 );
               })()}
+
+              {/* Participant List */}
+              <div className="space-y-2 pt-2 border-t">
+                <p className="font-semibold flex items-center gap-1.5 text-sm">
+                  <Users className="h-4 w-4 text-primary" /> Partecipanti ({registrations.length})
+                </p>
+                <EventParticipantsList eventId={viewEvent.id} isAdmin />
+              </div>
 
               <div className="space-y-4 pt-4">
                 <p><strong>Cover Image:</strong></p>
