@@ -1,11 +1,9 @@
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { useLanguage } from "@/i18n/LanguageContext";
 import type { DashboardFilterValues } from "./DashboardFilters";
 
 export type KPIType =
@@ -23,13 +21,7 @@ export type KPIType =
   | "community-health"
   | null;
 
-interface KPIDetailSheetProps {
-  open: KPIType;
-  onClose: () => void;
-  filters: DashboardFilterValues;
-}
-
-const KPI_META: Record<string, { title: string; titleIt: string; description: string; descriptionIt: string }> = {
+export const KPI_META: Record<string, { title: string; titleIt: string; description: string; descriptionIt: string }> = {
   "total-users": { title: "Total Users", titleIt: "Utenti Totali", description: "All registered users on the platform", descriptionIt: "Tutti gli utenti registrati sulla piattaforma" },
   "active-members": { title: "Active Memberships", titleIt: "Tesserati Attivi", description: "Members with active paid membership", descriptionIt: "Membri con tessera attiva pagata" },
   "participating-users": { title: "Participating Users", titleIt: "Utenti Partecipanti", description: "Users who attended at least one event", descriptionIt: "Utenti che hanno partecipato ad almeno un evento" },
@@ -61,7 +53,26 @@ function statusBadge(status: string) {
 }
 
 function LoadingSkeleton() {
-  return <div className="space-y-3 p-4">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>;
+  return <div className="space-y-3">{Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>;
+}
+
+function MiniStat({ label, value, color }: { label: string; value: string | number; color?: string }) {
+  return (
+    <div className="rounded-lg bg-muted/50 border p-4">
+      <p className="text-xs text-muted-foreground font-medium truncate">{label}</p>
+      <p className={`text-xl font-bold ${color || "text-foreground"}`}>{value}</p>
+    </div>
+  );
+}
+
+function HealthMetric({ label, value, good, warn }: { label: string; value: string; good: boolean; warn: boolean; invert?: boolean }) {
+  const color = good ? "text-success" : warn ? "text-warning" : "text-destructive";
+  return (
+    <div className="rounded-lg border p-4 bg-card">
+      <p className="text-xs text-muted-foreground font-medium">{label}</p>
+      <p className={`text-2xl font-bold ${color}`}>{value}</p>
+    </div>
+  );
 }
 
 /* ═══════ Individual detail views ═══════ */
@@ -77,18 +88,15 @@ function TotalUsersDetail({ filters }: { filters: DashboardFilterValues }) {
       return data || [];
     },
   });
-
   if (isLoading) return <LoadingSkeleton />;
-
   const total = data?.length || 0;
   const active = data?.filter(u => u.account_status === "Active").length || 0;
   const suspended = data?.filter(u => u.account_status === "Suspended").length || 0;
   const banned = data?.filter(u => u.account_status === "Banned").length || 0;
   const onboarded = data?.filter(u => u.onboarding_completed).length || 0;
-
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <MiniStat label="Totale" value={total} />
         <MiniStat label="Attivi" value={active} color="text-success" />
         <MiniStat label="Sospesi" value={suspended} color="text-warning" />
@@ -96,17 +104,9 @@ function TotalUsersDetail({ filters }: { filters: DashboardFilterValues }) {
         <MiniStat label="Onboarding completato" value={onboarded} />
         <MiniStat label="Onboarding incompleto" value={total - onboarded} />
       </div>
-      <div className="overflow-auto max-h-[50vh]">
+      <div className="rounded-xl border overflow-auto">
         <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Stato</TableHead>
-              <TableHead>Tessera</TableHead>
-              <TableHead>Iscritto</TableHead>
-            </TableRow>
-          </TableHeader>
+          <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Email</TableHead><TableHead>Stato</TableHead><TableHead>Tessera</TableHead><TableHead>Iscritto</TableHead></TableRow></TableHeader>
           <TableBody>
             {data?.map(u => (
               <TableRow key={u.id}>
@@ -132,37 +132,25 @@ function ActiveMembersDetail({ filters }: { filters: DashboardFilterValues }) {
       const { data } = await supabase.from("profiles")
         .select("id, first_name, last_name, membership_status, membership_year, membership_id, is_founding_member, membership_registration_date")
         .not("membership_id", "is", null)
-        .order("membership_registration_date", { ascending: false })
-        .limit(200);
+        .order("membership_registration_date", { ascending: false }).limit(200);
       return data || [];
     },
   });
-
   if (isLoading) return <LoadingSkeleton />;
-
   const active = data?.filter(m => m.membership_status === "Active" && m.membership_year === currentYear).length || 0;
   const expired = data?.filter(m => m.membership_status !== "Active" || (m.membership_year && m.membership_year < currentYear)).length || 0;
   const founding = data?.filter(m => m.is_founding_member).length || 0;
-
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <MiniStat label="Attivi" value={active} color="text-success" />
         <MiniStat label="Scaduti" value={expired} color="text-warning" />
         <MiniStat label="Fondatori" value={founding} color="text-accent" />
         <MiniStat label="Totale tessere" value={data?.length || 0} />
       </div>
-      <div className="overflow-auto max-h-[50vh]">
+      <div className="rounded-xl border overflow-auto">
         <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead>ID Tessera</TableHead>
-              <TableHead>Anno</TableHead>
-              <TableHead>Stato</TableHead>
-              <TableHead>Fondatore</TableHead>
-            </TableRow>
-          </TableHeader>
+          <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>ID Tessera</TableHead><TableHead>Anno</TableHead><TableHead>Stato</TableHead><TableHead>Fondatore</TableHead></TableRow></TableHeader>
           <TableBody>
             {data?.map(m => (
               <TableRow key={m.id}>
@@ -189,52 +177,30 @@ function ParticipatingUsersDetail({ filters }: { filters: DashboardFilterValues 
       if (filters.dateTo) q = q.lte("events.date", format(filters.dateTo, "yyyy-MM-dd"));
       const { data: regs } = await q;
       if (!regs) return [];
-
       const userMap: Record<string, { userId: string; eventsJoined: number; eventsAttended: number; lastEvent: string; lastDate: string; noShows: number }> = {};
       regs.forEach((r: any) => {
-        if (!userMap[r.user_id]) {
-          userMap[r.user_id] = { userId: r.user_id, eventsJoined: 0, eventsAttended: 0, lastEvent: "", lastDate: "", noShows: 0 };
-        }
+        if (!userMap[r.user_id]) userMap[r.user_id] = { userId: r.user_id, eventsJoined: 0, eventsAttended: 0, lastEvent: "", lastDate: "", noShows: 0 };
         const u = userMap[r.user_id];
         if (["registered", "paid", "attended"].includes(r.status)) u.eventsJoined++;
         if (r.checked_in) u.eventsAttended++;
         if (r.status === "no_show") u.noShows++;
-        if (!u.lastDate || r.events.date > u.lastDate) {
-          u.lastDate = r.events.date;
-          u.lastEvent = r.events.title;
-        }
+        if (!u.lastDate || r.events.date > u.lastDate) { u.lastDate = r.events.date; u.lastEvent = r.events.title; }
       });
-
       const userIds = Object.keys(userMap);
       if (userIds.length === 0) return [];
-
       const { data: profiles } = await supabase.from("profiles").select("id, first_name, last_name").in("id", userIds.slice(0, 200));
       const profileMap = Object.fromEntries((profiles || []).map(p => [p.id, p]));
-
-      return Object.values(userMap)
-        .filter(u => u.eventsJoined > 0)
-        .sort((a, b) => b.eventsAttended - a.eventsAttended)
-        .slice(0, 200)
+      return Object.values(userMap).filter(u => u.eventsJoined > 0).sort((a, b) => b.eventsAttended - a.eventsAttended).slice(0, 200)
         .map(u => ({ ...u, name: profileMap[u.userId] ? `${profileMap[u.userId].first_name} ${profileMap[u.userId].last_name}` : u.userId }));
     },
   });
-
   if (isLoading) return <LoadingSkeleton />;
-
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <MiniStat label="Utenti partecipanti" value={data?.length || 0} />
-      <div className="overflow-auto max-h-[55vh]">
+      <div className="rounded-xl border overflow-auto">
         <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead>Eventi iscritti</TableHead>
-              <TableHead>Presenze</TableHead>
-              <TableHead>No-show</TableHead>
-              <TableHead>Ultimo evento</TableHead>
-            </TableRow>
-          </TableHeader>
+          <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Eventi iscritti</TableHead><TableHead>Presenze</TableHead><TableHead>No-show</TableHead><TableHead>Ultimo evento</TableHead></TableRow></TableHeader>
           <TableBody>
             {data?.map((u, i) => (
               <TableRow key={i}>
@@ -265,22 +231,11 @@ function EventsCreatedDetail({ filters }: { filters: DashboardFilterValues }) {
       return data || [];
     },
   });
-
   if (isLoading) return <LoadingSkeleton />;
-
   return (
-    <div className="overflow-auto max-h-[60vh]">
+    <div className="rounded-xl border overflow-auto">
       <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Evento</TableHead>
-            <TableHead>Data</TableHead>
-            <TableHead>Organizzatore</TableHead>
-            <TableHead>Stato</TableHead>
-            <TableHead>Iscritti</TableHead>
-            <TableHead>Riempimento</TableHead>
-          </TableRow>
-        </TableHeader>
+        <TableHeader><TableRow><TableHead>Evento</TableHead><TableHead>Data</TableHead><TableHead>Organizzatore</TableHead><TableHead>Stato</TableHead><TableHead>Iscritti</TableHead><TableHead>Riempimento</TableHead></TableRow></TableHeader>
         <TableBody>
           {data?.map(e => (
             <TableRow key={e.id}>
@@ -304,7 +259,6 @@ function ParticipationRateDetail({ filters }: { filters: DashboardFilterValues }
     queryFn: async () => {
       const { count: totalUsers } = await supabase.from("profiles").select("*", { count: "exact", head: true });
       const { data: regs } = await supabase.from("event_registrations").select("user_id, events!inner(date, category_id, organizer_id)").in("status", ["registered", "paid", "attended"]);
-
       const filtered = (regs || []).filter((r: any) => {
         if (filters.dateFrom && r.events.date < format(filters.dateFrom, "yyyy-MM-dd")) return false;
         if (filters.dateTo && r.events.date > format(filters.dateTo, "yyyy-MM-dd")) return false;
@@ -312,10 +266,7 @@ function ParticipationRateDetail({ filters }: { filters: DashboardFilterValues }
         if (filters.organizerId && r.events.organizer_id !== filters.organizerId) return false;
         return true;
       });
-
       const uniqueUsers = new Set(filtered.map((r: any) => r.user_id));
-
-      // By category
       const { data: cats } = await supabase.from("event_categories").select("id, name");
       const catMap = Object.fromEntries((cats || []).map(c => [c.id, c.name]));
       const byCat: Record<string, Set<string>> = {};
@@ -324,7 +275,6 @@ function ParticipationRateDetail({ filters }: { filters: DashboardFilterValues }
         if (!byCat[catName]) byCat[catName] = new Set();
         byCat[catName].add(r.user_id);
       });
-
       return {
         totalUsers: totalUsers || 0,
         participatingUsers: uniqueUsers.size,
@@ -333,29 +283,29 @@ function ParticipationRateDetail({ filters }: { filters: DashboardFilterValues }
       };
     },
   });
-
   if (isLoading) return <LoadingSkeleton />;
   if (!data) return null;
-
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="grid grid-cols-3 gap-3">
         <MiniStat label="Utenti totali" value={data.totalUsers} />
         <MiniStat label="Utenti partecipanti" value={data.participatingUsers} color="text-primary" />
         <MiniStat label="Tasso" value={`${data.rate}%`} color="text-success" />
       </div>
-      <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
+      <div className="rounded-lg bg-muted/50 p-4 text-sm text-muted-foreground">
         <strong>Formula:</strong> Utenti con ≥1 iscrizione ({data.participatingUsers}) / Utenti totali ({data.totalUsers}) = <strong className="text-foreground">{data.rate}%</strong>
       </div>
       <h4 className="text-sm font-semibold">Partecipazione per categoria</h4>
-      <Table>
-        <TableHeader><TableRow><TableHead>Categoria</TableHead><TableHead>Utenti unici</TableHead></TableRow></TableHeader>
-        <TableBody>
-          {data.byCategory.map(c => (
-            <TableRow key={c.name}><TableCell>{c.name}</TableCell><TableCell className="font-semibold">{c.count}</TableCell></TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      <div className="rounded-xl border overflow-auto">
+        <Table>
+          <TableHeader><TableRow><TableHead>Categoria</TableHead><TableHead>Utenti unici</TableHead></TableRow></TableHeader>
+          <TableBody>
+            {data.byCategory.map(c => (
+              <TableRow key={c.name}><TableCell>{c.name}</TableCell><TableCell className="font-semibold">{c.count}</TableCell></TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
@@ -367,7 +317,6 @@ function AttendanceRateDetail({ filters }: { filters: DashboardFilterValues }) {
       const { data: regs } = await supabase.from("event_registrations")
         .select("status, checked_in, events!inner(id, title, date, category_id, organizer_id, organizer_name)")
         .in("status", ["registered", "paid", "attended", "no_show", "cancelled"]);
-
       const filtered = (regs || []).filter((r: any) => {
         if (filters.dateFrom && r.events.date < format(filters.dateFrom, "yyyy-MM-dd")) return false;
         if (filters.dateTo && r.events.date > format(filters.dateTo, "yyyy-MM-dd")) return false;
@@ -375,13 +324,10 @@ function AttendanceRateDetail({ filters }: { filters: DashboardFilterValues }) {
         if (filters.organizerId && r.events.organizer_id !== filters.organizerId) return false;
         return true;
       });
-
       const totalRegs = filtered.filter(r => ["registered", "paid", "attended"].includes(r.status)).length;
       const checkedIn = filtered.filter(r => r.checked_in).length;
       const noShows = filtered.filter(r => r.status === "no_show").length;
       const cancelled = filtered.filter(r => r.status === "cancelled").length;
-
-      // By event
       const eventMap: Record<string, { title: string; regs: number; checkedIn: number; noShows: number }> = {};
       filtered.forEach((r: any) => {
         if (!eventMap[r.events.id]) eventMap[r.events.id] = { title: r.events.title, regs: 0, checkedIn: 0, noShows: 0 };
@@ -389,24 +335,19 @@ function AttendanceRateDetail({ filters }: { filters: DashboardFilterValues }) {
         if (r.checked_in) eventMap[r.events.id].checkedIn++;
         if (r.status === "no_show") eventMap[r.events.id].noShows++;
       });
-
       return {
-        totalRegs,
-        checkedIn,
+        totalRegs, checkedIn,
         rate: totalRegs > 0 ? Math.round((checkedIn / totalRegs) * 100) : 0,
-        noShows,
-        noShowRate: totalRegs > 0 ? Math.round((noShows / totalRegs) * 100) : 0,
+        noShows, noShowRate: totalRegs > 0 ? Math.round((noShows / totalRegs) * 100) : 0,
         cancelled,
         byEvent: Object.values(eventMap).sort((a, b) => b.regs - a.regs).slice(0, 50),
       };
     },
   });
-
   if (isLoading) return <LoadingSkeleton />;
   if (!data) return null;
-
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <MiniStat label="Iscrizioni totali" value={data.totalRegs} />
         <MiniStat label="Check-in" value={data.checkedIn} color="text-success" />
@@ -414,21 +355,13 @@ function AttendanceRateDetail({ filters }: { filters: DashboardFilterValues }) {
         <MiniStat label="No-show" value={`${data.noShows} (${data.noShowRate}%)`} color="text-destructive" />
       </div>
       <h4 className="text-sm font-semibold">Dettaglio per evento</h4>
-      <div className="overflow-auto max-h-[45vh]">
+      <div className="rounded-xl border overflow-auto">
         <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Evento</TableHead>
-              <TableHead>Iscritti</TableHead>
-              <TableHead>Check-in</TableHead>
-              <TableHead>Tasso</TableHead>
-              <TableHead>No-show</TableHead>
-            </TableRow>
-          </TableHeader>
+          <TableHeader><TableRow><TableHead>Evento</TableHead><TableHead>Iscritti</TableHead><TableHead>Check-in</TableHead><TableHead>Tasso</TableHead><TableHead>No-show</TableHead></TableRow></TableHeader>
           <TableBody>
             {data.byEvent.map((e, i) => (
               <TableRow key={i}>
-                <TableCell className="font-medium max-w-[180px] truncate">{e.title}</TableCell>
+                <TableCell className="font-medium max-w-[200px] truncate">{e.title}</TableCell>
                 <TableCell>{e.regs}</TableCell>
                 <TableCell className="text-success">{e.checkedIn}</TableCell>
                 <TableCell className="font-semibold">{e.regs > 0 ? Math.round((e.checkedIn / e.regs) * 100) : 0}%</TableCell>
@@ -455,33 +388,19 @@ function FillRateDetail({ filters }: { filters: DashboardFilterValues }) {
       return (data || []).map(e => ({ ...e, fillRate: Math.round((e.spots_taken / e.spots_total) * 100) }));
     },
   });
-
   if (isLoading) return <LoadingSkeleton />;
-
   return (
-    <div className="overflow-auto max-h-[60vh]">
+    <div className="rounded-xl border overflow-auto">
       <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Evento</TableHead>
-            <TableHead>Data</TableHead>
-            <TableHead>Capacità</TableHead>
-            <TableHead>Iscritti</TableHead>
-            <TableHead>Riempimento</TableHead>
-          </TableRow>
-        </TableHeader>
+        <TableHeader><TableRow><TableHead>Evento</TableHead><TableHead>Data</TableHead><TableHead>Capacità</TableHead><TableHead>Iscritti</TableHead><TableHead>Riempimento</TableHead></TableRow></TableHeader>
         <TableBody>
           {data?.map(e => (
             <TableRow key={e.id}>
-              <TableCell className="font-medium max-w-[180px] truncate">{e.title}</TableCell>
+              <TableCell className="font-medium max-w-[200px] truncate">{e.title}</TableCell>
               <TableCell className="text-xs">{format(new Date(e.date), "dd/MM/yyyy")}</TableCell>
               <TableCell>{e.spots_total}</TableCell>
               <TableCell>{e.spots_taken}</TableCell>
-              <TableCell>
-                <span className={e.fillRate >= 80 ? "text-success font-bold" : e.fillRate >= 50 ? "text-warning font-semibold" : "text-muted-foreground"}>
-                  {e.fillRate}%
-                </span>
-              </TableCell>
+              <TableCell><span className={e.fillRate >= 80 ? "text-success font-bold" : e.fillRate >= 50 ? "text-warning font-semibold" : "text-muted-foreground"}>{e.fillRate}%</span></TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -494,39 +413,25 @@ function WaitlistDetail({ filters }: { filters: DashboardFilterValues }) {
   const { data, isLoading } = useQuery({
     queryKey: ["kpi-detail-waitlist", filters],
     queryFn: async () => {
-      const { data: regs } = await supabase.from("event_registrations")
-        .select("user_id, status, events!inner(id, title, date)")
-        .eq("status", "waitlist");
-
+      const { data: regs } = await supabase.from("event_registrations").select("user_id, status, events!inner(id, title, date)").eq("status", "waitlist");
       if (!regs) return [];
-
-      const eventMap: Record<string, { title: string; date: string; waitlistCount: number; userIds: string[] }> = {};
+      const eventMap: Record<string, { title: string; date: string; waitlistCount: number }> = {};
       regs.forEach((r: any) => {
         if (filters.dateFrom && r.events.date < format(filters.dateFrom, "yyyy-MM-dd")) return;
         if (filters.dateTo && r.events.date > format(filters.dateTo, "yyyy-MM-dd")) return;
-        if (!eventMap[r.events.id]) eventMap[r.events.id] = { title: r.events.title, date: r.events.date, waitlistCount: 0, userIds: [] };
+        if (!eventMap[r.events.id]) eventMap[r.events.id] = { title: r.events.title, date: r.events.date, waitlistCount: 0 };
         eventMap[r.events.id].waitlistCount++;
-        eventMap[r.events.id].userIds.push(r.user_id);
       });
-
       return Object.values(eventMap).sort((a, b) => b.waitlistCount - a.waitlistCount);
     },
   });
-
   if (isLoading) return <LoadingSkeleton />;
-
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <MiniStat label="Totale in lista d'attesa" value={data?.reduce((s, e) => s + e.waitlistCount, 0) || 0} color="text-warning" />
-      <div className="overflow-auto max-h-[55vh]">
+      <div className="rounded-xl border overflow-auto">
         <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Evento</TableHead>
-              <TableHead>Data</TableHead>
-              <TableHead>In attesa</TableHead>
-            </TableRow>
-          </TableHeader>
+          <TableHeader><TableRow><TableHead>Evento</TableHead><TableHead>Data</TableHead><TableHead>In attesa</TableHead></TableRow></TableHeader>
           <TableBody>
             {data?.map((e, i) => (
               <TableRow key={i}>
@@ -546,54 +451,34 @@ function RepeatParticipantsDetail({ filters }: { filters: DashboardFilterValues 
   const { data, isLoading } = useQuery({
     queryKey: ["kpi-detail-repeat", filters],
     queryFn: async () => {
-      const { data: regs } = await supabase.from("event_registrations")
-        .select("user_id, checked_in, events!inner(date)")
-        .eq("checked_in", true);
-
+      const { data: regs } = await supabase.from("event_registrations").select("user_id, checked_in, events!inner(date)").eq("checked_in", true);
       if (!regs) return [];
-
       const counts: Record<string, number> = {};
       (regs as any[]).forEach(r => {
         if (filters.dateFrom && r.events.date < format(filters.dateFrom, "yyyy-MM-dd")) return;
         if (filters.dateTo && r.events.date > format(filters.dateTo, "yyyy-MM-dd")) return;
         counts[r.user_id] = (counts[r.user_id] || 0) + 1;
       });
-
       const frequentUserIds = Object.entries(counts).filter(([, c]) => c > 3).sort((a, b) => b[1] - a[1]);
       if (frequentUserIds.length === 0) return [];
-
       const ids = frequentUserIds.map(([id]) => id).slice(0, 100);
       const { data: profiles } = await supabase.from("profiles").select("id, first_name, last_name, membership_status").in("id", ids);
       const profileMap = Object.fromEntries((profiles || []).map(p => [p.id, p]));
-
-      // Get badges count
       const { data: badges } = await supabase.from("user_badges").select("user_id").in("user_id", ids);
       const badgeCount: Record<string, number> = {};
       badges?.forEach(b => { badgeCount[b.user_id] = (badgeCount[b.user_id] || 0) + 1; });
-
       return frequentUserIds.map(([userId, count]) => ({
         name: profileMap[userId] ? `${profileMap[userId].first_name} ${profileMap[userId].last_name}` : userId,
-        eventsAttended: count,
-        badges: badgeCount[userId] || 0,
+        eventsAttended: count, badges: badgeCount[userId] || 0,
         membership: profileMap[userId]?.membership_status || "Inactive",
       }));
     },
   });
-
   if (isLoading) return <LoadingSkeleton />;
-
   return (
-    <div className="overflow-auto max-h-[60vh]">
+    <div className="rounded-xl border overflow-auto">
       <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>#</TableHead>
-            <TableHead>Nome</TableHead>
-            <TableHead>Eventi</TableHead>
-            <TableHead>Badge</TableHead>
-            <TableHead>Tessera</TableHead>
-          </TableRow>
-        </TableHeader>
+        <TableHeader><TableRow><TableHead>#</TableHead><TableHead>Nome</TableHead><TableHead>Eventi</TableHead><TableHead>Badge</TableHead><TableHead>Tessera</TableHead></TableRow></TableHeader>
         <TableBody>
           {data?.map((u, i) => (
             <TableRow key={i}>
@@ -619,48 +504,29 @@ function TopCategoryDetail({ filters }: { filters: DashboardFilterValues }) {
       if (filters.dateFrom) eq = eq.gte("date", format(filters.dateFrom, "yyyy-MM-dd"));
       if (filters.dateTo) eq = eq.lte("date", format(filters.dateTo, "yyyy-MM-dd"));
       const { data: events } = await eq;
-
       const { data: regs } = await supabase.from("event_registrations").select("event_id, checked_in, status").in("status", ["registered", "paid", "attended"]);
-
       if (!cats || !events) return [];
-
       const eventIds = new Set(events.map(e => e.id));
-
       return cats.map(cat => {
         const catEvents = events.filter(e => e.category_id === cat.id);
         const catEventIds = new Set(catEvents.map(e => e.id));
         const catRegs = (regs || []).filter(r => catEventIds.has(r.event_id) && eventIds.has(r.event_id));
         const checkedIn = catRegs.filter(r => r.checked_in).length;
-
         const totalSpots = catEvents.reduce((s, e) => s + (e.spots_total || 0), 0);
         const takenSpots = catEvents.reduce((s, e) => s + (e.spots_taken || 0), 0);
-
         return {
-          name: cat.name,
-          events: catEvents.length,
-          registrations: catRegs.length,
+          name: cat.name, events: catEvents.length, registrations: catRegs.length,
           fillRate: totalSpots > 0 ? Math.round((takenSpots / totalSpots) * 100) : 0,
           attendanceRate: catRegs.length > 0 ? Math.round((checkedIn / catRegs.length) * 100) : 0,
         };
       }).sort((a, b) => b.events - a.events);
     },
   });
-
   if (isLoading) return <LoadingSkeleton />;
-
   return (
-    <div className="overflow-auto max-h-[60vh]">
+    <div className="rounded-xl border overflow-auto">
       <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>#</TableHead>
-            <TableHead>Categoria</TableHead>
-            <TableHead>Eventi</TableHead>
-            <TableHead>Iscrizioni</TableHead>
-            <TableHead>Riempimento</TableHead>
-            <TableHead>Presenza</TableHead>
-          </TableRow>
-        </TableHeader>
+        <TableHeader><TableRow><TableHead>#</TableHead><TableHead>Categoria</TableHead><TableHead>Eventi</TableHead><TableHead>Iscrizioni</TableHead><TableHead>Riempimento</TableHead><TableHead>Presenza</TableHead></TableRow></TableHeader>
         <TableBody>
           {data?.map((c, i) => (
             <TableRow key={i}>
@@ -682,29 +548,15 @@ function OpenIssuesDetail() {
   const { data, isLoading } = useQuery({
     queryKey: ["kpi-detail-issues"],
     queryFn: async () => {
-      const { data } = await supabase.from("issues")
-        .select("id, title, status, priority, created_at, resolved_at, reporter_name")
-        .order("created_at", { ascending: false })
-        .limit(100);
+      const { data } = await supabase.from("issues").select("id, title, status, priority, created_at, resolved_at, reporter_name").order("created_at", { ascending: false }).limit(100);
       return data || [];
     },
   });
-
   if (isLoading) return <LoadingSkeleton />;
-
   return (
-    <div className="overflow-auto max-h-[60vh]">
+    <div className="rounded-xl border overflow-auto">
       <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Titolo</TableHead>
-            <TableHead>Segnalato da</TableHead>
-            <TableHead>Priorità</TableHead>
-            <TableHead>Stato</TableHead>
-            <TableHead>Data</TableHead>
-            <TableHead>Risolto</TableHead>
-          </TableRow>
-        </TableHeader>
+        <TableHeader><TableRow><TableHead>Titolo</TableHead><TableHead>Segnalato da</TableHead><TableHead>Priorità</TableHead><TableHead>Stato</TableHead><TableHead>Data</TableHead><TableHead>Risolto</TableHead></TableRow></TableHeader>
         <TableBody>
           {data?.map(issue => (
             <TableRow key={issue.id}>
@@ -726,7 +578,6 @@ function CommunityHealthDetail({ filters }: { filters: DashboardFilterValues }) 
   const { data, isLoading } = useQuery({
     queryKey: ["kpi-detail-health", filters],
     queryFn: async () => {
-      // Attendance rate
       const { count: totalRegs } = await supabase.from("event_registrations").select("*", { count: "exact", head: true }).in("status", ["registered", "paid", "attended"]);
       const { count: checkedIn } = await supabase.from("event_registrations").select("*", { count: "exact", head: true }).eq("checked_in", true);
       const { count: noShows } = await supabase.from("event_registrations").select("*", { count: "exact", head: true }).eq("status", "no_show");
@@ -734,44 +585,32 @@ function CommunityHealthDetail({ filters }: { filters: DashboardFilterValues }) 
       const { count: totalUsers } = await supabase.from("profiles").select("*", { count: "exact", head: true });
       const { count: activeUsers } = await supabase.from("profiles").select("*", { count: "exact", head: true }).eq("account_status", "Active");
       const { count: openIssues } = await supabase.from("issues").select("*", { count: "exact", head: true }).in("status", ["open", "in_progress"]);
-
       const attendanceRate = (totalRegs || 0) > 0 ? Math.round(((checkedIn || 0) / (totalRegs || 1)) * 100) : 0;
       const noShowRate = (totalRegs || 0) > 0 ? Math.round(((noShows || 0) / (totalRegs || 1)) * 100) : 0;
       const cancellationRate = ((totalRegs || 0) + (cancelled || 0)) > 0 ? Math.round(((cancelled || 0) / ((totalRegs || 0) + (cancelled || 0))) * 100) : 0;
       const activeUsersPct = (totalUsers || 0) > 0 ? Math.round(((activeUsers || 0) / (totalUsers || 1)) * 100) : 0;
-
-      // Health score
       let score = 0;
       if (attendanceRate > 70) score += 3; else if (attendanceRate > 40) score += 2; else score += 1;
       if (noShowRate < 10) score += 3; else if (noShowRate < 25) score += 2; else score += 1;
       if (activeUsersPct > 80) score += 3; else if (activeUsersPct > 50) score += 2; else score += 1;
       if ((openIssues || 0) === 0) score += 3; else if ((openIssues || 0) <= 3) score += 2; else score += 1;
-
-      let label = "Critica";
-      let labelColor = "text-destructive";
+      let label = "Critica"; let labelColor = "text-destructive";
       if (score >= 10) { label = "Ottima"; labelColor = "text-success"; }
       else if (score >= 7) { label = "Buona"; labelColor = "text-primary"; }
       else if (score >= 5) { label = "Da migliorare"; labelColor = "text-warning"; }
-
-      return {
-        attendanceRate, noShowRate, cancellationRate, activeUsersPct,
-        openIssues: openIssues || 0,
-        label, labelColor, score,
-      };
+      return { attendanceRate, noShowRate, cancellationRate, activeUsersPct, openIssues: openIssues || 0, label, labelColor, score };
     },
   });
-
   if (isLoading) return <LoadingSkeleton />;
   if (!data) return null;
-
   return (
-    <div className="space-y-5">
-      <div className="text-center py-4">
+    <div className="space-y-6">
+      <div className="text-center py-6">
         <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Stato Salute Community</p>
-        <p className={`text-4xl font-bold ${data.labelColor}`}>{data.label}</p>
-        <p className="text-sm text-muted-foreground mt-1">Punteggio: {data.score}/12</p>
+        <p className={`text-5xl font-bold ${data.labelColor}`}>{data.label}</p>
+        <p className="text-sm text-muted-foreground mt-2">Punteggio: {data.score}/12</p>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <HealthMetric label="Tasso presenza" value={`${data.attendanceRate}%`} good={data.attendanceRate > 70} warn={data.attendanceRate > 40} />
         <HealthMetric label="Tasso no-show" value={`${data.noShowRate}%`} good={data.noShowRate < 10} warn={data.noShowRate < 25} invert />
         <HealthMetric label="Tasso cancellazione" value={`${data.cancellationRate}%`} good={data.cancellationRate < 10} warn={data.cancellationRate < 25} invert />
@@ -782,51 +621,23 @@ function CommunityHealthDetail({ filters }: { filters: DashboardFilterValues }) 
   );
 }
 
-function HealthMetric({ label, value, good, warn, invert }: { label: string; value: string; good: boolean; warn: boolean; invert?: boolean }) {
-  const color = good ? "text-success" : warn ? "text-warning" : "text-destructive";
-  return (
-    <div className="rounded-lg border p-3 bg-card">
-      <p className="text-[11px] text-muted-foreground font-medium">{label}</p>
-      <p className={`text-xl font-bold ${color}`}>{value}</p>
-    </div>
-  );
-}
+/* ═══════ Main Content Router ═══════ */
 
-function MiniStat({ label, value, color }: { label: string; value: string | number; color?: string }) {
-  return (
-    <div className="rounded-lg bg-muted/50 border p-3">
-      <p className="text-[11px] text-muted-foreground font-medium truncate">{label}</p>
-      <p className={`text-lg font-bold ${color || "text-foreground"}`}>{value}</p>
-    </div>
-  );
-}
-
-/* ═══════ Main Sheet Component ═══════ */
-
-export function KPIDetailSheet({ open, onClose, filters }: KPIDetailSheetProps) {
-  const { language } = useLanguage();
-  const meta = open ? KPI_META[open] : null;
-
-  return (
-    <Sheet open={!!open} onOpenChange={(v) => !v && onClose()}>
-      <SheetContent side="right" className="w-[90vw] sm:w-[600px] sm:max-w-[600px] overflow-y-auto">
-        <SheetHeader className="pb-4">
-          <SheetTitle>{language === "it" ? meta?.titleIt : meta?.title}</SheetTitle>
-          <SheetDescription>{language === "it" ? meta?.descriptionIt : meta?.description}</SheetDescription>
-        </SheetHeader>
-        {open === "total-users" && <TotalUsersDetail filters={filters} />}
-        {open === "active-members" && <ActiveMembersDetail filters={filters} />}
-        {open === "participating-users" && <ParticipatingUsersDetail filters={filters} />}
-        {open === "events-created" && <EventsCreatedDetail filters={filters} />}
-        {open === "participation-rate" && <ParticipationRateDetail filters={filters} />}
-        {open === "attendance-rate" && <AttendanceRateDetail filters={filters} />}
-        {open === "fill-rate" && <FillRateDetail filters={filters} />}
-        {open === "waitlist" && <WaitlistDetail filters={filters} />}
-        {open === "repeat-participants" && <RepeatParticipantsDetail filters={filters} />}
-        {open === "top-category" && <TopCategoryDetail filters={filters} />}
-        {open === "open-issues" && <OpenIssuesDetail />}
-        {open === "community-health" && <CommunityHealthDetail filters={filters} />}
-      </SheetContent>
-    </Sheet>
-  );
+export function KPIDetailContent({ type, filters }: { type: KPIType; filters: DashboardFilterValues }) {
+  if (!type) return null;
+  switch (type) {
+    case "total-users": return <TotalUsersDetail filters={filters} />;
+    case "active-members": return <ActiveMembersDetail filters={filters} />;
+    case "participating-users": return <ParticipatingUsersDetail filters={filters} />;
+    case "events-created": return <EventsCreatedDetail filters={filters} />;
+    case "participation-rate": return <ParticipationRateDetail filters={filters} />;
+    case "attendance-rate": return <AttendanceRateDetail filters={filters} />;
+    case "fill-rate": return <FillRateDetail filters={filters} />;
+    case "waitlist": return <WaitlistDetail filters={filters} />;
+    case "repeat-participants": return <RepeatParticipantsDetail filters={filters} />;
+    case "top-category": return <TopCategoryDetail filters={filters} />;
+    case "open-issues": return <OpenIssuesDetail />;
+    case "community-health": return <CommunityHealthDetail filters={filters} />;
+    default: return null;
+  }
 }
