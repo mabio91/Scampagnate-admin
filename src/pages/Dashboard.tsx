@@ -219,6 +219,119 @@ export default function Dashboard() {
   const currentYear = new Date().getFullYear();
   const yearStart = `${currentYear}-01-01`;
 
+  // ── Trend comparison: current month vs previous month ──
+  const curMonthStart = format(startOfMonth(new Date()), "yyyy-MM-dd");
+  const prevMonthStart = format(startOfMonth(subMonths(new Date(), 1)), "yyyy-MM-dd");
+
+  const { data: trendData } = useQuery({
+    queryKey: ["kpi-trends", curMonthStart, prevMonthStart],
+    queryFn: async () => {
+      // Users
+      const { count: usersCur } = await supabase.from("profiles").select("*", { count: "exact", head: true }).gte("created_at", curMonthStart);
+      const { count: usersPrev } = await supabase.from("profiles").select("*", { count: "exact", head: true }).gte("created_at", prevMonthStart).lt("created_at", curMonthStart);
+
+      // Active members
+      const { count: membersCur } = await supabase.from("profiles").select("*", { count: "exact", head: true }).eq("membership_status", "Active").eq("membership_year", currentYear);
+      const { count: membersPrevYear } = await supabase.from("profiles").select("*", { count: "exact", head: true }).eq("membership_status", "Active").eq("membership_year", currentYear - 1);
+
+      // Events this month vs last month
+      const { count: eventsCur } = await supabase.from("events").select("*", { count: "exact", head: true }).gte("date", curMonthStart);
+      const { count: eventsPrev } = await supabase.from("events").select("*", { count: "exact", head: true }).gte("date", prevMonthStart).lt("date", curMonthStart);
+
+      // Registrations current month vs previous month (for attendance/participation trends)
+      const { data: regsCur } = await supabase.from("event_registrations").select("user_id, checked_in, status, events!inner(date)").gte("events.date", curMonthStart);
+      const { data: regsPrev } = await supabase.from("event_registrations").select("user_id, checked_in, status, events!inner(date)").gte("events.date", prevMonthStart).lt("events.date", curMonthStart);
+
+      const calcAttendance = (regs: any[] | null) => {
+        if (!regs || regs.length === 0) return null;
+        const total = regs.filter(r => ["registered", "paid", "attended"].includes(r.status)).length;
+        const checked = regs.filter(r => r.checked_in).length;
+        return total > 0 ? Math.round((checked / total) * 100) : null;
+      };
+
+      const calcParticipants = (regs: any[] | null) => {
+        if (!regs) return 0;
+        return new Set(regs.filter(r => r.checked_in).map(r => r.user_id)).size;
+      };
+
+      // Fill rate current vs previous
+      const { data: fillCurEvents } = await supabase.from("events").select("spots_taken, spots_total").gte("date", curMonthStart).gt("spots_total", 0);
+      const { data: fillPrevEvents } = await supabase.from("events").select("spots_taken, spots_total").gte("date", prevMonthStart).lt("date", curMonthStart).gt("spots_total", 0);
+      const calcFill = (evts: any[] | null) => {
+        if (!evts || evts.length === 0) return null;
+        return Math.round(evts.reduce((s, e) => s + (e.spots_taken / e.spots_total), 0) / evts.length * 100);
+      };
+
+      // Waitlist current vs previous
+      const { count: waitCur } = await supabase.from("event_registrations").select("*, events!inner(date)", { count: "exact", head: true }).eq("status", "waitlist").gte("events.date", curMonthStart);
+      const { count: waitPrev } = await supabase.from("event_registrations").select("*, events!inner(date)", { count: "exact", head: true }).eq("status", "waitlist").gte("events.date", prevMonthStart).lt("events.date", curMonthStart);
+
+      // Repeat participants (>3 check-ins) — compare year-over-year
+      // Open issues current vs previous month
+      const { count: issuesCur } = await supabase.from("issues").select("*", { count: "exact", head: true }).in("status", ["open", "in_progress"]).gte("created_at", curMonthStart);
+      const { count: issuesPrev } = await supabase.from("issues").select("*", { count: "exact", head: true }).in("status", ["open", "in_progress"]).gte("created_at", prevMonthStart).lt("created_at", curMonthStart);
+
+      return {
+        newUsersCur: usersCur || 0,
+        newUsersPrev: usersPrev || 0,
+        membersCur: membersCur || 0,
+        membersPrevYear: membersPrevYear || 0,
+        eventsCur: eventsCur || 0,
+        eventsPrev: eventsPrev || 0,
+        attendedCur: calcParticipants(regsCur),
+        attendedPrev: calcParticipants(regsPrev),
+        attendanceRateCur: calcAttendance(regsCur),
+        attendanceRatePrev: calcAttendance(regsPrev),
+        fillRateCur: calcFill(fillCurEvents),
+        fillRatePrev: calcFill(fillPrevEvents),
+        waitCur: waitCur || 0,
+        waitPrev: waitPrev || 0,
+        issuesCur: issuesCur || 0,
+        issuesPrev: issuesPrev || 0,
+      };
+    },
+    staleTime: 300000,
+  });
+
+  // Helper to compute delta string and type
+  function computeTrend(current: number | null | undefined, previous: number | null | undefined, invertPositive = false): { change?: string; changeType?: "positive" | "negative" | "neutral" } {
+    if (current == null || previous == null) return {};
+    if (previous === 0 && current === 0) return {};
+    if (previous === 0) return { change: `+${current} vs mese prec.`, changeType: invertPositive ? "negative" : "positive" };
+    const pct = Math.round(((current - previous) / previous) * 100);
+    if (pct === 0) return { change: "0% vs mese prec.", changeType: "neutral" };
+    const sign = pct > 0 ? "+" : "";
+    const isPositive = pct > 0;
+    return {
+      change: `${sign}${pct}% vs mese prec.`,
+      changeType: invertPositive ? (isPositive ? "negative" : "positive") : (isPositive ? "positive" : "negative"),
+    };
+  }
+
+  function computeTrendAbs(current: number | null | undefined, previous: number | null | undefined, unit: string, invertPositive = false): { change?: string; changeType?: "positive" | "negative" | "neutral" } {
+    if (current == null || previous == null) return {};
+    const diff = current - previous;
+    if (diff === 0) return { change: `0${unit} vs mese prec.`, changeType: "neutral" };
+    const sign = diff > 0 ? "+" : "";
+    const isPositive = diff > 0;
+    return {
+      change: `${sign}${diff}${unit} vs mese prec.`,
+      changeType: invertPositive ? (isPositive ? "negative" : "positive") : (isPositive ? "positive" : "negative"),
+    };
+  }
+
+  const trendUsers = computeTrend(trendData?.newUsersCur, trendData?.newUsersPrev);
+  const trendMembers = trendData?.membersPrevYear != null && trendData?.membersPrevYear > 0
+    ? computeTrend(trendData.membersCur, trendData.membersPrevYear)
+    : {};
+  const trendAttended = computeTrend(trendData?.attendedCur, trendData?.attendedPrev);
+  const trendEvents = computeTrend(trendData?.eventsCur, trendData?.eventsPrev);
+  const trendAttendanceRate = computeTrendAbs(trendData?.attendanceRateCur, trendData?.attendanceRatePrev, "pp");
+  const trendFillRate = computeTrendAbs(trendData?.fillRateCur, trendData?.fillRatePrev, "pp");
+  const trendWaitlist = computeTrend(trendData?.waitCur, trendData?.waitPrev, true);
+  const trendIssues = computeTrend(trendData?.issuesCur, trendData?.issuesPrev, true);
+  const trendNewUsers = computeTrend(trendData?.newUsersCur, trendData?.newUsersPrev);
+
   // ── PRIMARY KPIs ──
 
   const { data: totalUsers = 0, isLoading: l1 } = useQuery({
@@ -472,7 +585,7 @@ export default function Dashboard() {
           <h1 className="text-2xl md:text-3xl font-bold mt-1">{t("dashboard.title")}</h1>
         </div>
         <div className="flex flex-wrap items-center gap-4">
-          <RefreshButton queryKeys={[["kpi-total-users"], ["kpi-active-members"], ["kpi-users-attended"], ["kpi-events-year"], ["kpi-participation-rate"], ["kpi-attendance-rate"], ["stats-issues"], ["stats-organizers"], ["stats-categories"], ["stats-events-month"], ["stats-issues-trend"], ["stats-recent"]]} />
+          <RefreshButton queryKeys={[["kpi-total-users"], ["kpi-active-members"], ["kpi-users-attended"], ["kpi-events-year"], ["kpi-participation-rate"], ["kpi-attendance-rate"], ["kpi-trends"], ["stats-issues"], ["stats-organizers"], ["stats-categories"], ["stats-events-month"], ["stats-issues-trend"], ["stats-recent"]]} />
           {/* Italy Time */}
           <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-4 py-2.5 shadow-sm">
             <MapPin className="h-4 w-4 text-accent" />
@@ -518,6 +631,8 @@ export default function Dashboard() {
                 value={totalUsers.toLocaleString()}
                 icon={Users}
                 iconBg="bg-primary"
+                change={trendUsers.change}
+                changeType={trendUsers.changeType}
                 onClick={() => openKPI("total-users")}
               />
               <PremiumStatCard
@@ -526,6 +641,8 @@ export default function Dashboard() {
                 icon={UserCheck}
                 iconBg="bg-success"
                 subtitle={`${t("dashboard.paidMembership")} ${currentYear}`}
+                change={trendMembers.change ? trendMembers.change.replace("mese prec.", `${currentYear - 1}`) : undefined}
+                changeType={trendMembers.changeType}
                 onClick={() => openKPI("active-members")}
               />
               <PremiumStatCard
@@ -534,6 +651,8 @@ export default function Dashboard() {
                 icon={CheckCircle2}
                 iconBg="bg-secondary"
                 subtitle={`${t("dashboard.atLeast1Event")} ${currentYear}`}
+                change={trendAttended.change}
+                changeType={trendAttended.changeType}
                 onClick={() => openKPI("participating-users")}
               />
               <PremiumStatCard
@@ -542,6 +661,8 @@ export default function Dashboard() {
                 icon={Calendar}
                 iconBg="bg-accent"
                 subtitle={`${t("dashboard.in")} ${currentYear}`}
+                change={trendEvents.change}
+                changeType={trendEvents.changeType}
                 onClick={() => openKPI("events-created")}
               />
               <PremiumStatCard
@@ -558,6 +679,8 @@ export default function Dashboard() {
                 icon={ListChecks}
                 iconBg="bg-success"
                 subtitle={t("dashboard.attendanceSub")}
+                change={trendAttendanceRate.change}
+                changeType={trendAttendanceRate.changeType}
                 onClick={() => openKPI("attendance-rate")}
               />
             </>
@@ -575,6 +698,8 @@ export default function Dashboard() {
             icon={BarChart3}
             iconBg="bg-secondary"
             subtitle={t("dashboard.avgFillSub")}
+            change={trendFillRate.change}
+            changeType={trendFillRate.changeType}
             onClick={() => openKPI("fill-rate")}
           />
           <PremiumStatCard
@@ -582,8 +707,8 @@ export default function Dashboard() {
             value={totalWaitlist.toLocaleString()}
             icon={Clock}
             iconBg="bg-warning"
-            changeType={totalWaitlist > 0 ? "negative" : "neutral"}
-            change={totalWaitlist > 0 ? `${totalWaitlist} ${t("dashboard.waiting")}` : t("dashboard.noWaitlist")}
+            change={trendWaitlist.change}
+            changeType={trendWaitlist.changeType}
             onClick={() => openKPI("waitlist")}
           />
           <PremiumStatCard
@@ -600,6 +725,8 @@ export default function Dashboard() {
             icon={UserPlus}
             iconBg="bg-primary"
             subtitle={format(new Date(), "MMMM yyyy")}
+            change={trendNewUsers.change}
+            changeType={trendNewUsers.changeType}
             onClick={() => openKPI("total-users")}
           />
           <PremiumStatCard
@@ -625,8 +752,8 @@ export default function Dashboard() {
           title={t("dashboard.openIssues")}
           value={openIssues.toLocaleString()}
           icon={AlertTriangle}
-          changeType={openIssues > 0 ? "negative" : "positive"}
-          change={openIssues === 0 ? t("dashboard.allClear") : `${openIssues} ${t("dashboard.needAttention")}`}
+          change={trendIssues.change}
+          changeType={trendIssues.changeType}
           iconBg="bg-destructive"
           onClick={() => openKPI("open-issues")}
         />
