@@ -54,6 +54,17 @@ export default function MissionsPage() {
     },
   });
 
+  const { data: categories = [] } = useQuery({
+    queryKey: ["event_categories"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("event_categories")
+        .select("id, name")
+        .order("sort_order");
+      return data || [];
+    },
+  });
+
   const saveMutation = useMutation({
     mutationFn: async (m: MissionForm) => {
       const payload = {
@@ -257,7 +268,15 @@ export default function MissionsPage() {
               </div>
               <div>
                 <label className="text-sm font-medium">Categoria</label>
-                <Input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="es. partecipazione" />
+                <Select value={form.category || ""} onValueChange={(v) => setForm({ ...form, category: v === "_none" ? "" : v })}>
+                  <SelectTrigger><SelectValue placeholder="Seleziona categoria" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">Nessuna</SelectItem>
+                    {categories.map((c: any) => (
+                      <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
