@@ -3,7 +3,8 @@ import { useTheme } from "next-themes";
 import {
   Users, Building2, Calendar, AlertTriangle, Activity, ArrowUpRight, ArrowDownRight, Minus,
   TrendingUp, UserCheck, BarChart3, Clock, Repeat, UserPlus, Star, CloudSun, MapPin,
-  CheckCircle2, ListChecks, Percent, Trophy
+  CheckCircle2, ListChecks, Percent, Trophy, ShieldAlert, CalendarX, UserMinus, FileWarning,
+  CreditCard, UserCog, Ban, CircleDot, ExternalLink, Bell
 } from "lucide-react";
 import RefreshButton from "@/components/RefreshButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
