@@ -388,7 +388,7 @@ export const translations = {
   "userDetail.noShow": { it: "No Show", en: "No Show" },
   "userDetail.streak": { it: "Serie", en: "Streak" },
   "userDetail.lastAttended": { it: "Ultimo evento frequentato", en: "Last Event Attended" },
-  "userDetail.avgFitScore": { it: "Compatibilità media eventi", en: "Avg Event Fit Score" },
+  "userDetail.avgFitScore": { it: "👉 Compatibilità media eventi", en: "👉 Avg Event Fit Score" },
 
   // ── Organizer Detail Page ──
   "orgDetail.performance": { it: "Performance", en: "Performance" },
