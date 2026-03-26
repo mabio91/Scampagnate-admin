@@ -28,8 +28,12 @@ type EventWithCategory = Event & { event_categories: { name: string; icon: strin
 
 const statusColors: Record<string, string> = {
   available: "text-success border-success/30 bg-success/10",
+  published: "text-success border-success/30 bg-success/10",
   full: "text-warning border-warning/30 bg-warning/10",
   closed: "text-destructive border-destructive/30 bg-destructive/10",
+  cancelled: "text-destructive border-destructive/30 bg-destructive/10",
+  draft: "text-muted-foreground border-muted-foreground/30 bg-muted/50",
+  past: "text-muted-foreground border-muted-foreground/30 bg-muted/50",
 };
 
 const visibilityColors: Record<string, string> = {
@@ -63,7 +67,7 @@ type AccessRules = {
 const emptyEvent = {
   title: "", description: "", location: "", date: "", time: "09:00",
   spots_total: 20, price: 0, payment_type: "free" as const,
-  status: "available" as const, visibility: "public" as const,
+  status: "draft" as const, visibility: "public" as const,
   organizer_name: "", category_id: null as string | null,
   image_url: "" as string,
   gallery_images: [] as string[],
