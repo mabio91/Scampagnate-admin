@@ -1085,7 +1085,9 @@ export default function Dashboard() {
                   const total = categoryData.reduce((sum, d) => sum + d.value, 0);
                   const pct = total > 0 ? ((entry.value / total) * 100).toFixed(0) : "0";
                   return (
-                    <div key={i} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <div key={i} className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
+                      onClick={() => navigate(`/events?categoryId=${entry.id}`)}
+                    >
                       <span className="inline-block h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
                       <span className="truncate max-w-[120px]">{entry.name}</span>
                       <span className="font-semibold text-foreground">{pct}%</span>
