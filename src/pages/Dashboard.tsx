@@ -881,6 +881,7 @@ export default function Dashboard() {
                 change={trendUsers.change}
                 changeType={trendUsers.changeType}
                 onClick={() => openKPI("total-users")}
+                kpiInfo={{ definition: "Utenti registrati sulla piattaforma", formula: "COUNT(profiles)" }}
               />
               <PremiumStatCard
                 title={t("dashboard.activeMembers")}
@@ -891,6 +892,7 @@ export default function Dashboard() {
                 change={trendMembers.change ? trendMembers.change.replace("mese prec.", `${currentYear - 1}`) : undefined}
                 changeType={trendMembers.changeType}
                 onClick={() => openKPI("active-members")}
+                kpiInfo={{ definition: "Tesserati con membership attiva", formula: "COUNT(membership_status = 'Active')" }}
               />
               <PremiumStatCard
                 title={t("dashboard.usersAttended")}
@@ -901,6 +903,7 @@ export default function Dashboard() {
                 change={trendAttended.change}
                 changeType={trendAttended.changeType}
                 onClick={() => openKPI("participating-users")}
+                kpiInfo={{ definition: "Utenti con almeno 1 iscrizione", formula: "COUNT(DISTINCT user_id) da registrazioni" }}
               />
               <PremiumStatCard
                 title={t("dashboard.eventsCreated")}
@@ -911,6 +914,7 @@ export default function Dashboard() {
                 change={trendEvents.change}
                 changeType={trendEvents.changeType}
                 onClick={() => openKPI("events-created")}
+                kpiInfo={{ definition: "Eventi creati nell'anno corrente", formula: "COUNT(events) anno corrente" }}
               />
               <PremiumStatCard
                 title={t("dashboard.participationRate")}
@@ -919,6 +923,7 @@ export default function Dashboard() {
                 iconBg="bg-primary"
                 subtitle={t("dashboard.participationSub")}
                 onClick={() => openKPI("participation-rate")}
+                kpiInfo={{ definition: "Tasso partecipazione", formula: "Utenti con ≥1 iscrizione / utenti totali × 100" }}
               />
               <PremiumStatCard
                 title={t("dashboard.attendanceRate")}
@@ -929,6 +934,7 @@ export default function Dashboard() {
                 change={trendAttendanceRate.change}
                 changeType={trendAttendanceRate.changeType}
                 onClick={() => openKPI("attendance-rate")}
+                kpiInfo={{ definition: "Tasso presenza", formula: "Check-in completati / iscrizioni totali × 100" }}
               />
             </>
           )}
