@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, MoreHorizontal, Eye, Edit2, Trash2, Plus, Upload, X, ArrowUp, ArrowDown, Image as ImageIcon, Loader2, Shield, Lock, Star, Users, Award, Crown, CheckCircle2, DollarSign, Tag } from "lucide-react";
 import RefreshButton from "@/components/RefreshButton";
-import { EventParticipantsList } from "@/components/participants/EventParticipantsList";
+
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -106,9 +106,9 @@ const USER_GROUP_OPTIONS = [
 
 export default function EventsPage() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { t } = useLanguage();
   const [search, setSearch] = useState(searchParams.get("search") || "");
-  const [viewEvent, setViewEvent] = useState<EventWithCategory | null>(null);
   const [editEvent, setEditEvent] = useState<(Partial<Event> & { isNew?: boolean }) | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const queryClient = useQueryClient();
@@ -197,30 +197,6 @@ export default function EventsPage() {
     );
   };
 
-  const { data: registrations = [] } = useQuery({
-    queryKey: ["event-registrations", viewEvent?.id],
-    enabled: !!viewEvent,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("event_registrations")
-        .select("id, status, checked_in")
-        .eq("event_id", viewEvent!.id);
-      return data || [];
-    },
-  });
-
-  const { data: meetingPoints = [] } = useQuery({
-    queryKey: ["event-meeting-points", viewEvent?.id],
-    enabled: !!viewEvent,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("event_meeting_points")
-        .select("*")
-        .eq("event_id", viewEvent!.id)
-        .order("sort_order");
-      return data || [];
-    },
-  });
 
   const saveMutation = useMutation({
     mutationFn: async (evt: any) => {
@@ -356,7 +332,7 @@ export default function EventsPage() {
               </TableHeader>
               <TableBody>
                 {filtered.map((event) => (
-                  <TableRow key={event.id}>
+                  <TableRow key={event.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/events/${event.id}`)}>
                     <TableCell className="font-medium flex items-center gap-1.5">
                       {hasAnyAccessRule(event) && <Shield className="h-3.5 w-3.5 text-primary shrink-0" />}
                       {getPricingRules(event).length > 0 && <Tag className="h-3.5 w-3.5 text-accent-foreground shrink-0" />}
@@ -372,13 +348,13 @@ export default function EventsPage() {
                     <TableCell>
                       <Badge variant="outline" className={visibilityColors[event.visibility] || ""}>{event.visibility}</Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => setViewEvent(event)}><Eye className="h-4 w-4 mr-2" /> View</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => navigate(`/events/${event.id}`)}><Eye className="h-4 w-4 mr-2" /> View</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => setEditEvent(event)}><Edit2 className="h-4 w-4 mr-2" /> Edit</DropdownMenuItem>
                           <DropdownMenuItem className="text-destructive" onClick={() => { if (confirm("Delete this event?")) deleteMutation.mutate(event.id); }}>
                             <Trash2 className="h-4 w-4 mr-2" /> Delete
@@ -397,100 +373,7 @@ export default function EventsPage() {
         </CardContent>
       </Card>
 
-      {/* View Dialog */}
-      <Dialog open={!!viewEvent} onOpenChange={(o) => !o && setViewEvent(null)}>
-        <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
-          <DialogHeader><DialogTitle>{viewEvent?.title}</DialogTitle></DialogHeader>
-          {viewEvent && (
-            <div className="space-y-3 text-sm overflow-y-auto pr-1">
-              <p><strong>Location:</strong> {viewEvent.location}</p>
-              <p><strong>Date:</strong> {viewEvent.date} at {viewEvent.time}</p>
-              <p><strong>Organizer:</strong> {viewEvent.organizer_name}</p>
-              <p><strong>Spots:</strong> {viewEvent.spots_taken}/{viewEvent.spots_total}</p>
-              <p><strong>Price:</strong> {viewEvent.price > 0 ? `€${viewEvent.price}` : "Free"}</p>
-              <p><strong>Status:</strong> {viewEvent.status}</p>
-              <p><strong>Visibility:</strong> {viewEvent.visibility}</p>
-              <p><strong>Description:</strong> {viewEvent.description || "—"}</p>
 
-              {(() => {
-                const rules = getAccessRules(viewEvent);
-                const hasRules = hasAnyAccessRule(viewEvent) || rules.detail_visibility || rules.registration_rule || (rules.allowed_user_groups && rules.allowed_user_groups.length > 0) || (rules.pricing_rules && rules.pricing_rules.length > 0);
-                if (!hasRules) return null;
-                return (
-                  <div className="space-y-2 pt-2 border-t">
-                    <p className="font-semibold flex items-center gap-1.5"><Shield className="h-4 w-4 text-primary" /> Access & Pricing Rules</p>
-                    <div className="space-y-1 text-xs">
-                      {rules.detail_visibility && rules.detail_visibility !== "everyone" && (
-                        <p>• Details visible to: {DETAIL_VISIBILITY_OPTIONS.find(o => o.value === rules.detail_visibility)?.label}</p>
-                      )}
-                      {rules.registration_rule && rules.registration_rule !== "open" && (
-                        <p>• Registration: {REGISTRATION_RULE_OPTIONS.find(o => o.value === rules.registration_rule)?.label}</p>
-                      )}
-                      {rules.require_active_membership && <p>• Active membership required</p>}
-                      {rules.require_manual_approval && <p>• Manual approval required</p>}
-                      {rules.min_trekking_events && <p>• Min. {rules.min_trekking_events} trekking events</p>}
-                      {rules.min_activities && <p>• Min. {rules.min_activities} total activities</p>}
-                      {rules.required_badge_id && <p>• Specific badge required</p>}
-                      {rules.allowed_user_groups && rules.allowed_user_groups.length > 0 && (
-                        <p>• Restricted to groups: {rules.allowed_user_groups.map(g => USER_GROUP_OPTIONS.find(o => o.value === g)?.label || g).join(", ")}</p>
-                      )}
-                      {rules.restriction_message && <p className="italic text-muted-foreground mt-1">"{rules.restriction_message}"</p>}
-                      {rules.exclusivity_tags && rules.exclusivity_tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {rules.exclusivity_tags.map(tag => {
-                            const tagInfo = EXCLUSIVITY_TAGS.find(t => t.value === tag);
-                            return tagInfo ? <Badge key={tag} variant="secondary" className="text-[10px]">{tagInfo.label}</Badge> : null;
-                          })}
-                        </div>
-                      )}
-                    </div>
-                    {getPricingRules(viewEvent).length > 0 && (
-                      <div className="space-y-1.5 pl-2 border-l-2 border-primary/30 mt-2">
-                        <p className="text-xs font-semibold flex items-center gap-1"><Tag className="h-3 w-3 text-primary" /> Dynamic Pricing</p>
-                        {getPricingRules(viewEvent).map((rule) => (
-                          <p key={rule.id} className="text-xs text-muted-foreground">
-                            • <strong>{rule.name || "Unnamed"}</strong>: €{rule.price} — {PRICING_CONDITIONS.find(c => c.value === rule.condition)?.label}
-                          </p>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
-
-              {/* Participant List */}
-              <div className="space-y-2 pt-2 border-t">
-                <p className="font-semibold flex items-center gap-1.5 text-sm">
-                  <Users className="h-4 w-4 text-primary" /> Partecipanti ({registrations.length})
-                </p>
-                <EventParticipantsList eventId={viewEvent.id} isAdmin />
-              </div>
-
-              <div className="space-y-4 pt-4">
-                <p><strong>Cover Image:</strong></p>
-                {viewEvent.image_url ? (
-                  <img src={viewEvent.image_url} alt="Cover" className="w-full h-48 object-cover rounded-lg border" />
-                ) : (
-                  <div className="w-full h-48 bg-muted rounded-lg flex items-center justify-center border border-dashed">
-                    <ImageIcon className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                )}
-
-                {viewEvent.gallery_images && (viewEvent.gallery_images as string[]).length > 0 && (
-                  <>
-                    <p><strong>Gallery:</strong></p>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                      {(viewEvent.gallery_images as string[]).map((img, idx) => (
-                        <img key={idx} src={img} alt={`Gallery ${idx}`} className="w-full h-24 object-cover rounded-lg border" />
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
 
       {/* Edit/Create Dialog - All Fields */}
       <Dialog open={!!editEvent} onOpenChange={(o) => { if (!o) setEditEvent(null); }}>
