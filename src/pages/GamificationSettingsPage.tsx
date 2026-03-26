@@ -3,6 +3,7 @@ import RefreshButton from "@/components/RefreshButton";
 import PointsConfigTab from "@/components/gamification/PointsConfigTab";
 import LevelsTab from "@/components/gamification/LevelsTab";
 import BadgesTab from "@/components/gamification/BadgesTab";
+import PlatformSettingsTab from "@/components/gamification/PlatformSettingsTab";
 
 export default function GamificationSettingsPage() {
   return (
@@ -12,7 +13,7 @@ export default function GamificationSettingsPage() {
           <h1 className="text-2xl md:text-3xl font-bold">Impostazioni Gamification</h1>
           <p className="text-muted-foreground">Configura punti, livelli, badge e ricompense</p>
         </div>
-        <RefreshButton queryKeys={[["points-config"], ["community-levels-admin"], ["badges-admin"]]} />
+        <RefreshButton queryKeys={[["points-config"], ["community-levels-admin"], ["badges-admin"], ["platform-settings"]]} />
       </div>
 
       <Tabs defaultValue="points">
@@ -20,6 +21,7 @@ export default function GamificationSettingsPage() {
           <TabsTrigger value="points">Punti</TabsTrigger>
           <TabsTrigger value="levels">Livelli</TabsTrigger>
           <TabsTrigger value="badges">Badge</TabsTrigger>
+          <TabsTrigger value="settings">Generale</TabsTrigger>
         </TabsList>
 
         <TabsContent value="points" className="mt-4">
@@ -32,6 +34,10 @@ export default function GamificationSettingsPage() {
 
         <TabsContent value="badges" className="mt-4">
           <BadgesTab />
+        </TabsContent>
+
+        <TabsContent value="settings" className="mt-4">
+          <PlatformSettingsTab />
         </TabsContent>
       </Tabs>
     </div>

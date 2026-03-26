@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Trash2, Pencil } from "lucide-react";
+import { Plus, Trash2, Pencil, UserPlus } from "lucide-react";
 
 interface BadgeForm {
   name: string;
@@ -39,6 +39,10 @@ export default function BadgesTab() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<BadgeForm>(emptyBadge);
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignBadgeId, setAssignBadgeId] = useState<string | null>(null);
+  const [assignSearch, setAssignSearch] = useState("");
+  const [assignUserId, setAssignUserId] = useState<string | null>(null);
 
   const { data: badges = [] } = useQuery({
     queryKey: ["badges-admin"],
@@ -95,6 +99,50 @@ export default function BadgesTab() {
       toast.success("Badge eliminato");
     },
   });
+
+  // Search users for manual assignment
+  const { data: searchResults = [] } = useQuery({
+    queryKey: ["users-search-badge", assignSearch],
+    queryFn: async () => {
+      if (assignSearch.length < 2) return [];
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, first_name, last_name, email")
+        .or(`first_name.ilike.%${assignSearch}%,last_name.ilike.%${assignSearch}%,email.ilike.%${assignSearch}%`)
+        .limit(10);
+      return data || [];
+    },
+    enabled: assignSearch.length >= 2,
+  });
+
+  const assignBadgeMutation = useMutation({
+    mutationFn: async () => {
+      if (!assignBadgeId || !assignUserId) return;
+      const { error } = await supabase.from("user_badges").insert({
+        user_id: assignUserId,
+        badge_id: assignBadgeId,
+      });
+      if (error) {
+        if (error.code === "23505") throw new Error("Questo utente ha già questo badge");
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      toast.success("Badge assegnato manualmente");
+      setAssignOpen(false);
+      setAssignBadgeId(null);
+      setAssignUserId(null);
+      setAssignSearch("");
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const openAssign = (badgeId: string) => {
+    setAssignBadgeId(badgeId);
+    setAssignUserId(null);
+    setAssignSearch("");
+    setAssignOpen(true);
+  };
 
   const openEdit = (badge: any) => {
     setEditingId(badge.id);
@@ -239,6 +287,9 @@ export default function BadgesTab() {
                 <TableCell className="text-center">{b.required_events}</TableCell>
                 <TableCell>
                   <div className="flex gap-1">
+                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openAssign(b.id)} title="Assegna manualmente">
+                      <UserPlus className="h-4 w-4" />
+                    </Button>
                     <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(b)}>
                       <Pencil className="h-4 w-4" />
                     </Button>
@@ -277,6 +328,53 @@ export default function BadgesTab() {
           </TableBody>
         </Table>
       </CardContent>
+
+      {/* Manual badge assignment dialog */}
+      <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Assegna Badge Manualmente</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Cerca utente</Label>
+              <Input
+                placeholder="Nome, cognome o email..."
+                value={assignSearch}
+                onChange={(e) => {
+                  setAssignSearch(e.target.value);
+                  setAssignUserId(null);
+                }}
+              />
+            </div>
+            {searchResults.length > 0 && (
+              <div className="border rounded-md max-h-48 overflow-auto">
+                {searchResults.map((u: any) => (
+                  <button
+                    key={u.id}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors ${assignUserId === u.id ? "bg-accent font-medium" : ""}`}
+                    onClick={() => setAssignUserId(u.id)}
+                  >
+                    {u.first_name} {u.last_name} <span className="text-muted-foreground">({u.email})</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {assignUserId && (
+              <p className="text-sm text-muted-foreground">
+                ✓ Utente selezionato
+              </p>
+            )}
+            <Button
+              className="w-full"
+              onClick={() => assignBadgeMutation.mutate()}
+              disabled={!assignUserId || assignBadgeMutation.isPending}
+            >
+              Assegna badge
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
