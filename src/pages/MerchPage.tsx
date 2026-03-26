@@ -83,6 +83,7 @@ function GalleryEditor({
   onHeroChange,
   onGalleryChange,
   uploading,
+  uploadProgress,
   onUpload,
 }: {
   heroUrl: string;
@@ -90,6 +91,7 @@ function GalleryEditor({
   onHeroChange: (url: string) => void;
   onGalleryChange: (urls: string[]) => void;
   uploading: boolean;
+  uploadProgress: { current: number; total: number } | null;
   onUpload: (target: "hero" | "gallery") => void;
 }) {
   const { t } = useLanguage();
