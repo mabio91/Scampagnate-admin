@@ -4,6 +4,7 @@ import { Outlet, useNavigate } from "react-router-dom";
 import { Shield } from "lucide-react";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { GlobalSearch } from "@/components/GlobalSearch";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -70,6 +71,7 @@ export function AdminLayout() {
         <div className="flex-1 flex flex-col">
           <header className="h-14 flex items-center border-b bg-card px-4 gap-3">
             <SidebarTrigger />
+            <GlobalSearch />
             <div className="flex items-center gap-2 ml-auto">
               <LanguageSwitcher />
               <ThemeSwitcher />
