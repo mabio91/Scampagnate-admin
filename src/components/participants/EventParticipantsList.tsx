@@ -14,7 +14,7 @@ interface ParticipantData {
   user_id: string;
   status: string;
   checked_in: boolean;
-  profile: {
+  profiles: {
     first_name: string;
     last_name: string;
     avatar_url: string | null;
@@ -104,7 +104,7 @@ export function EventParticipantsList({ eventId, isAdmin = false }: EventPartici
   return (
     <div className="space-y-0.5 divide-y divide-border/50">
       {participants.map((p) => {
-        const profile = p.profile as any;
+        const profile = p.profiles as any;
         if (!profile) return null;
 
         if (isAdmin) {
