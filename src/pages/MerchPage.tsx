@@ -552,14 +552,23 @@ export default function MerchPage() {
                 onHeroChange={(url) => setEditProduct({ ...editProduct, image_url: url })}
                 onGalleryChange={(urls) => setEditProduct({ ...editProduct, gallery_images: urls } as any)}
                 uploading={uploading}
+                uploadProgress={uploadProgress}
                 onUpload={triggerUpload}
               />
               <input
-                ref={fileInputRef}
+                ref={heroFileInputRef}
                 type="file"
                 accept="image/png,image/jpeg,image/jpg"
                 className="hidden"
-                onChange={handleFileSelect}
+                onChange={handleHeroFileSelect}
+              />
+              <input
+                ref={galleryFileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/jpg"
+                multiple
+                className="hidden"
+                onChange={handleGalleryFileSelect}
               />
 
               {/* WhatsApp Number */}
