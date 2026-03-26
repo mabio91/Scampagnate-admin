@@ -493,6 +493,9 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* ── Filters ── */}
+      <DashboardFilters filters={filters} onChange={setFilters} />
+
       {/* ── PRIMARY KPI Cards ── */}
       <div>
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60 mb-3">{t("dashboard.primaryMetrics")}</p>
@@ -506,6 +509,8 @@ export default function Dashboard() {
                 value={totalUsers.toLocaleString()}
                 icon={Users}
                 iconBg="bg-primary"
+                onClick={() => setActiveKPI("total-users")}
+              />
               />
               <PremiumStatCard
                 title={t("dashboard.activeMembers")}
