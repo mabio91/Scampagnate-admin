@@ -1005,6 +1005,7 @@ export default function Dashboard() {
           value={totalOrganizers.toLocaleString()}
           icon={Building2}
           iconBg="bg-secondary"
+          kpiInfo={{ definition: "Organizzatori e admin attivi", formula: "COUNT(ruolo = organizer o admin)" }}
         />
         <PremiumStatCard
           title={t("dashboard.openIssues")}
@@ -1014,6 +1015,7 @@ export default function Dashboard() {
           changeType={trendIssues.changeType}
           iconBg="bg-destructive"
           onClick={() => openKPI("open-issues")}
+          kpiInfo={{ definition: "Segnalazioni aperte", formula: "COUNT(issues status = 'open')" }}
         />
         <PremiumStatCard
           title={t("dashboard.totalEvents")}
@@ -1022,6 +1024,7 @@ export default function Dashboard() {
           iconBg="bg-accent"
           subtitle={t("dashboard.allTime")}
           onClick={() => openKPI("events-created")}
+          kpiInfo={{ definition: "Totale eventi creati", formula: "COUNT(events)" }}
         />
         <PremiumStatCard
           title={t("dashboard.communityHealth")}
@@ -1034,6 +1037,7 @@ export default function Dashboard() {
           changeType={Number(attendanceRate.replace('%', '')) > 40 ? "positive" : "negative"}
           change={`${attendanceRate} ${t("dashboard.attendance")}`}
           onClick={() => openKPI("community-health")}
+          kpiInfo={{ definition: "Salute della community", formula: "Basata su tasso presenza: >70% Ottima, >40% Buona, ≤40% Da migliorare" }}
         />
       </div>
 
