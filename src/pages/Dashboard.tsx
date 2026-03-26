@@ -3,7 +3,8 @@ import { useTheme } from "next-themes";
 import {
   Users, Building2, Calendar, AlertTriangle, Activity, ArrowUpRight, ArrowDownRight, Minus,
   TrendingUp, UserCheck, BarChart3, Clock, Repeat, UserPlus, Star, CloudSun, MapPin,
-  CheckCircle2, ListChecks, Percent, Trophy
+  CheckCircle2, ListChecks, Percent, Trophy, ShieldAlert, CalendarX, UserMinus, FileWarning,
+  CreditCard, UserCog, Ban, CircleDot, ExternalLink, Bell
 } from "lucide-react";
 import RefreshButton from "@/components/RefreshButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -205,6 +206,8 @@ export default function Dashboard() {
     dateTo: undefined,
     categoryId: undefined,
     organizerId: undefined,
+    eventStatus: undefined,
+    membershipYear: undefined,
   });
 
   const openKPI = (type: string) => {
@@ -213,6 +216,8 @@ export default function Dashboard() {
     if (filters.dateTo) params.set("dateTo", filters.dateTo.toISOString());
     if (filters.categoryId) params.set("categoryId", filters.categoryId);
     if (filters.organizerId) params.set("organizerId", filters.organizerId);
+    if (filters.eventStatus) params.set("eventStatus", filters.eventStatus);
+    if (filters.membershipYear) params.set("membershipYear", filters.membershipYear);
     navigate(`/kpi?${params.toString()}`);
   };
 
@@ -544,17 +549,187 @@ export default function Dashboard() {
     },
   });
 
+  // ── ATTENTION REQUIRED ALERTS ──
+  const { data: alerts = [] } = useQuery({
+    queryKey: ["dashboard-alerts"],
+    queryFn: async () => {
+      const alertItems: { id: string; message: string; severity: "warning" | "danger"; route: string; icon: string }[] = [];
+
+      // 1. Memberships expiring (active but from previous year)
+      const { count: expiringMembers } = await supabase
+        .from("profiles")
+        .select("*", { count: "exact", head: true })
+        .eq("membership_status", "Active")
+        .lt("membership_year", currentYear);
+      if (expiringMembers && expiringMembers > 0) {
+        alertItems.push({
+          id: "expiring-members",
+          message: `${expiringMembers} tessere in scadenza (anno precedente)`,
+          severity: "warning",
+          route: "/members?status=expiring",
+          icon: "membership",
+        });
+      }
+
+      // 2. Events with high no-show rate (>40%)
+      const { data: recentEventsForNoShow } = await supabase
+        .from("events")
+        .select("id, title")
+        .in("status", ["past", "closed"])
+        .order("date", { ascending: false })
+        .limit(50);
+      if (recentEventsForNoShow && recentEventsForNoShow.length > 0) {
+        const eventIds = recentEventsForNoShow.map(e => e.id);
+        const { data: regsForNoShow } = await supabase
+          .from("event_registrations")
+          .select("event_id, checked_in, status")
+          .in("event_id", eventIds)
+          .in("status", ["registered", "paid", "attended", "no_show"]);
+        if (regsForNoShow) {
+          const byEvent: Record<string, { total: number; noShow: number }> = {};
+          regsForNoShow.forEach(r => {
+            if (!byEvent[r.event_id]) byEvent[r.event_id] = { total: 0, noShow: 0 };
+            byEvent[r.event_id].total++;
+            if (!r.checked_in && r.status !== "cancelled") byEvent[r.event_id].noShow++;
+          });
+          const highNoShow = Object.entries(byEvent).filter(([_, v]) => v.total >= 3 && (v.noShow / v.total) > 0.4).length;
+          if (highNoShow > 0) {
+            alertItems.push({
+              id: "high-no-show",
+              message: `${highNoShow} eventi con no-show superiore al 40%`,
+              severity: "danger",
+              route: "/events?sort=no-show",
+              icon: "noshow",
+            });
+          }
+        }
+      }
+
+      // 3. Open issues older than 5 days
+      const fiveDaysAgo = new Date();
+      fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+      const { count: oldIssues } = await supabase
+        .from("issues")
+        .select("*", { count: "exact", head: true })
+        .in("status", ["open", "in_progress"])
+        .lt("created_at", fiveDaysAgo.toISOString());
+      if (oldIssues && oldIssues > 0) {
+        alertItems.push({
+          id: "old-issues",
+          message: `${oldIssues} segnalazioni aperte da oltre 5 giorni`,
+          severity: "danger",
+          route: "/issues?sort=oldest",
+          icon: "issue",
+        });
+      }
+
+      // 4. Events with 0 registrations (upcoming)
+      const today = format(new Date(), "yyyy-MM-dd");
+      const { count: emptyEvents } = await supabase
+        .from("events")
+        .select("*", { count: "exact", head: true })
+        .gte("date", today)
+        .in("status", ["published", "available"])
+        .eq("spots_taken", 0);
+      if (emptyEvents && emptyEvents > 0) {
+        alertItems.push({
+          id: "empty-events",
+          message: `${emptyEvents} eventi senza iscritti`,
+          severity: "warning",
+          route: "/events?filter=empty",
+          icon: "empty-event",
+        });
+      }
+
+      // 5. Pending approval registrations
+      const { count: pendingApprovals } = await supabase
+        .from("event_registrations")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "pending_approval");
+      if (pendingApprovals && pendingApprovals > 0) {
+        alertItems.push({
+          id: "pending-approvals",
+          message: `${pendingApprovals} iscrizioni in attesa di approvazione`,
+          severity: "warning",
+          route: "/events?filter=pending",
+          icon: "approval",
+        });
+      }
+
+      return alertItems;
+    },
+    staleTime: 120000,
+  });
+
   const { data: recentActivity = [] } = useQuery({
     queryKey: ["stats-recent"],
     queryFn: async () => {
-      const activities: { action: string; detail: string; time: string; type: string }[] = [];
-      const { data: recentUsers } = await supabase.from("profiles").select("first_name, last_name, created_at").order("created_at", { ascending: false }).limit(3);
-      recentUsers?.forEach((u) => activities.push({ action: "new_user", detail: `${u.first_name} ${u.last_name}`, time: u.created_at, type: "user" }));
-      const { data: recentEvents } = await supabase.from("events").select("title, created_at").order("created_at", { ascending: false }).limit(3);
-      recentEvents?.forEach((e) => activities.push({ action: "event_created", detail: e.title, time: e.created_at, type: "event" }));
-      const { data: recentIssues } = await supabase.from("issues").select("title, created_at").order("created_at", { ascending: false }).limit(3);
-      recentIssues?.forEach((is) => activities.push({ action: "issue_reported", detail: is.title, time: is.created_at, type: "issue" }));
-      return activities.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 6);
+      const activities: { action: string; detail: string; time: string; type: string; entityId?: string; route?: string }[] = [];
+
+      // New users registered
+      const { data: recentUsers } = await supabase.from("profiles").select("id, first_name, last_name, created_at, onboarding_completed, membership_status").order("created_at", { ascending: false }).limit(5);
+      recentUsers?.forEach((u) => {
+        activities.push({ action: "new_user", detail: `${u.first_name} ${u.last_name}`, time: u.created_at, type: "user", entityId: u.id, route: `/users` });
+        if (u.onboarding_completed) {
+          activities.push({ action: "onboarding_completed", detail: `${u.first_name} ${u.last_name}`, time: u.created_at, type: "user", entityId: u.id, route: `/users` });
+        }
+        if (u.membership_status === "Active") {
+          activities.push({ action: "membership_activated", detail: `${u.first_name} ${u.last_name}`, time: u.created_at, type: "membership", entityId: u.id, route: `/members` });
+        }
+      });
+
+      // Events created / updated / cancelled
+      const { data: recentEvents } = await supabase.from("events").select("id, title, created_at, updated_at, status").order("updated_at", { ascending: false }).limit(5);
+      recentEvents?.forEach((e) => {
+        activities.push({ action: "event_created", detail: e.title, time: e.created_at, type: "event", entityId: e.id, route: `/events` });
+        if (e.status === "cancelled") {
+          activities.push({ action: "event_cancelled", detail: e.title, time: e.updated_at, type: "event", entityId: e.id, route: `/events` });
+        }
+      });
+
+      // Issues opened / resolved
+      const { data: recentIssues } = await supabase.from("issues").select("id, title, created_at, status, resolved_at").order("created_at", { ascending: false }).limit(5);
+      recentIssues?.forEach((is) => {
+        activities.push({ action: "issue_opened", detail: is.title, time: is.created_at, type: "issue", entityId: is.id, route: `/issues` });
+        if (is.status === "resolved" && is.resolved_at) {
+          activities.push({ action: "issue_resolved", detail: is.title, time: is.resolved_at, type: "issue", entityId: is.id, route: `/issues` });
+        }
+      });
+
+      // Waitlist registrations
+      const { data: waitlistRegs } = await supabase
+        .from("event_registrations")
+        .select("id, created_at, status, user_id, events!inner(title)")
+        .eq("status", "waitlist")
+        .order("created_at", { ascending: false })
+        .limit(3);
+      waitlistRegs?.forEach((r: any) => {
+        activities.push({ action: "waitlist_activated", detail: r.events?.title || "Evento", time: r.created_at, type: "event", route: `/events` });
+      });
+
+      // Pending approvals
+      const { data: pendingRegs } = await supabase
+        .from("event_registrations")
+        .select("id, created_at, status, events!inner(title)")
+        .eq("status", "pending_approval")
+        .order("created_at", { ascending: false })
+        .limit(3);
+      pendingRegs?.forEach((r: any) => {
+        activities.push({ action: "approval_requested", detail: r.events?.title || "Evento", time: r.created_at, type: "event", route: `/events` });
+      });
+
+      // Paid registrations
+      const { data: paidRegs } = await supabase
+        .from("event_registrations")
+        .select("id, created_at, payment_status, events!inner(title)")
+        .eq("payment_status", "paid")
+        .order("created_at", { ascending: false })
+        .limit(3);
+      paidRegs?.forEach((r: any) => {
+        activities.push({ action: "payment_completed", detail: r.events?.title || "Evento", time: r.created_at, type: "payment", route: `/events` });
+      });
+
+      return activities.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 12);
     },
   });
 
@@ -562,6 +737,8 @@ export default function Dashboard() {
     user: { bg: "bg-primary/8 text-primary border-primary/20", dot: "bg-primary" },
     event: { bg: "bg-accent/8 text-accent border-accent/20", dot: "bg-accent" },
     issue: { bg: "bg-destructive/8 text-destructive border-destructive/20", dot: "bg-destructive" },
+    membership: { bg: "bg-success/8 text-success border-success/20", dot: "bg-success" },
+    payment: { bg: "bg-secondary/8 text-secondary border-secondary/20", dot: "bg-secondary" },
     organizer: { bg: "bg-secondary/8 text-secondary border-secondary/20", dot: "bg-secondary" },
   };
 
@@ -585,7 +762,7 @@ export default function Dashboard() {
           <h1 className="text-2xl md:text-3xl font-bold mt-1">{t("dashboard.title")}</h1>
         </div>
         <div className="flex flex-wrap items-center gap-4">
-          <RefreshButton queryKeys={[["kpi-total-users"], ["kpi-active-members"], ["kpi-users-attended"], ["kpi-events-year"], ["kpi-participation-rate"], ["kpi-attendance-rate"], ["kpi-trends"], ["stats-issues"], ["stats-organizers"], ["stats-categories"], ["stats-events-month"], ["stats-issues-trend"], ["stats-recent"]]} />
+          <RefreshButton queryKeys={[["kpi-total-users"], ["kpi-active-members"], ["kpi-users-attended"], ["kpi-events-year"], ["kpi-participation-rate"], ["kpi-attendance-rate"], ["kpi-trends"], ["stats-issues"], ["stats-organizers"], ["stats-categories"], ["stats-events-month"], ["stats-issues-trend"], ["stats-recent"], ["dashboard-alerts"]]} />
           {/* Italy Time */}
           <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-4 py-2.5 shadow-sm">
             <MapPin className="h-4 w-4 text-accent" />
@@ -618,7 +795,51 @@ export default function Dashboard() {
       {/* ── Filters ── */}
       <DashboardFilters filters={filters} onChange={setFilters} />
 
-      {/* ── PRIMARY KPI Cards ── */}
+      {/* ── Attention Required ── */}
+      {alerts.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <ShieldAlert className="h-4 w-4 text-destructive" />
+            <p className="text-xs font-semibold uppercase tracking-wider text-destructive">Attenzione richiesta</p>
+            <Badge variant="destructive" className="h-5 px-1.5 text-[10px] font-bold">{alerts.length}</Badge>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            {alerts.map((alert) => {
+              const alertIcons: Record<string, typeof AlertTriangle> = {
+                membership: UserMinus,
+                noshow: Ban,
+                issue: FileWarning,
+                "empty-event": CalendarX,
+                approval: UserCog,
+              };
+              const AlertIcon = alertIcons[alert.icon] || AlertTriangle;
+              return (
+                <div
+                  key={alert.id}
+                  className={cn(
+                    "flex items-center gap-3 rounded-xl border p-4 cursor-pointer transition-all hover:shadow-md active:scale-[0.98]",
+                    alert.severity === "danger"
+                      ? "border-destructive/30 bg-destructive/5 hover:border-destructive/50"
+                      : "border-warning/30 bg-warning/5 hover:border-warning/50"
+                  )}
+                  onClick={() => navigate(alert.route)}
+                >
+                  <div className={cn(
+                    "p-2 rounded-lg shrink-0",
+                    alert.severity === "danger" ? "bg-destructive/10" : "bg-warning/10"
+                  )}>
+                    <AlertIcon className={cn("h-4 w-4", alert.severity === "danger" ? "text-destructive" : "text-warning")} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground leading-tight">{alert.message}</p>
+                  </div>
+                  <ExternalLink className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
       <div>
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60 mb-3">{t("dashboard.primaryMetrics")}</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
@@ -877,7 +1098,7 @@ export default function Dashboard() {
         </ChartCard>
 
         <ChartCard title={t("dashboard.recentActivity")} icon={Activity} className="lg:col-span-2">
-          <div className="space-y-1">
+          <div className="space-y-0.5 max-h-[320px] overflow-y-auto">
             {recentActivity.length === 0 ? (
               <div className="flex items-center justify-center h-[240px]">
                 <p className="text-sm text-muted-foreground">{t("dashboard.noRecentActivity")}</p>
@@ -885,24 +1106,61 @@ export default function Dashboard() {
             ) : (
               recentActivity.map((item, i) => {
                 const config = typeConfig[item.type] || typeConfig.user;
+                const actionLabels: Record<string, string> = {
+                  new_user: "Nuovo utente registrato",
+                  onboarding_completed: "Onboarding completato",
+                  membership_activated: "Tessera attivata",
+                  event_created: "Evento creato",
+                  event_cancelled: "Evento annullato",
+                  issue_opened: "Segnalazione aperta",
+                  issue_resolved: "Segnalazione risolta",
+                  waitlist_activated: "Lista d'attesa attivata",
+                  approval_requested: "Approvazione richiesta",
+                  payment_completed: "Pagamento completato",
+                };
+                const actionIcons: Record<string, typeof Users> = {
+                  new_user: UserPlus,
+                  onboarding_completed: CheckCircle2,
+                  membership_activated: UserCheck,
+                  event_created: Calendar,
+                  event_cancelled: CalendarX,
+                  issue_opened: FileWarning,
+                  issue_resolved: CheckCircle2,
+                  waitlist_activated: Clock,
+                  approval_requested: UserCog,
+                  payment_completed: CreditCard,
+                };
+                const ActionIcon = actionIcons[item.action] || CircleDot;
+                const typeLabels: Record<string, string> = {
+                  user: "Utente",
+                  event: "Evento",
+                  issue: "Segnalazione",
+                  membership: "Tessera",
+                  payment: "Pagamento",
+                };
                 return (
-                  <div key={i} className="flex items-center justify-between py-3 px-3 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className={cn("h-2 w-2 rounded-full shrink-0", config.dot)} />
-                      <div>
-                        <p className="text-sm font-medium group-hover:text-foreground transition-colors">
-                          {item.action === "new_user" ? t("dashboard.newUserRegistered") :
-                           item.action === "event_created" ? t("dashboard.eventCreated") :
-                           t("dashboard.issueReported")}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{item.detail}</p>
+                  <div
+                    key={`${item.action}-${i}`}
+                    className={cn(
+                      "flex items-center justify-between py-2.5 px-3 rounded-lg transition-colors",
+                      item.route && "cursor-pointer hover:bg-muted/50"
+                    )}
+                    onClick={() => item.route && navigate(item.route)}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={cn("p-1.5 rounded-lg shrink-0", `${config.dot}/10`)}>
+                        <ActionIcon className={cn("h-3.5 w-3.5", config.dot.replace("bg-", "text-"))} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{actionLabels[item.action] || item.action}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate">{item.detail}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 shrink-0 ml-3">
                       <Badge variant="outline" className={cn("text-[10px] font-medium border", config.bg)}>
-                        {item.type}
+                        {typeLabels[item.type] || item.type}
                       </Badge>
-                      <span className="text-xs text-muted-foreground whitespace-nowrap tabular-nums">{timeAgo(item.time)}</span>
+                      <span className="text-[11px] text-muted-foreground whitespace-nowrap tabular-nums">{timeAgo(item.time)}</span>
                     </div>
                   </div>
                 );

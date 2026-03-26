@@ -18,6 +18,8 @@ export default function KPIDetailPage() {
     dateTo: searchParams.get("dateTo") ? new Date(searchParams.get("dateTo")!) : undefined,
     categoryId: searchParams.get("categoryId") || undefined,
     organizerId: searchParams.get("organizerId") || undefined,
+    eventStatus: searchParams.get("eventStatus") || undefined,
+    membershipYear: searchParams.get("membershipYear") || undefined,
   };
 
   if (!kpiType || !meta) {
