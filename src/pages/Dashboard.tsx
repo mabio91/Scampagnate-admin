@@ -775,6 +775,9 @@ export default function Dashboard() {
           </div>
         </ChartCard>
       </div>
+
+      {/* KPI Detail Drawer */}
+      <KPIDetailSheet open={activeKPI} onClose={() => setActiveKPI(null)} filters={filters} />
     </div>
   );
 }
