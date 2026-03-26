@@ -83,6 +83,7 @@ function GalleryEditor({
   onHeroChange,
   onGalleryChange,
   uploading,
+  uploadProgress,
   onUpload,
 }: {
   heroUrl: string;
@@ -90,6 +91,7 @@ function GalleryEditor({
   onHeroChange: (url: string) => void;
   onGalleryChange: (urls: string[]) => void;
   uploading: boolean;
+  uploadProgress: { current: number; total: number } | null;
   onUpload: (target: "hero" | "gallery") => void;
 }) {
   const { t } = useLanguage();
@@ -244,6 +246,21 @@ function GalleryEditor({
             </button>
           )}
         </div>
+        {/* Upload Progress Bar */}
+        {uploading && uploadProgress && uploadProgress.total > 0 && (
+          <div className="mt-2 space-y-1">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>{t("merch.uploading")} {uploadProgress.current}/{uploadProgress.total}</span>
+              <span>{Math.round((uploadProgress.current / uploadProgress.total) * 100)}%</span>
+            </div>
+            <div className="h-2 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full bg-primary rounded-full transition-all duration-300 ease-out"
+                style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -253,8 +270,10 @@ export default function MerchPage() {
   const { t, language } = useLanguage();
   const [editProduct, setEditProduct] = useState<(Partial<MerchProduct> & { isNew?: boolean }) | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
   const [uploadTarget, setUploadTarget] = useState<"hero" | "gallery">("hero");
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const heroFileInputRef = useRef<HTMLInputElement>(null);
+  const galleryFileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
   const { data: products = [], isLoading } = useQuery({
@@ -281,48 +300,92 @@ export default function MerchPage() {
     return pub.publicUrl;
   };
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const validateFile = (file: File): string | null => {
+    const validTypes = ["image/png", "image/jpeg", "image/jpg"];
+    if (!validTypes.includes(file.type)) return `${file.name}: Only PNG and JPG files are supported`;
+    if (file.size > 5 * 1024 * 1024) return `${file.name}: File size must be less than 5MB`;
+    return null;
+  };
+
+  const handleHeroFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    const validTypes = ["image/png", "image/jpeg", "image/jpg"];
-    if (!validTypes.includes(file.type)) {
-      toast.error("Only PNG and JPG files are supported");
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("File size must be less than 5MB");
-      return;
-    }
+    const err = validateFile(file);
+    if (err) { toast.error(err); return; }
 
     setUploading(true);
+    setUploadProgress({ current: 0, total: 1 });
     try {
       const url = await uploadImage(file);
-      if (uploadTarget === "hero") {
-        setEditProduct((prev) => prev ? { ...prev, image_url: url } : null);
-      } else {
-        setEditProduct((prev) => {
-          if (!prev) return null;
-          const current = getGalleryArray(prev.gallery_images);
-          if (current.length >= MAX_GALLERY_IMAGES) {
-            toast.error(`Maximum ${MAX_GALLERY_IMAGES} gallery images allowed`);
-            return prev;
-          }
-          return { ...prev, gallery_images: [...current, url] };
-        });
-      }
+      setUploadProgress({ current: 1, total: 1 });
+      setEditProduct((prev) => prev ? { ...prev, image_url: url } : null);
       toast.success(t("merch.imageUploaded"));
     } catch (err: any) {
       toast.error(err.message);
     } finally {
       setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      setUploadProgress(null);
+      if (heroFileInputRef.current) heroFileInputRef.current.value = "";
     }
   };
 
+  const handleGalleryFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    const currentGallery = getGalleryArray(editProduct?.gallery_images);
+    const slotsAvailable = MAX_GALLERY_IMAGES - currentGallery.length;
+
+    if (slotsAvailable <= 0) {
+      toast.error(`Maximum ${MAX_GALLERY_IMAGES} gallery images allowed`);
+      return;
+    }
+
+    const filesToUpload = files.slice(0, slotsAvailable);
+    if (files.length > slotsAvailable) {
+      toast.warning(`Only ${slotsAvailable} more image(s) allowed. ${files.length - slotsAvailable} skipped.`);
+    }
+
+    // Validate all files first
+    for (const file of filesToUpload) {
+      const err = validateFile(file);
+      if (err) { toast.error(err); return; }
+    }
+
+    setUploading(true);
+    setUploadProgress({ current: 0, total: filesToUpload.length });
+    const uploadedUrls: string[] = [];
+
+    for (let i = 0; i < filesToUpload.length; i++) {
+      try {
+        const url = await uploadImage(filesToUpload[i]);
+        uploadedUrls.push(url);
+        setUploadProgress({ current: i + 1, total: filesToUpload.length });
+      } catch (err: any) {
+        toast.error(`${filesToUpload[i].name}: ${err.message}`);
+      }
+    }
+
+    if (uploadedUrls.length > 0) {
+      setEditProduct((prev) => {
+        if (!prev) return null;
+        const current = getGalleryArray(prev.gallery_images);
+        return { ...prev, gallery_images: [...current, ...uploadedUrls] } as any;
+      });
+      toast.success(`${uploadedUrls.length} ${uploadedUrls.length === 1 ? 'image' : 'images'} uploaded`);
+    }
+
+    setUploading(false);
+    setUploadProgress(null);
+    if (galleryFileInputRef.current) galleryFileInputRef.current.value = "";
+  };
+
   const triggerUpload = (target: "hero" | "gallery") => {
-    setUploadTarget(target);
-    setTimeout(() => fileInputRef.current?.click(), 0);
+    if (target === "hero") {
+      heroFileInputRef.current?.click();
+    } else {
+      galleryFileInputRef.current?.click();
+    }
   };
 
   const getGalleryArray = (val: any): string[] => {
@@ -506,14 +569,23 @@ export default function MerchPage() {
                 onHeroChange={(url) => setEditProduct({ ...editProduct, image_url: url })}
                 onGalleryChange={(urls) => setEditProduct({ ...editProduct, gallery_images: urls } as any)}
                 uploading={uploading}
+                uploadProgress={uploadProgress}
                 onUpload={triggerUpload}
               />
               <input
-                ref={fileInputRef}
+                ref={heroFileInputRef}
                 type="file"
                 accept="image/png,image/jpeg,image/jpg"
                 className="hidden"
-                onChange={handleFileSelect}
+                onChange={handleHeroFileSelect}
+              />
+              <input
+                ref={galleryFileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/jpg"
+                multiple
+                className="hidden"
+                onChange={handleGalleryFileSelect}
               />
 
               {/* WhatsApp Number */}
