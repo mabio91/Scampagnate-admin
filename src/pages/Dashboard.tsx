@@ -518,6 +518,7 @@ export default function Dashboard() {
                 icon={UserCheck}
                 iconBg="bg-success"
                 subtitle={`${t("dashboard.paidMembership")} ${currentYear}`}
+                onClick={() => setActiveKPI("active-members")}
               />
               <PremiumStatCard
                 title={t("dashboard.usersAttended")}
@@ -525,6 +526,7 @@ export default function Dashboard() {
                 icon={CheckCircle2}
                 iconBg="bg-secondary"
                 subtitle={`${t("dashboard.atLeast1Event")} ${currentYear}`}
+                onClick={() => setActiveKPI("participating-users")}
               />
               <PremiumStatCard
                 title={t("dashboard.eventsCreated")}
@@ -532,6 +534,7 @@ export default function Dashboard() {
                 icon={Calendar}
                 iconBg="bg-accent"
                 subtitle={`${t("dashboard.in")} ${currentYear}`}
+                onClick={() => setActiveKPI("events-created")}
               />
               <PremiumStatCard
                 title={t("dashboard.participationRate")}
@@ -539,6 +542,7 @@ export default function Dashboard() {
                 icon={Percent}
                 iconBg="bg-primary"
                 subtitle={t("dashboard.participationSub")}
+                onClick={() => setActiveKPI("participation-rate")}
               />
               <PremiumStatCard
                 title={t("dashboard.attendanceRate")}
@@ -546,6 +550,7 @@ export default function Dashboard() {
                 icon={ListChecks}
                 iconBg="bg-success"
                 subtitle={t("dashboard.attendanceSub")}
+                onClick={() => setActiveKPI("attendance-rate")}
               />
             </>
           )}
