@@ -795,7 +795,51 @@ export default function Dashboard() {
       {/* ── Filters ── */}
       <DashboardFilters filters={filters} onChange={setFilters} />
 
-      {/* ── PRIMARY KPI Cards ── */}
+      {/* ── Attention Required ── */}
+      {alerts.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <ShieldAlert className="h-4 w-4 text-destructive" />
+            <p className="text-xs font-semibold uppercase tracking-wider text-destructive">Attenzione richiesta</p>
+            <Badge variant="destructive" className="h-5 px-1.5 text-[10px] font-bold">{alerts.length}</Badge>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            {alerts.map((alert) => {
+              const alertIcons: Record<string, typeof AlertTriangle> = {
+                membership: UserMinus,
+                noshow: Ban,
+                issue: FileWarning,
+                "empty-event": CalendarX,
+                approval: UserCog,
+              };
+              const AlertIcon = alertIcons[alert.icon] || AlertTriangle;
+              return (
+                <div
+                  key={alert.id}
+                  className={cn(
+                    "flex items-center gap-3 rounded-xl border p-4 cursor-pointer transition-all hover:shadow-md active:scale-[0.98]",
+                    alert.severity === "danger"
+                      ? "border-destructive/30 bg-destructive/5 hover:border-destructive/50"
+                      : "border-warning/30 bg-warning/5 hover:border-warning/50"
+                  )}
+                  onClick={() => navigate(alert.route)}
+                >
+                  <div className={cn(
+                    "p-2 rounded-lg shrink-0",
+                    alert.severity === "danger" ? "bg-destructive/10" : "bg-warning/10"
+                  )}>
+                    <AlertIcon className={cn("h-4 w-4", alert.severity === "danger" ? "text-destructive" : "text-warning")} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground leading-tight">{alert.message}</p>
+                  </div>
+                  <ExternalLink className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
       <div>
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60 mb-3">{t("dashboard.primaryMetrics")}</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
