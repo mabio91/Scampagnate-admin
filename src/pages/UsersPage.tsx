@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, MoreHorizontal, Trash2, Edit2, UserPlus } from "lucide-react";
+import { Search, MoreHorizontal, Trash2, Edit2, UserPlus, Landmark } from "lucide-react";
 import RefreshButton from "@/components/RefreshButton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -391,7 +391,7 @@ export default function UsersPage() {
                   {viewUser.is_founding_member && (
                     <div className="mt-4 p-3 rounded-lg border border-amber-500/30 bg-amber-500/5">
                       <div className="flex items-center gap-2">
-                        <span className="text-lg">🏛️</span>
+                        <Landmark className="h-5 w-5 text-amber-600" />
                         <span className="font-semibold text-amber-600">Founding Member</span>
                       </div>
                     </div>
