@@ -27,6 +27,7 @@ export default function UsersPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
+  const [segment, setSegment] = useState<string>("all");
   const [editUser, setEditUser] = useState<(Profile & { roles: string[] }) | null>(null);
   const [editForm, setEditForm] = useState({
     first_name: "", last_name: "", phone: "", bio: "",
@@ -128,6 +129,11 @@ export default function UsersPage() {
     setEditRole(user.roles.includes("admin") ? "admin" : user.roles.includes("organizer") ? "organizer" : "user");
   };
 
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const ninetyDaysAgo = new Date();
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
   const filtered = users.filter((u) => {
     const searchLower = search.toLowerCase();
     const matchesSearch =
@@ -136,7 +142,25 @@ export default function UsersPage() {
       (u.email || "").toLowerCase().includes(searchLower) ||
       (u.membership_id ? String(u.membership_id).toLowerCase().includes(searchLower) : false);
     const matchesStatus = statusFilter === "All" || u.account_status === statusFilter;
-    return matchesSearch && matchesStatus;
+
+    // Segment filtering
+    let matchesSegment = true;
+    const eventCount = regCounts[u.id] || 0;
+    if (segment === "new") {
+      matchesSegment = new Date(u.created_at) >= thirtyDaysAgo;
+    } else if (segment === "active") {
+      matchesSegment = eventCount > 0 && u.last_sign_in_at != null && new Date(u.last_sign_in_at) >= ninetyDaysAgo;
+    } else if (segment === "inactive") {
+      matchesSegment = u.last_sign_in_at == null || new Date(u.last_sign_in_at) < ninetyDaysAgo;
+    } else if (segment === "incomplete_onboarding") {
+      matchesSegment = !u.onboarding_completed;
+    } else if (segment === "no_participation") {
+      matchesSegment = eventCount === 0;
+    } else if (segment === "high_participation") {
+      matchesSegment = eventCount >= 5;
+    }
+
+    return matchesSearch && matchesStatus && matchesSegment;
   });
 
   const handleExport = () => {
