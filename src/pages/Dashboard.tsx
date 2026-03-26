@@ -504,6 +504,7 @@ export default function Dashboard() {
       const { data: events } = await supabase.from("events").select("category_id");
       if (!categories) return [];
       return categories.map((cat) => ({
+        id: cat.id,
         name: cat.name,
         value: events?.filter((e) => e.category_id === cat.id).length || 0,
       })).filter((c) => c.value > 0);
@@ -515,7 +516,7 @@ export default function Dashboard() {
     queryFn: async () => {
       const { data: events } = await supabase.from("events").select("date, id");
       const { data: regs } = await supabase.from("event_registrations").select("created_at");
-      const months: { month: string; events: number; registrations: number }[] = [];
+      const months: { month: string; events: number; registrations: number; dateFrom: string; dateTo: string }[] = [];
       for (let i = 6; i >= 0; i--) {
         const d = subMonths(new Date(), i);
         const label = format(d, "MMM");
@@ -525,6 +526,8 @@ export default function Dashboard() {
           month: label,
           events: events?.filter((e) => e.date >= start && e.date < end).length || 0,
           registrations: regs?.filter((r) => r.created_at >= start && r.created_at < end).length || 0,
+          dateFrom: start,
+          dateTo: end,
         });
       }
       return months;
@@ -535,7 +538,7 @@ export default function Dashboard() {
     queryKey: ["stats-issues-trend"],
     queryFn: async () => {
       const { data: issues } = await supabase.from("issues").select("created_at, status, resolved_at");
-      const weeks: { week: string; opened: number; resolved: number }[] = [];
+      const weeks: { week: string; opened: number; resolved: number; dateFrom: string; dateTo: string }[] = [];
       for (let i = 5; i >= 0; i--) {
         const start = new Date(); start.setDate(start.getDate() - (i + 1) * 7);
         const end = new Date(); end.setDate(end.getDate() - i * 7);
@@ -543,6 +546,8 @@ export default function Dashboard() {
           week: `W${6 - i}`,
           opened: issues?.filter((is) => new Date(is.created_at) >= start && new Date(is.created_at) < end).length || 0,
           resolved: issues?.filter((is) => is.resolved_at && new Date(is.resolved_at) >= start && new Date(is.resolved_at) < end).length || 0,
+          dateFrom: start.toISOString(),
+          dateTo: end.toISOString(),
         });
       }
       return weeks;
@@ -1004,7 +1009,14 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <ChartCard title={t("dashboard.eventsRegistrations")} icon={Calendar} className="lg:col-span-2">
           <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={eventsByMonth} barGap={4}>
+            <BarChart data={eventsByMonth} barGap={4} className="cursor-pointer"
+              onClick={(data) => {
+                if (data?.activePayload?.[0]?.payload) {
+                  const payload = data.activePayload[0].payload;
+                  navigate(`/events?dateFrom=${payload.dateFrom}&dateTo=${payload.dateTo}`);
+                }
+              }}
+            >
               <defs>
                 <linearGradient id="barEvents" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="hsl(150, 40%, 25%)" stopOpacity={1} />
@@ -1020,8 +1032,8 @@ export default function Dashboard() {
               <YAxis tick={{ fontSize: 12, fill: chartTheme.tickFill }} axisLine={false} tickLine={false} />
               <Tooltip {...chartTheme.tooltipStyle} cursor={{ fill: chartTheme.cursorFill }} />
               <Legend wrapperStyle={{ fontSize: "12px", paddingTop: "12px" }} />
-              <Bar dataKey="events" fill="url(#barEvents)" radius={[6, 6, 0, 0]} maxBarSize={32} />
-              <Bar dataKey="registrations" fill="url(#barRegs)" radius={[6, 6, 0, 0]} maxBarSize={32} />
+              <Bar dataKey="events" fill="url(#barEvents)" radius={[6, 6, 0, 0]} maxBarSize={32} className="cursor-pointer" />
+              <Bar dataKey="registrations" fill="url(#barRegs)" radius={[6, 6, 0, 0]} maxBarSize={32} className="cursor-pointer" />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -1044,6 +1056,11 @@ export default function Dashboard() {
                     paddingAngle={4}
                     dataKey="value"
                     strokeWidth={0}
+                    className="cursor-pointer"
+                    onClick={(_, index) => {
+                      const cat = categoryData[index];
+                      if (cat?.id) navigate(`/events?categoryId=${cat.id}`);
+                    }}
                     label={({ percent, cx: cxPos, cy: cyPos, midAngle, outerRadius: oR }) => {
                       const RADIAN = Math.PI / 180;
                       const radius = oR + 18;
@@ -1057,7 +1074,7 @@ export default function Dashboard() {
                     }}
                   >
                     {categoryData.map((_, i) => (
-                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} className="cursor-pointer hover:opacity-80 transition-opacity" />
                     ))}
                   </Pie>
                   <Tooltip {...chartTheme.tooltipStyle} />
@@ -1068,7 +1085,9 @@ export default function Dashboard() {
                   const total = categoryData.reduce((sum, d) => sum + d.value, 0);
                   const pct = total > 0 ? ((entry.value / total) * 100).toFixed(0) : "0";
                   return (
-                    <div key={i} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <div key={i} className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
+                      onClick={() => navigate(`/events?categoryId=${entry.id}`)}
+                    >
                       <span className="inline-block h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
                       <span className="truncate max-w-[120px]">{entry.name}</span>
                       <span className="font-semibold text-foreground">{pct}%</span>
@@ -1085,14 +1104,21 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <ChartCard title={t("dashboard.issuesTrend")}>
           <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={issuesTrend}>
+            <LineChart data={issuesTrend} className="cursor-pointer"
+              onClick={(data) => {
+                if (data?.activePayload?.[0]?.payload) {
+                  const payload = data.activePayload[0].payload;
+                  navigate(`/issues?dateFrom=${encodeURIComponent(payload.dateFrom)}&dateTo=${encodeURIComponent(payload.dateTo)}`);
+                }
+              }}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridStroke} vertical={false} />
               <XAxis dataKey="week" tick={{ fontSize: 12, fill: chartTheme.tickFill }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 12, fill: chartTheme.tickFill }} axisLine={false} tickLine={false} />
               <Tooltip {...chartTheme.tooltipStyle} />
               <Legend wrapperStyle={{ fontSize: "12px", paddingTop: "8px" }} />
-              <Line type="monotone" dataKey="opened" stroke="hsl(0, 65%, 50%)" strokeWidth={2.5} dot={{ r: 4, strokeWidth: 2, fill: chartTheme.dotFill }} activeDot={{ r: 6 }} />
-              <Line type="monotone" dataKey="resolved" stroke="hsl(140, 50%, 40%)" strokeWidth={2.5} dot={{ r: 4, strokeWidth: 2, fill: chartTheme.dotFill }} activeDot={{ r: 6 }} />
+              <Line type="monotone" dataKey="opened" stroke="hsl(0, 65%, 50%)" strokeWidth={2.5} dot={{ r: 4, strokeWidth: 2, fill: chartTheme.dotFill }} activeDot={{ r: 7, className: "cursor-pointer" }} />
+              <Line type="monotone" dataKey="resolved" stroke="hsl(140, 50%, 40%)" strokeWidth={2.5} dot={{ r: 4, strokeWidth: 2, fill: chartTheme.dotFill }} activeDot={{ r: 7, className: "cursor-pointer" }} />
             </LineChart>
           </ResponsiveContainer>
         </ChartCard>
