@@ -287,6 +287,9 @@ export default function BadgesTab() {
                 <TableCell className="text-center">{b.required_events}</TableCell>
                 <TableCell>
                   <div className="flex gap-1">
+                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openAssign(b.id)} title="Assegna manualmente">
+                      <UserPlus className="h-4 w-4" />
+                    </Button>
                     <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(b)}>
                       <Pencil className="h-4 w-4" />
                     </Button>
@@ -325,6 +328,53 @@ export default function BadgesTab() {
           </TableBody>
         </Table>
       </CardContent>
+
+      {/* Manual badge assignment dialog */}
+      <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Assegna Badge Manualmente</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Cerca utente</Label>
+              <Input
+                placeholder="Nome, cognome o email..."
+                value={assignSearch}
+                onChange={(e) => {
+                  setAssignSearch(e.target.value);
+                  setAssignUserId(null);
+                }}
+              />
+            </div>
+            {searchResults.length > 0 && (
+              <div className="border rounded-md max-h-48 overflow-auto">
+                {searchResults.map((u: any) => (
+                  <button
+                    key={u.id}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors ${assignUserId === u.id ? "bg-accent font-medium" : ""}`}
+                    onClick={() => setAssignUserId(u.id)}
+                  >
+                    {u.first_name} {u.last_name} <span className="text-muted-foreground">({u.email})</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {assignUserId && (
+              <p className="text-sm text-muted-foreground">
+                ✓ Utente selezionato
+              </p>
+            )}
+            <Button
+              className="w-full"
+              onClick={() => assignBadgeMutation.mutate()}
+              disabled={!assignUserId || assignBadgeMutation.isPending}
+            >
+              Assegna badge
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
