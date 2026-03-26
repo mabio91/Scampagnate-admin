@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DashboardFilters, type DashboardFilterValues } from "@/components/dashboard/DashboardFilters";
-import { KPIDetailSheet, type KPIType } from "@/components/dashboard/KPIDetailSheet";
+import { useNavigate } from "react-router-dom";
 import {
   BarChart, Bar, PieChart, Pie, Cell, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -199,7 +199,7 @@ export default function Dashboard() {
   const chartTheme = useChartTheme();
   const { t } = useLanguage();
 
-  const [activeKPI, setActiveKPI] = useState<KPIType>(null);
+  const navigate = useNavigate();
   const [filters, setFilters] = useState<DashboardFilterValues>({
     dateFrom: undefined,
     dateTo: undefined,
