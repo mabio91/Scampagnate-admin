@@ -76,12 +76,19 @@ interface PremiumStatCardProps {
   gradient?: string;
   iconBg: string;
   subtitle?: string;
+  onClick?: () => void;
 }
 
-function PremiumStatCard({ title, value, icon: Icon, change, changeType = "neutral", iconBg, subtitle }: PremiumStatCardProps) {
+function PremiumStatCard({ title, value, icon: Icon, change, changeType = "neutral", iconBg, subtitle, onClick }: PremiumStatCardProps) {
   const ChangeIcon = changeType === "positive" ? ArrowUpRight : changeType === "negative" ? ArrowDownRight : Minus;
   return (
-    <div className="relative rounded-xl bg-card border border-border/60 p-5 overflow-hidden">
+    <div
+      className={cn(
+        "relative rounded-xl bg-card border border-border/60 p-5 overflow-hidden transition-all",
+        onClick && "cursor-pointer hover:border-primary/40 hover:shadow-md active:scale-[0.98]"
+      )}
+      onClick={onClick}
+    >
       {/* Colored top bar */}
       <div className={cn("absolute top-0 left-0 right-0 h-1 rounded-t-xl", iconBg)} />
       <div className="flex items-start justify-between gap-3">
