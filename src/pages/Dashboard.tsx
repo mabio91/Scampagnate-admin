@@ -4,7 +4,7 @@ import {
   Users, Building2, Calendar, AlertTriangle, Activity, ArrowUpRight, ArrowDownRight, Minus,
   TrendingUp, UserCheck, BarChart3, Clock, Repeat, UserPlus, Star, CloudSun, MapPin,
   CheckCircle2, ListChecks, Percent, Trophy, ShieldAlert, CalendarX, UserMinus, FileWarning,
-  CreditCard, UserCog, Ban, CircleDot, ExternalLink, Bell
+  CreditCard, UserCog, Ban, CircleDot, ExternalLink, Bell, Info
 } from "lucide-react";
 import RefreshButton from "@/components/RefreshButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -78,10 +78,12 @@ interface PremiumStatCardProps {
   iconBg: string;
   subtitle?: string;
   onClick?: () => void;
+  kpiInfo?: { definition: string; formula: string };
 }
 
-function PremiumStatCard({ title, value, icon: Icon, change, changeType = "neutral", iconBg, subtitle, onClick }: PremiumStatCardProps) {
+function PremiumStatCard({ title, value, icon: Icon, change, changeType = "neutral", iconBg, subtitle, onClick, kpiInfo }: PremiumStatCardProps) {
   const ChangeIcon = changeType === "positive" ? ArrowUpRight : changeType === "negative" ? ArrowDownRight : Minus;
+  const [showInfo, setShowInfo] = useState(false);
   return (
     <div
       className={cn(
@@ -92,6 +94,25 @@ function PremiumStatCard({ title, value, icon: Icon, change, changeType = "neutr
     >
       {/* Colored top bar */}
       <div className={cn("absolute top-0 left-0 right-0 h-1 rounded-t-xl", iconBg)} />
+      {/* KPI Info tooltip */}
+      {kpiInfo && (
+        <div className="absolute top-2.5 right-2.5 z-10">
+          <div
+            className="relative"
+            onMouseEnter={() => setShowInfo(true)}
+            onMouseLeave={() => setShowInfo(false)}
+            onClick={(e) => { e.stopPropagation(); setShowInfo(!showInfo); }}
+          >
+            <Info className="h-3.5 w-3.5 text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-help" />
+            {showInfo && (
+              <div className="absolute right-0 top-full mt-1.5 w-56 rounded-lg border bg-popover p-3 shadow-lg text-left z-50">
+                <p className="text-xs font-semibold text-foreground mb-1">{kpiInfo.definition}</p>
+                <p className="text-[11px] text-muted-foreground font-mono bg-muted/50 px-2 py-1 rounded">{kpiInfo.formula}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-1.5 min-w-0 flex-1 pt-1">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/70 truncate">{title}</p>
@@ -860,6 +881,7 @@ export default function Dashboard() {
                 change={trendUsers.change}
                 changeType={trendUsers.changeType}
                 onClick={() => openKPI("total-users")}
+                kpiInfo={{ definition: "Utenti registrati sulla piattaforma", formula: "COUNT(profiles)" }}
               />
               <PremiumStatCard
                 title={t("dashboard.activeMembers")}
@@ -870,6 +892,7 @@ export default function Dashboard() {
                 change={trendMembers.change ? trendMembers.change.replace("mese prec.", `${currentYear - 1}`) : undefined}
                 changeType={trendMembers.changeType}
                 onClick={() => openKPI("active-members")}
+                kpiInfo={{ definition: "Tesserati con membership attiva", formula: "COUNT(membership_status = 'Active')" }}
               />
               <PremiumStatCard
                 title={t("dashboard.usersAttended")}
@@ -880,6 +903,7 @@ export default function Dashboard() {
                 change={trendAttended.change}
                 changeType={trendAttended.changeType}
                 onClick={() => openKPI("participating-users")}
+                kpiInfo={{ definition: "Utenti con almeno 1 iscrizione", formula: "COUNT(DISTINCT user_id) da registrazioni" }}
               />
               <PremiumStatCard
                 title={t("dashboard.eventsCreated")}
@@ -890,6 +914,7 @@ export default function Dashboard() {
                 change={trendEvents.change}
                 changeType={trendEvents.changeType}
                 onClick={() => openKPI("events-created")}
+                kpiInfo={{ definition: "Eventi creati nell'anno corrente", formula: "COUNT(events) anno corrente" }}
               />
               <PremiumStatCard
                 title={t("dashboard.participationRate")}
@@ -898,6 +923,7 @@ export default function Dashboard() {
                 iconBg="bg-primary"
                 subtitle={t("dashboard.participationSub")}
                 onClick={() => openKPI("participation-rate")}
+                kpiInfo={{ definition: "Tasso partecipazione", formula: "Utenti con ≥1 iscrizione / utenti totali × 100" }}
               />
               <PremiumStatCard
                 title={t("dashboard.attendanceRate")}
@@ -908,6 +934,7 @@ export default function Dashboard() {
                 change={trendAttendanceRate.change}
                 changeType={trendAttendanceRate.changeType}
                 onClick={() => openKPI("attendance-rate")}
+                kpiInfo={{ definition: "Tasso presenza", formula: "Check-in completati / iscrizioni totali × 100" }}
               />
             </>
           )}
@@ -927,6 +954,7 @@ export default function Dashboard() {
             change={trendFillRate.change}
             changeType={trendFillRate.changeType}
             onClick={() => openKPI("fill-rate")}
+            kpiInfo={{ definition: "Tasso riempimento medio", formula: "Iscrizioni / capacità totale × 100" }}
           />
           <PremiumStatCard
             title={t("dashboard.waitlistRequests")}
@@ -936,6 +964,7 @@ export default function Dashboard() {
             change={trendWaitlist.change}
             changeType={trendWaitlist.changeType}
             onClick={() => openKPI("waitlist")}
+            kpiInfo={{ definition: "Richieste in lista d'attesa", formula: "COUNT(status = 'waitlist')" }}
           />
           <PremiumStatCard
             title={t("dashboard.repeatParticipants")}
@@ -944,6 +973,7 @@ export default function Dashboard() {
             iconBg="bg-accent"
             subtitle={t("dashboard.repeatSub")}
             onClick={() => openKPI("repeat-participants")}
+            kpiInfo={{ definition: "Utenti con più di un evento", formula: "COUNT(utenti con ≥2 iscrizioni)" }}
           />
           <PremiumStatCard
             title={t("dashboard.newUsersMonth")}
@@ -954,6 +984,7 @@ export default function Dashboard() {
             change={trendNewUsers.change}
             changeType={trendNewUsers.changeType}
             onClick={() => openKPI("total-users")}
+            kpiInfo={{ definition: "Nuovi utenti nel mese corrente", formula: "COUNT(created_at nel mese corrente)" }}
           />
           <PremiumStatCard
             title={t("dashboard.topCategory")}
@@ -962,6 +993,7 @@ export default function Dashboard() {
             iconBg="bg-secondary"
             subtitle={t("dashboard.topCategorySub")}
             onClick={() => openKPI("top-category")}
+            kpiInfo={{ definition: "Categoria con più iscrizioni", formula: "MAX(registrazioni) per categoria" }}
           />
         </div>
       </div>
@@ -973,6 +1005,7 @@ export default function Dashboard() {
           value={totalOrganizers.toLocaleString()}
           icon={Building2}
           iconBg="bg-secondary"
+          kpiInfo={{ definition: "Organizzatori e admin attivi", formula: "COUNT(ruolo = organizer o admin)" }}
         />
         <PremiumStatCard
           title={t("dashboard.openIssues")}
@@ -982,6 +1015,7 @@ export default function Dashboard() {
           changeType={trendIssues.changeType}
           iconBg="bg-destructive"
           onClick={() => openKPI("open-issues")}
+          kpiInfo={{ definition: "Segnalazioni aperte", formula: "COUNT(issues status = 'open')" }}
         />
         <PremiumStatCard
           title={t("dashboard.totalEvents")}
@@ -990,6 +1024,7 @@ export default function Dashboard() {
           iconBg="bg-accent"
           subtitle={t("dashboard.allTime")}
           onClick={() => openKPI("events-created")}
+          kpiInfo={{ definition: "Totale eventi creati", formula: "COUNT(events)" }}
         />
         <PremiumStatCard
           title={t("dashboard.communityHealth")}
@@ -1002,6 +1037,7 @@ export default function Dashboard() {
           changeType={Number(attendanceRate.replace('%', '')) > 40 ? "positive" : "negative"}
           change={`${attendanceRate} ${t("dashboard.attendance")}`}
           onClick={() => openKPI("community-health")}
+          kpiInfo={{ definition: "Salute della community", formula: "Basata su tasso presenza: >70% Ottima, >40% Buona, ≤40% Da migliorare" }}
         />
       </div>
 
