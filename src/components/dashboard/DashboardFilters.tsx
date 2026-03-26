@@ -16,6 +16,8 @@ export interface DashboardFilterValues {
   dateTo: Date | undefined;
   categoryId: string | undefined;
   organizerId: string | undefined;
+  eventStatus: string | undefined;
+  membershipYear: string | undefined;
 }
 
 interface DashboardFiltersProps {
@@ -53,13 +55,16 @@ export function DashboardFilters({ filters, onChange }: DashboardFiltersProps) {
     },
   });
 
-  const hasFilters = filters.dateFrom || filters.dateTo || filters.categoryId || filters.organizerId;
+  const currentYear = new Date().getFullYear();
+  const membershipYears = Array.from({ length: 5 }, (_, i) => currentYear - i);
+
+  const hasFilters = filters.dateFrom || filters.dateTo || filters.categoryId || filters.organizerId || filters.eventStatus || filters.membershipYear;
 
   const clearFilters = () => {
-    onChange({ dateFrom: undefined, dateTo: undefined, categoryId: undefined, organizerId: undefined });
+    onChange({ dateFrom: undefined, dateTo: undefined, categoryId: undefined, organizerId: undefined, eventStatus: undefined, membershipYear: undefined });
   };
 
-  const activeCount = [filters.dateFrom, filters.dateTo, filters.categoryId, filters.organizerId].filter(Boolean).length;
+  const activeCount = [filters.dateFrom, filters.dateTo, filters.categoryId, filters.organizerId, filters.eventStatus, filters.membershipYear].filter(Boolean).length;
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -80,7 +85,7 @@ export function DashboardFilters({ filters, onChange }: DashboardFiltersProps) {
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
-          <Calendar mode="single" selected={filters.dateFrom} onSelect={(d) => { onChange({ ...filters, dateFrom: d }); setFromOpen(false); }} />
+          <Calendar mode="single" selected={filters.dateFrom} onSelect={(d) => { onChange({ ...filters, dateFrom: d }); setFromOpen(false); }} className="p-3 pointer-events-auto" />
         </PopoverContent>
       </Popover>
 
@@ -93,7 +98,7 @@ export function DashboardFilters({ filters, onChange }: DashboardFiltersProps) {
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
-          <Calendar mode="single" selected={filters.dateTo} onSelect={(d) => { onChange({ ...filters, dateTo: d }); setToOpen(false); }} />
+          <Calendar mode="single" selected={filters.dateTo} onSelect={(d) => { onChange({ ...filters, dateTo: d }); setToOpen(false); }} className="p-3 pointer-events-auto" />
         </PopoverContent>
       </Popover>
 
@@ -119,6 +124,36 @@ export function DashboardFilters({ filters, onChange }: DashboardFiltersProps) {
           <SelectItem value="all">Tutti gli organizzatori</SelectItem>
           {organizers.map((o) => (
             <SelectItem key={o.id} value={o.id}>{o.first_name} {o.last_name}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      {/* Event Status */}
+      <Select value={filters.eventStatus || "all"} onValueChange={(v) => onChange({ ...filters, eventStatus: v === "all" ? undefined : v })}>
+        <SelectTrigger className="h-8 w-auto min-w-[120px] text-xs">
+          <SelectValue placeholder="Stato evento" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Tutti gli stati</SelectItem>
+          <SelectItem value="published">Pubblicato</SelectItem>
+          <SelectItem value="draft">Bozza</SelectItem>
+          <SelectItem value="available">Disponibile</SelectItem>
+          <SelectItem value="full">Completo</SelectItem>
+          <SelectItem value="closed">Chiuso</SelectItem>
+          <SelectItem value="cancelled">Annullato</SelectItem>
+          <SelectItem value="past">Passato</SelectItem>
+        </SelectContent>
+      </Select>
+
+      {/* Membership Year */}
+      <Select value={filters.membershipYear || "all"} onValueChange={(v) => onChange({ ...filters, membershipYear: v === "all" ? undefined : v })}>
+        <SelectTrigger className="h-8 w-auto min-w-[110px] text-xs">
+          <SelectValue placeholder="Anno tessera" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Tutti gli anni</SelectItem>
+          {membershipYears.map((y) => (
+            <SelectItem key={y} value={String(y)}>{y}</SelectItem>
           ))}
         </SelectContent>
       </Select>
