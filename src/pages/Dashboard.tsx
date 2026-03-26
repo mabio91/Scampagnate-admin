@@ -1009,7 +1009,14 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <ChartCard title={t("dashboard.eventsRegistrations")} icon={Calendar} className="lg:col-span-2">
           <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={eventsByMonth} barGap={4}>
+            <BarChart data={eventsByMonth} barGap={4} className="cursor-pointer"
+              onClick={(data) => {
+                if (data?.activePayload?.[0]?.payload) {
+                  const payload = data.activePayload[0].payload;
+                  navigate(`/events?dateFrom=${payload.dateFrom}&dateTo=${payload.dateTo}`);
+                }
+              }}
+            >
               <defs>
                 <linearGradient id="barEvents" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="hsl(150, 40%, 25%)" stopOpacity={1} />
@@ -1025,8 +1032,8 @@ export default function Dashboard() {
               <YAxis tick={{ fontSize: 12, fill: chartTheme.tickFill }} axisLine={false} tickLine={false} />
               <Tooltip {...chartTheme.tooltipStyle} cursor={{ fill: chartTheme.cursorFill }} />
               <Legend wrapperStyle={{ fontSize: "12px", paddingTop: "12px" }} />
-              <Bar dataKey="events" fill="url(#barEvents)" radius={[6, 6, 0, 0]} maxBarSize={32} />
-              <Bar dataKey="registrations" fill="url(#barRegs)" radius={[6, 6, 0, 0]} maxBarSize={32} />
+              <Bar dataKey="events" fill="url(#barEvents)" radius={[6, 6, 0, 0]} maxBarSize={32} className="cursor-pointer" />
+              <Bar dataKey="registrations" fill="url(#barRegs)" radius={[6, 6, 0, 0]} maxBarSize={32} className="cursor-pointer" />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
