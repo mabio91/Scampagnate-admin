@@ -199,6 +199,14 @@ export default function Dashboard() {
   const chartTheme = useChartTheme();
   const { t } = useLanguage();
 
+  const [activeKPI, setActiveKPI] = useState<KPIType>(null);
+  const [filters, setFilters] = useState<DashboardFilterValues>({
+    dateFrom: undefined,
+    dateTo: undefined,
+    categoryId: undefined,
+    organizerId: undefined,
+  });
+
   const currentYear = new Date().getFullYear();
   const yearStart = `${currentYear}-01-01`;
 
