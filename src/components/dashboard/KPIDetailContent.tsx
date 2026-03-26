@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, differenceInDays, differenceInHours, subMonths, startOfMonth } from "date-fns";
+import { Ruler, TrendingUp, Calendar, Star, Users, CreditCard, ClipboardList, FolderOpen, User, Medal, Trophy, BarChart3, CheckCircle2, XCircle, Wrench, Landmark } from "lucide-react";
 import type { DashboardFilterValues } from "./DashboardFilters";
 
 export type KPIType =
@@ -78,7 +79,7 @@ function MiniStat({ label, value, color, sub }: { label: string; value: string |
 function FormulaBox({ formula, description }: { formula: string; description?: string }) {
   return (
     <div className="rounded-lg bg-muted/50 border p-4 text-sm">
-      <p className="text-xs font-semibold text-muted-foreground mb-1">📐 Formula</p>
+      <p className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1"><Ruler className="h-3.5 w-3.5" /> Formula</p>
       <p className="font-mono text-foreground">{formula}</p>
       {description && <p className="text-xs text-muted-foreground mt-1">{description}</p>}
     </div>
@@ -161,8 +162,8 @@ function TotalUsersDetail({ filters }: { filters: DashboardFilterValues }) {
         <MiniStat label="Attivi" value={active} color="text-success" />
         <MiniStat label="Sospesi" value={suspended} color="text-warning" />
         <MiniStat label="Banditi" value={banned} color="text-destructive" />
-        <MiniStat label="Onboarding ✅" value={onboarded} sub={`${total > 0 ? Math.round((onboarded / total) * 100) : 0}%`} />
-        <MiniStat label="Onboarding ❌" value={total - onboarded} />
+        <MiniStat label="Onboarding completato" value={onboarded} sub={`${total > 0 ? Math.round((onboarded / total) * 100) : 0}%`} />
+        <MiniStat label="Onboarding mancante" value={total - onboarded} />
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -177,7 +178,7 @@ function TotalUsersDetail({ filters }: { filters: DashboardFilterValues }) {
         <MiniStat label="Con telefono" value={withPhone} sub={`${total > 0 ? Math.round((withPhone / total) * 100) : 0}%`} />
       </div>
 
-      <SectionTitle>📈 Trend registrazione mensile</SectionTitle>
+      <SectionTitle><TrendingUp className="h-4 w-4 inline-block mr-1" /> Trend registrazione mensile</SectionTitle>
       <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
         {data?.monthlyTrend.map(m => (
           <div key={m.month} className="rounded-lg border p-3 text-center bg-card">
@@ -225,7 +226,7 @@ function TotalUsersDetail({ filters }: { filters: DashboardFilterValues }) {
                         <TableCell><Badge variant="outline">{u.membership_status || "Inactive"}</Badge></TableCell>
                         <TableCell>{u.total_points}</TableCell>
                         <TableCell className="text-xs">{u.self_level || "—"}</TableCell>
-                        <TableCell>{u.onboarding_completed ? "✅" : "❌"}</TableCell>
+                        <TableCell>{u.onboarding_completed ? <CheckCircle2 className="h-4 w-4 text-success" /> : <XCircle className="h-4 w-4 text-destructive" />}</TableCell>
                         <TableCell className="text-xs whitespace-nowrap">{format(new Date(u.created_at), "dd/MM/yyyy HH:mm")}</TableCell>
                       </TableRow>
                     ))}
@@ -276,7 +277,7 @@ function ActiveMembersDetail({ filters }: { filters: DashboardFilterValues }) {
         <MiniStat label="Totale tessere emesse" value={members.length} />
       </div>
 
-      <SectionTitle>📅 Distribuzione per anno</SectionTitle>
+      <SectionTitle><Calendar className="h-4 w-4 inline-block mr-1" /> Distribuzione per anno</SectionTitle>
       <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
         {yearEntries.map(([year, count]) => (
           <div key={year} className="rounded-lg border p-3 text-center bg-card">
@@ -323,7 +324,7 @@ function ActiveMembersDetail({ filters }: { filters: DashboardFilterValues }) {
                       <TableCell>{m.membership_year || "—"}</TableCell>
                       <TableCell>{statusBadge(m.membership_status || "Inactive")}</TableCell>
                       <TableCell>{statusBadge(m.account_status || "Active")}</TableCell>
-                      <TableCell>{m.is_founding_member ? "⭐ Sì" : "—"}</TableCell>
+                      <TableCell>{m.is_founding_member ? <span className="flex items-center gap-1"><Star className="h-3.5 w-3.5 text-warning" /> Si</span> : "—"}</TableCell>
                       <TableCell className="text-xs whitespace-nowrap">{m.membership_registration_date ? format(new Date(m.membership_registration_date), "dd/MM/yyyy") : "—"}</TableCell>
                     </TableRow>
                   ))}
@@ -402,7 +403,7 @@ function ParticipatingUsersDetail({ filters }: { filters: DashboardFilterValues 
         <MiniStat label="Totale cancellazioni" value={data.totalCancelled} color="text-warning" />
       </div>
 
-      <SectionTitle>👥 Lista utenti partecipanti</SectionTitle>
+      <SectionTitle><Users className="h-4 w-4 inline-block mr-1" /> Lista utenti partecipanti</SectionTitle>
       <div className="rounded-xl border overflow-auto">
         <Table>
           <TableHeader>
@@ -505,14 +506,14 @@ function EventsCreatedDetail({ filters }: { filters: DashboardFilterValues }) {
         ))}
       </div>
 
-      <SectionTitle>💳 Per tipo pagamento</SectionTitle>
+      <SectionTitle><CreditCard className="h-4 w-4 inline-block mr-1" /> Per tipo pagamento</SectionTitle>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {Object.entries(byPayment).map(([type, count]) => (
           <MiniStat key={type} label={type} value={count} />
         ))}
       </div>
 
-      <SectionTitle>📋 Dettaglio eventi</SectionTitle>
+      <SectionTitle><ClipboardList className="h-4 w-4 inline-block mr-1" /> Dettaglio eventi</SectionTitle>
       <div className="rounded-xl border overflow-auto">
         <Table>
           <TableHeader>
@@ -649,7 +650,7 @@ function ParticipationRateDetail({ filters }: { filters: DashboardFilterValues }
         <MiniStat label="Iscrizioni totali" value={data.totalRegistrations} />
       </div>
 
-      <SectionTitle>📈 Trend mensile</SectionTitle>
+      <SectionTitle><TrendingUp className="h-4 w-4 inline-block mr-1" /> Trend mensile</SectionTitle>
       <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
         {data.monthlyTrend.map(m => (
           <div key={m.month} className="rounded-lg border p-3 text-center bg-card">
@@ -660,7 +661,7 @@ function ParticipationRateDetail({ filters }: { filters: DashboardFilterValues }
         ))}
       </div>
 
-      <SectionTitle>📂 Per categoria</SectionTitle>
+      <SectionTitle><FolderOpen className="h-4 w-4 inline-block mr-1" /> Per categoria</SectionTitle>
       <div className="rounded-xl border overflow-auto">
         <Table>
           <TableHeader><TableRow><TableHead>Categoria</TableHead><TableHead>Utenti unici</TableHead><TableHead>% su totale utenti</TableHead></TableRow></TableHeader>
@@ -676,7 +677,7 @@ function ParticipationRateDetail({ filters }: { filters: DashboardFilterValues }
         </Table>
       </div>
 
-      <SectionTitle>👤 Per organizzatore</SectionTitle>
+      <SectionTitle><User className="h-4 w-4 inline-block mr-1" /> Per organizzatore</SectionTitle>
       <div className="rounded-xl border overflow-auto">
         <Table>
           <TableHeader><TableRow><TableHead>Organizzatore</TableHead><TableHead>Utenti unici</TableHead></TableRow></TableHeader>
@@ -1216,7 +1217,7 @@ function RepeatParticipantsDetail({ filters }: { filters: DashboardFilterValues 
                 <TableCell className="font-medium whitespace-nowrap">{u.name}</TableCell>
                 <TableCell className="text-xs">{u.email}</TableCell>
                 <TableCell className="font-semibold text-primary">{u.eventsAttended}</TableCell>
-                <TableCell>{u.badges > 0 ? `🏅 ${u.badges}` : "—"}</TableCell>
+                <TableCell>{u.badges > 0 ? <span className="flex items-center gap-1"><Medal className="h-3.5 w-3.5 text-warning" /> {u.badges}</span> : "—"}</TableCell>
                 <TableCell>{u.points}</TableCell>
                 <TableCell>{statusBadge(u.membership)}</TableCell>
                 <TableCell className="text-xs max-w-[150px] truncate">{u.lastEvent}</TableCell>
@@ -1286,7 +1287,7 @@ function TopCategoryDetail({ filters }: { filters: DashboardFilterValues }) {
 
   return (
     <div className="space-y-6">
-      <SectionTitle>🏆 Classifica categorie</SectionTitle>
+      <SectionTitle><Trophy className="h-4 w-4 inline-block mr-1" /> Classifica categorie</SectionTitle>
       <div className="rounded-xl border overflow-auto">
         <Table>
           <TableHeader>
@@ -1324,7 +1325,7 @@ function TopCategoryDetail({ filters }: { filters: DashboardFilterValues }) {
         </Table>
       </div>
 
-      <SectionTitle>📊 Dettaglio per categoria</SectionTitle>
+      <SectionTitle><BarChart3 className="h-4 w-4 inline-block mr-1" /> Dettaglio per categoria</SectionTitle>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {data.filter(c => c.events > 0).map(c => (
           <Card key={c.name}>
@@ -1531,7 +1532,7 @@ function CommunityHealthDetail({ filters }: { filters: DashboardFilterValues }) 
         <p className="text-sm text-muted-foreground mt-2">Punteggio: {data.score}/12</p>
       </div>
 
-      <SectionTitle>📊 Indicatori chiave</SectionTitle>
+      <SectionTitle><BarChart3 className="h-4 w-4 inline-block mr-1" /> Indicatori chiave</SectionTitle>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <HealthMetric label="Tasso presenza" value={`${data.attendanceRate}%`} good={data.attendanceRate > 70} warn={data.attendanceRate > 40} />
         <HealthMetric label="Tasso no-show" value={`${data.noShowRate}%`} good={data.noShowRate < 10} warn={data.noShowRate < 25} />
@@ -1541,7 +1542,7 @@ function CommunityHealthDetail({ filters }: { filters: DashboardFilterValues }) 
         <HealthMetric label="Tasso tesseramento" value={`${data.membershipRate}%`} good={data.membershipRate > 50} warn={data.membershipRate > 25} />
       </div>
 
-      <SectionTitle>👥 Utenti</SectionTitle>
+      <SectionTitle><Users className="h-4 w-4 inline-block mr-1" /> Utenti</SectionTitle>
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <MiniStat label="Totale utenti" value={data.totalUsers} />
         <MiniStat label="Attivi" value={data.activeUsers} color="text-success" />
@@ -1550,7 +1551,7 @@ function CommunityHealthDetail({ filters }: { filters: DashboardFilterValues }) 
         <MiniStat label="Partecipanti" value={data.participatingUsers} color="text-primary" />
       </div>
 
-      <SectionTitle>📋 Iscrizioni & Presenze</SectionTitle>
+      <SectionTitle><ClipboardList className="h-4 w-4 inline-block mr-1" /> Iscrizioni & Presenze</SectionTitle>
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <MiniStat label="Iscrizioni totali" value={data.totalRegs} />
         <MiniStat label="Check-in" value={data.checkedIn} color="text-success" />
@@ -1559,7 +1560,7 @@ function CommunityHealthDetail({ filters }: { filters: DashboardFilterValues }) 
         <MiniStat label="In waitlist" value={data.waitlist} color="text-warning" />
       </div>
 
-      <SectionTitle>🔧 Segnalazioni</SectionTitle>
+      <SectionTitle><Wrench className="h-4 w-4 inline-block mr-1" /> Segnalazioni</SectionTitle>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <MiniStat label="Segnalazioni totali" value={data.totalIssues} />
         <MiniStat label="Aperte" value={data.openIssues} color="text-destructive" />
@@ -1567,7 +1568,7 @@ function CommunityHealthDetail({ filters }: { filters: DashboardFilterValues }) 
         <MiniStat label="Tasso risoluzione" value={`${data.issueResolutionRate}%`} color={data.issueResolutionRate > 70 ? "text-success" : "text-warning"} />
       </div>
 
-      <SectionTitle>🏛️ Altro</SectionTitle>
+      <SectionTitle><Landmark className="h-4 w-4 inline-block mr-1" /> Altro</SectionTitle>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <MiniStat label="Tesserati attivi" value={data.activeMembers} color="text-success" />
         <MiniStat label="Totale eventi" value={data.totalEvents} />
