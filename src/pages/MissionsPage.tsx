@@ -54,6 +54,17 @@ export default function MissionsPage() {
     },
   });
 
+  const { data: categories = [] } = useQuery({
+    queryKey: ["event_categories"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("event_categories")
+        .select("id, name")
+        .order("sort_order");
+      return data || [];
+    },
+  });
+
   const saveMutation = useMutation({
     mutationFn: async (m: MissionForm) => {
       const payload = {
