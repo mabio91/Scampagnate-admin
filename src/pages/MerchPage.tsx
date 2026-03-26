@@ -246,6 +246,21 @@ function GalleryEditor({
             </button>
           )}
         </div>
+        {/* Upload Progress Bar */}
+        {uploading && uploadProgress && uploadProgress.total > 0 && (
+          <div className="mt-2 space-y-1">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>{t("merch.uploading")} {uploadProgress.current}/{uploadProgress.total}</span>
+              <span>{Math.round((uploadProgress.current / uploadProgress.total) * 100)}%</span>
+            </div>
+            <div className="h-2 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full bg-primary rounded-full transition-all duration-300 ease-out"
+                style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
