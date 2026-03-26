@@ -698,6 +698,8 @@ export default function Dashboard() {
             icon={BarChart3}
             iconBg="bg-secondary"
             subtitle={t("dashboard.avgFillSub")}
+            change={trendFillRate.change}
+            changeType={trendFillRate.changeType}
             onClick={() => openKPI("fill-rate")}
           />
           <PremiumStatCard
@@ -705,8 +707,8 @@ export default function Dashboard() {
             value={totalWaitlist.toLocaleString()}
             icon={Clock}
             iconBg="bg-warning"
-            changeType={totalWaitlist > 0 ? "negative" : "neutral"}
-            change={totalWaitlist > 0 ? `${totalWaitlist} ${t("dashboard.waiting")}` : t("dashboard.noWaitlist")}
+            change={trendWaitlist.change}
+            changeType={trendWaitlist.changeType}
             onClick={() => openKPI("waitlist")}
           />
           <PremiumStatCard
@@ -723,6 +725,8 @@ export default function Dashboard() {
             icon={UserPlus}
             iconBg="bg-primary"
             subtitle={format(new Date(), "MMMM yyyy")}
+            change={trendNewUsers.change}
+            changeType={trendNewUsers.changeType}
             onClick={() => openKPI("total-users")}
           />
           <PremiumStatCard
