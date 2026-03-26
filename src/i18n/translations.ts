@@ -364,6 +364,11 @@ export const translations = {
   "merch.uploading": { it: "Caricamento...", en: "Uploading..." },
   "merch.uploadHint": { it: "Clicca per caricare PNG o JPG (max 5MB)", en: "Click to upload PNG or JPG (max 5MB)" },
   "merch.changeImage": { it: "Cambia immagine", en: "Change image" },
+  "merch.heroImage": { it: "Immagine principale", en: "Hero image" },
+  "merch.uploadHeroHint": { it: "Clicca per caricare l'immagine principale (PNG/JPG, max 5MB)", en: "Click to upload hero image (PNG/JPG, max 5MB)" },
+  "merch.galleryImages": { it: "Galleria immagini", en: "Gallery images" },
+  "merch.setAsHero": { it: "Imposta come principale", en: "Set as hero" },
+  "merch.addImage": { it: "Aggiungi", en: "Add" },
   "merch.whatsappNumber": { it: "Numero WhatsApp", en: "WhatsApp Number" },
   "merch.whatsappHint": { it: "Formato internazionale senza + (es. 393331234567)", en: "International format without + (e.g. 393331234567)" },
 
