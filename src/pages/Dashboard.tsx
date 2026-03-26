@@ -4,7 +4,7 @@ import {
   Users, Building2, Calendar, AlertTriangle, Activity, ArrowUpRight, ArrowDownRight, Minus,
   TrendingUp, UserCheck, BarChart3, Clock, Repeat, UserPlus, Star, CloudSun, MapPin,
   CheckCircle2, ListChecks, Percent, Trophy, ShieldAlert, CalendarX, UserMinus, FileWarning,
-  CreditCard, UserCog, Ban, CircleDot, ExternalLink, Bell
+  CreditCard, UserCog, Ban, CircleDot, ExternalLink, Bell, Info
 } from "lucide-react";
 import RefreshButton from "@/components/RefreshButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -78,10 +78,12 @@ interface PremiumStatCardProps {
   iconBg: string;
   subtitle?: string;
   onClick?: () => void;
+  kpiInfo?: { definition: string; formula: string };
 }
 
-function PremiumStatCard({ title, value, icon: Icon, change, changeType = "neutral", iconBg, subtitle, onClick }: PremiumStatCardProps) {
+function PremiumStatCard({ title, value, icon: Icon, change, changeType = "neutral", iconBg, subtitle, onClick, kpiInfo }: PremiumStatCardProps) {
   const ChangeIcon = changeType === "positive" ? ArrowUpRight : changeType === "negative" ? ArrowDownRight : Minus;
+  const [showInfo, setShowInfo] = useState(false);
   return (
     <div
       className={cn(
@@ -92,6 +94,25 @@ function PremiumStatCard({ title, value, icon: Icon, change, changeType = "neutr
     >
       {/* Colored top bar */}
       <div className={cn("absolute top-0 left-0 right-0 h-1 rounded-t-xl", iconBg)} />
+      {/* KPI Info tooltip */}
+      {kpiInfo && (
+        <div className="absolute top-2.5 right-2.5 z-10">
+          <div
+            className="relative"
+            onMouseEnter={() => setShowInfo(true)}
+            onMouseLeave={() => setShowInfo(false)}
+            onClick={(e) => { e.stopPropagation(); setShowInfo(!showInfo); }}
+          >
+            <Info className="h-3.5 w-3.5 text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-help" />
+            {showInfo && (
+              <div className="absolute right-0 top-full mt-1.5 w-56 rounded-lg border bg-popover p-3 shadow-lg text-left z-50">
+                <p className="text-xs font-semibold text-foreground mb-1">{kpiInfo.definition}</p>
+                <p className="text-[11px] text-muted-foreground font-mono bg-muted/50 px-2 py-1 rounded">{kpiInfo.formula}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-1.5 min-w-0 flex-1 pt-1">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/70 truncate">{title}</p>
