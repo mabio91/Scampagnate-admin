@@ -566,6 +566,7 @@ export default function Dashboard() {
             icon={BarChart3}
             iconBg="bg-secondary"
             subtitle={t("dashboard.avgFillSub")}
+            onClick={() => setActiveKPI("fill-rate")}
           />
           <PremiumStatCard
             title={t("dashboard.waitlistRequests")}
@@ -574,6 +575,7 @@ export default function Dashboard() {
             iconBg="bg-warning"
             changeType={totalWaitlist > 0 ? "negative" : "neutral"}
             change={totalWaitlist > 0 ? `${totalWaitlist} ${t("dashboard.waiting")}` : t("dashboard.noWaitlist")}
+            onClick={() => setActiveKPI("waitlist")}
           />
           <PremiumStatCard
             title={t("dashboard.repeatParticipants")}
@@ -581,6 +583,7 @@ export default function Dashboard() {
             icon={Repeat}
             iconBg="bg-accent"
             subtitle={t("dashboard.repeatSub")}
+            onClick={() => setActiveKPI("repeat-participants")}
           />
           <PremiumStatCard
             title={t("dashboard.newUsersMonth")}
@@ -588,6 +591,7 @@ export default function Dashboard() {
             icon={UserPlus}
             iconBg="bg-primary"
             subtitle={format(new Date(), "MMMM yyyy")}
+            onClick={() => setActiveKPI("total-users")}
           />
           <PremiumStatCard
             title={t("dashboard.topCategory")}
@@ -595,6 +599,7 @@ export default function Dashboard() {
             icon={Trophy}
             iconBg="bg-secondary"
             subtitle={t("dashboard.topCategorySub")}
+            onClick={() => setActiveKPI("top-category")}
           />
         </div>
       </div>
@@ -614,6 +619,7 @@ export default function Dashboard() {
           changeType={openIssues > 0 ? "negative" : "positive"}
           change={openIssues === 0 ? t("dashboard.allClear") : `${openIssues} ${t("dashboard.needAttention")}`}
           iconBg="bg-destructive"
+          onClick={() => setActiveKPI("open-issues")}
         />
         <PremiumStatCard
           title={t("dashboard.totalEvents")}
@@ -621,6 +627,7 @@ export default function Dashboard() {
           icon={Calendar}
           iconBg="bg-accent"
           subtitle={t("dashboard.allTime")}
+          onClick={() => setActiveKPI("events-created")}
         />
         <PremiumStatCard
           title={t("dashboard.communityHealth")}
@@ -632,6 +639,7 @@ export default function Dashboard() {
           iconBg="bg-success"
           changeType={Number(attendanceRate.replace('%', '')) > 40 ? "positive" : "negative"}
           change={`${attendanceRate} ${t("dashboard.attendance")}`}
+          onClick={() => setActiveKPI("community-health")}
         />
       </div>
 
