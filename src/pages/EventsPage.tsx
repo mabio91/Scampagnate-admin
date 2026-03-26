@@ -197,30 +197,6 @@ export default function EventsPage() {
     );
   };
 
-  const { data: registrations = [] } = useQuery({
-    queryKey: ["event-registrations", viewEvent?.id],
-    enabled: !!viewEvent,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("event_registrations")
-        .select("id, status, checked_in")
-        .eq("event_id", viewEvent!.id);
-      return data || [];
-    },
-  });
-
-  const { data: meetingPoints = [] } = useQuery({
-    queryKey: ["event-meeting-points", viewEvent?.id],
-    enabled: !!viewEvent,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("event_meeting_points")
-        .select("*")
-        .eq("event_id", viewEvent!.id)
-        .order("sort_order");
-      return data || [];
-    },
-  });
 
   const saveMutation = useMutation({
     mutationFn: async (evt: any) => {
