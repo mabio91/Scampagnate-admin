@@ -1,39 +1,35 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, MoreHorizontal, Trash2, Edit2, UserPlus, Landmark } from "lucide-react";
+import { Search, MoreHorizontal, Trash2, Edit2, UserPlus, Download } from "lucide-react";
 import RefreshButton from "@/components/RefreshButton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Tables, Database } from "@/integrations/supabase/types";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { exportToCsv } from "@/lib/exportUtils";
 
 type Profile = Tables<"profiles">;
 
 export default function UsersPage() {
   const { t } = useLanguage();
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
-  const [viewUser, setViewUser] = useState<(Profile & { roles: string[] }) | null>(null);
   const [editUser, setEditUser] = useState<(Profile & { roles: string[] }) | null>(null);
   const [editForm, setEditForm] = useState({
-    first_name: "",
-    last_name: "",
-    phone: "",
-    bio: "",
+    first_name: "", last_name: "", phone: "", bio: "",
     account_status: "Active" as Database["public"]["Enums"]["account_status"]
   });
   const [editRole, setEditRole] = useState("user");
@@ -48,16 +44,12 @@ export default function UsersPage() {
       const { data: profiles, error } = await supabase.from("profiles").select("*").order("created_at", { ascending: false });
       if (error) throw error;
       const { data: roles } = await supabase.from("user_roles").select("user_id, role");
-
-      // Fetch auth user data (email, last_sign_in_at)
       let authUsers: { id: string; email: string; last_sign_in_at: string | null; created_at: string }[] = [];
       try {
         const res = await supabase.functions.invoke("list-users");
         if (res.data && !res.data.error) authUsers = res.data;
-      } catch { }
-
+      } catch {}
       const authMap = new Map(authUsers.map((u) => [u.id, u]));
-
       return (profiles || []).map((p) => ({
         ...p,
         roles: (roles || []).filter((r) => r.user_id === p.id).map((r) => r.role),
@@ -77,96 +69,47 @@ export default function UsersPage() {
     },
   });
 
-  const { data: userActivity, isLoading: loadingActivity } = useQuery({
-    queryKey: ["admin-user-activity", viewUser?.id],
-    queryFn: async () => {
-      if (!viewUser?.id) return [];
-      const { data, error } = await supabase
-        .from("event_registrations")
-        .select(`
-          id,
-          status,
-          checked_in,
-          created_at,
-          events:event_id (
-            id,
-            title,
-            date
-          )
-        `)
-        .eq("user_id", viewUser.id)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!viewUser?.id,
-  });
-
   const updateProfile = useMutation({
     mutationFn: async () => {
       if (!editUser) return;
       const { error } = await supabase.from("profiles").update({
-        first_name: editForm.first_name,
-        last_name: editForm.last_name,
-        phone: editForm.phone,
-        bio: editForm.bio,
-        account_status: editForm.account_status,
+        first_name: editForm.first_name, last_name: editForm.last_name,
+        phone: editForm.phone, bio: editForm.bio, account_status: editForm.account_status,
         updated_at: new Date().toISOString(),
       }).eq("id", editUser.id);
       if (error) throw error;
-
-      // Update role
       const currentRole = editUser.roles.find((r) => ["admin", "organizer", "user"].includes(r)) || "user";
       if (editRole !== currentRole) {
         await supabase.from("user_roles").delete().eq("user_id", editUser.id).eq("role", currentRole as any);
         await supabase.from("user_roles").insert({ user_id: editUser.id, role: editRole as any });
       }
     },
-    onSuccess: () => {
-      toast.success("User updated");
-      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
-      setEditUser(null);
-    },
+    onSuccess: () => { toast.success("User updated"); queryClient.invalidateQueries({ queryKey: ["admin-users"] }); setEditUser(null); },
     onError: (e: any) => toast.error(e.message),
   });
 
   const updateStatus = useMutation({
     mutationFn: async ({ userId, status }: { userId: string; status: Database["public"]["Enums"]["account_status"] }) => {
-      const { error } = await supabase.from("profiles").update({
-        account_status: status,
-        updated_at: new Date().toISOString(),
-      }).eq("id", userId);
+      const { error } = await supabase.from("profiles").update({ account_status: status, updated_at: new Date().toISOString() }).eq("id", userId);
       if (error) throw error;
     },
-    onSuccess: () => {
-      toast.success("User status updated");
-      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
-    },
+    onSuccess: () => { toast.success("User status updated"); queryClient.invalidateQueries({ queryKey: ["admin-users"] }); },
     onError: (e: any) => toast.error(e.message),
   });
 
   const deleteUser = useMutation({
     mutationFn: async (userId: string) => {
-      const res = await supabase.functions.invoke("delete-user", {
-        body: { user_id: userId },
-      });
+      const res = await supabase.functions.invoke("delete-user", { body: { user_id: userId } });
       if (res.error) throw new Error(res.error.message);
       if (res.data?.error) throw new Error(res.data.error);
     },
-    onSuccess: () => {
-      toast.success("User deleted successfully");
-      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
-    },
+    onSuccess: () => { toast.success("User deleted successfully"); queryClient.invalidateQueries({ queryKey: ["admin-users"] }); },
     onError: (e: any) => toast.error(e.message),
   });
 
   const createUser = useMutation({
     mutationFn: async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await supabase.functions.invoke("create-user", {
-        body: newUser,
-      });
+      const res = await supabase.functions.invoke("create-user", { body: newUser });
       if (res.error) throw new Error(res.error.message);
       if (res.data?.error) throw new Error(res.data.error);
     },
@@ -181,27 +124,31 @@ export default function UsersPage() {
 
   const openEdit = (user: Profile & { roles: string[] }) => {
     setEditUser(user);
-    setEditForm({
-      first_name: user.first_name,
-      last_name: user.last_name,
-      phone: user.phone,
-      bio: user.bio || "",
-      account_status: user.account_status || "Active"
-    });
+    setEditForm({ first_name: user.first_name, last_name: user.last_name, phone: user.phone, bio: user.bio || "", account_status: user.account_status || "Active" });
     setEditRole(user.roles.includes("admin") ? "admin" : user.roles.includes("organizer") ? "organizer" : "user");
   };
 
   const filtered = users.filter((u) => {
     const searchLower = search.toLowerCase();
-    const matchesSearch = 
+    const matchesSearch =
       `${u.first_name} ${u.last_name}`.toLowerCase().includes(searchLower) ||
       (u.phone || "").toLowerCase().includes(searchLower) ||
       (u.email || "").toLowerCase().includes(searchLower) ||
       (u.membership_id ? String(u.membership_id).toLowerCase().includes(searchLower) : false);
-      
     const matchesStatus = statusFilter === "All" || u.account_status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  const handleExport = () => {
+    exportToCsv("users", [t("common.name"), t("common.email"), t("common.phone"), t("users.role"), t("common.status"), t("users.events"), t("users.joined")],
+      filtered.map((u) => [
+        `${u.first_name} ${u.last_name}`, u.email || "", u.phone || "",
+        u.roles.join(", "), u.account_status || "Active",
+        String(regCounts[u.id] || 0), new Date(u.created_at).toLocaleDateString(),
+      ])
+    );
+    toast.success(t("export.exportCsv"));
+  };
 
   return (
     <div className="space-y-6">
@@ -212,6 +159,9 @@ export default function UsersPage() {
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <RefreshButton queryKeys={[["admin-users"], ["admin-user-reg-counts"]]} />
+          <Button variant="outline" size="icon" onClick={handleExport} title={t("export.exportCsv")}>
+            <Download className="h-4 w-4" />
+          </Button>
           <Button className="gap-2 flex-1 sm:flex-initial" onClick={() => setCreateOpen(true)}>
             <UserPlus className="h-4 w-4" /> {t("users.addUser")}
           </Button>
@@ -227,9 +177,7 @@ export default function UsersPage() {
             </div>
             <div className="w-[180px]">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t("users.filterByStatus")} />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("users.filterByStatus")} /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="All">{t("users.allStatuses")}</SelectItem>
                   <SelectItem value="Active">{t("common.active")}</SelectItem>
@@ -260,7 +208,7 @@ export default function UsersPage() {
               </TableHeader>
               <TableBody>
                 {filtered.map((user) => (
-                  <TableRow key={user.id}>
+                  <TableRow key={user.id} className="cursor-pointer" onClick={() => navigate(`/users/${user.id}`)}>
                     <TableCell className="font-medium">{user.first_name} {user.last_name}</TableCell>
                     <TableCell className="text-muted-foreground">{user.email || "—"}</TableCell>
                     <TableCell className="text-muted-foreground">{user.phone || "—"}</TableCell>
@@ -276,8 +224,8 @@ export default function UsersPage() {
                         variant={user.account_status === "Active" ? "outline" : "default"}
                         className={
                           user.account_status === "Active" ? "bg-green-500/10 text-green-500 hover:bg-green-500/20" :
-                            user.account_status === "Suspended" ? "bg-yellow-500 hover:bg-yellow-600" :
-                              "bg-destructive hover:bg-destructive/90"
+                          user.account_status === "Suspended" ? "bg-yellow-500 hover:bg-yellow-600" :
+                          "bg-destructive hover:bg-destructive/90"
                         }
                       >
                         {user.account_status || "Active"}
@@ -286,13 +234,13 @@ export default function UsersPage() {
                     <TableCell>{regCounts[user.id] || 0}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">{new Date(user.created_at).toLocaleDateString()}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">{user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString() : t("users.never")}</TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => setViewUser(user)}>
+                          <DropdownMenuItem onClick={() => navigate(`/users/${user.id}`)}>
                             <Search className="h-4 w-4 mr-2" /> {t("users.viewDetails")}
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => openEdit(user)}>
@@ -309,10 +257,7 @@ export default function UsersPage() {
                             </DropdownMenuItem>
                           )}
                           {user.account_status !== "Banned" && (
-                            <DropdownMenuItem
-                              className="text-destructive"
-                              onClick={() => setConfirmAction({ type: "ban", userId: user.id, userName: `${user.first_name} ${user.last_name}` })}
-                            >
+                            <DropdownMenuItem className="text-destructive" onClick={() => setConfirmAction({ type: "ban", userId: user.id, userName: `${user.first_name} ${user.last_name}` })}>
                               <Trash2 className="h-4 w-4 mr-2" /> Ban User
                             </DropdownMenuItem>
                           )}
@@ -325,171 +270,13 @@ export default function UsersPage() {
                   </TableRow>
                 ))}
                 {filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">{t("users.noUsersFound")}</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">{t("users.noUsersFound")}</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
           )}
         </CardContent>
       </Card>
-
-      {/* View User Activity Dialog */}
-      <Dialog open={!!viewUser} onOpenChange={(o) => !o && setViewUser(null)}>
-        <DialogContent className="max-w-3xl h-[80vh] flex flex-col pl-6 pr-2">
-          <DialogHeader className="pr-4">
-            <DialogTitle>{t("users.userDetails")}: {viewUser?.first_name} {viewUser?.last_name}</DialogTitle>
-          </DialogHeader>
-
-          <ScrollArea className="flex-1 pr-4">
-            {viewUser && (
-              <Tabs defaultValue="profile" className="w-full mt-2">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="profile">{t("users.profileOverview")}</TabsTrigger>
-                  <TabsTrigger value="activity">{t("users.activityHistory")}</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="profile" className="space-y-4 mt-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Email</p>
-                      <p className="font-medium">{viewUser.email || "—"}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Phone</p>
-                      <p className="font-medium">{viewUser.phone || "—"}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Joined Date</p>
-                      <p className="font-medium">{new Date(viewUser.created_at).toLocaleDateString()}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Account Status</p>
-                      <Badge variant={viewUser.account_status === "Active" ? "outline" : "default"}>
-                        {viewUser.account_status || "Active"}
-                      </Badge>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Roles</p>
-                      <div className="flex gap-1 flex-wrap">
-                        {viewUser.roles.map((r) => <Badge key={r} variant="secondary">{r}</Badge>)}
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Membership Status</p>
-                      <Badge variant={viewUser.membership_status === "Active" ? "outline" : "secondary"}>
-                        {viewUser.membership_status || "None"}
-                      </Badge>
-                    </div>
-                    {viewUser.membership_id && (
-                      <div className="space-y-1">
-                        <p className="text-sm text-muted-foreground">Membership ID</p>
-                        <p className="font-medium font-mono text-sm">{viewUser.membership_id}</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {viewUser.is_founding_member && (
-                    <div className="mt-4 p-3 rounded-lg border border-amber-500/30 bg-amber-500/5">
-                      <div className="flex items-center gap-2">
-                        <Landmark className="h-5 w-5 text-amber-600" />
-                        <span className="font-semibold text-amber-600">Founding Member</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {viewUser.bio && (
-                    <div className="space-y-1 mt-4">
-                      <p className="text-sm text-muted-foreground">Bio</p>
-                      <p className="text-sm whitespace-pre-wrap bg-muted/30 p-3 rounded-md border">{viewUser.bio}</p>
-                    </div>
-                  )}
-                </TabsContent>
-
-                <TabsContent value="activity" className="space-y-4 mt-4">
-                  <div className="grid grid-cols-4 gap-4 mb-4">
-                    <Card className="bg-primary/5 border-primary/20">
-                      <CardContent className="p-4 text-center">
-                        <div className="text-2xl font-bold text-primary">{userActivity?.filter(a => a.status === 'registered' || a.status === 'paid').length || 0}</div>
-                        <div className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Joined</div>
-                      </CardContent>
-                    </Card>
-                    <Card className="bg-success/5 border-success/20">
-                      <CardContent className="p-4 text-center">
-                        <div className="text-2xl font-bold text-success">{userActivity?.filter(a => a.checked_in).length || 0}</div>
-                        <div className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Attended</div>
-                      </CardContent>
-                    </Card>
-                    <Card className="bg-warning/5 border-warning/20">
-                      <CardContent className="p-4 text-center">
-                        <div className="text-2xl font-bold text-warning">{userActivity?.filter(a => a.status === 'waitlist').length || 0}</div>
-                        <div className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Waitlist</div>
-                      </CardContent>
-                    </Card>
-                    <Card className="bg-destructive/5 border-destructive/20">
-                      <CardContent className="p-4 text-center">
-                        <div className="text-2xl font-bold text-destructive">{userActivity?.filter(a => a.status === 'cancelled').length || 0}</div>
-                        <div className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Cancelled</div>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  {loadingActivity ? (
-                    <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
-                  ) : !userActivity || userActivity.length === 0 ? (
-                    <div className="text-center py-12 text-muted-foreground border rounded-lg bg-muted/10">
-                      No event activity found for this user.
-                    </div>
-                  ) : (
-                    <div className="border rounded-md">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Event</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Attendance</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {userActivity.map((activity: any) => {
-                            const eventDateStr = activity.events?.date;
-                            const isPast = eventDateStr ? new Date(eventDateStr) < new Date(new Date().setHours(0, 0, 0, 0)) : false;
-                            const isNoShow = isPast && !activity.checked_in && (activity.status === 'registered' || activity.status === 'paid');
-
-                            return (
-                              <TableRow key={activity.id}>
-                                <TableCell className="font-medium">{activity.events?.title || "Unknown Event"}</TableCell>
-                                <TableCell className="text-muted-foreground">{eventDateStr ? new Date(eventDateStr).toLocaleDateString() : "—"}</TableCell>
-                                <TableCell>
-                                  <Badge variant={
-                                    activity.status === 'registered' || activity.status === 'paid' ? 'default' :
-                                      activity.status === 'waitlist' ? 'secondary' : 'outline'
-                                  }>
-                                    {activity.status}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell>
-                                  {activity.checked_in ? (
-                                    <Badge variant="outline" className="bg-success/10 text-success border-success/30">Present</Badge>
-                                  ) : isNoShow ? (
-                                    <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30">No Show</Badge>
-                                  ) : (
-                                    <span className="text-muted-foreground text-sm">—</span>
-                                  )}
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
-                </TabsContent>
-              </Tabs>
-            )}
-          </ScrollArea>
-        </DialogContent>
-      </Dialog>
 
       {/* Edit Dialog */}
       <Dialog open={!!editUser} onOpenChange={(o) => !o && setEditUser(null)}>
@@ -515,10 +302,7 @@ export default function UsersPage() {
             </div>
             <div>
               <Label>Account Status</Label>
-              <Select
-                value={editForm.account_status || "Active"}
-                onValueChange={(v: any) => setEditForm({ ...editForm, account_status: v })}
-              >
+              <Select value={editForm.account_status || "Active"} onValueChange={(v: any) => setEditForm({ ...editForm, account_status: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Active">Active</SelectItem>
@@ -570,7 +354,7 @@ export default function UsersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Confirmation Dialog for destructive actions */}
+      {/* Confirmation Dialog */}
       <AlertDialog open={!!confirmAction} onOpenChange={(o) => !o && setConfirmAction(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -591,13 +375,9 @@ export default function UsersPage() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => {
                 if (!confirmAction) return;
-                if (confirmAction.type === "delete") {
-                  deleteUser.mutate(confirmAction.userId);
-                } else if (confirmAction.type === "ban") {
-                  updateStatus.mutate({ userId: confirmAction.userId, status: "Banned" });
-                } else {
-                  updateStatus.mutate({ userId: confirmAction.userId, status: "Suspended" });
-                }
+                if (confirmAction.type === "delete") deleteUser.mutate(confirmAction.userId);
+                else if (confirmAction.type === "ban") updateStatus.mutate({ userId: confirmAction.userId, status: "Banned" });
+                else updateStatus.mutate({ userId: confirmAction.userId, status: "Suspended" });
                 setConfirmAction(null);
               }}
             >

@@ -9,7 +9,9 @@ import { AdminLayout } from "@/components/AdminLayout";
 import { AuthGuard } from "@/components/AuthGuard";
 import Dashboard from "@/pages/Dashboard";
 import UsersPage from "@/pages/UsersPage";
+import UserDetailPage from "@/pages/UserDetailPage";
 import OrganizersPage from "@/pages/OrganizersPage";
+import OrganizerDetailPage from "@/pages/OrganizerDetailPage";
 import CategoriesPage from "@/pages/CategoriesPage";
 import EventsPage from "@/pages/EventsPage";
 import IssuesPage from "@/pages/IssuesPage";
@@ -48,7 +50,9 @@ const App = () => (
             <Route element={<ProtectedLayout />}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/users" element={<UsersPage />} />
+              <Route path="/users/:id" element={<UserDetailPage />} />
               <Route path="/organizers" element={<OrganizersPage />} />
+              <Route path="/organizers/:id" element={<OrganizerDetailPage />} />
               <Route path="/categories" element={<CategoriesPage />} />
               <Route path="/events" element={<EventsPage />} />
               <Route path="/equipment-templates" element={<EquipmentTemplatesPage />} />

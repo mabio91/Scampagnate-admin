@@ -373,6 +373,43 @@ export const translations = {
   "merch.whatsappNumber": { it: "Numero WhatsApp", en: "WhatsApp Number" },
   "merch.whatsappHint": { it: "Formato internazionale senza + (es. 393331234567)", en: "International format without + (e.g. 393331234567)" },
 
+  // ── User Detail Page ──
+  "userDetail.onboardingData": { it: "Dati Onboarding", en: "Onboarding Data" },
+  "userDetail.selfLevel": { it: "Livello", en: "Self Level" },
+  "userDetail.experienceCount": { it: "Esperienze completate", en: "Experiences Completed" },
+  "userDetail.activityFrequency": { it: "Frequenza attività", en: "Activity Frequency" },
+  "userDetail.hasCar": { it: "Automunito", en: "Has Car" },
+  "userDetail.interests": { it: "Interessi", en: "Interests" },
+  "userDetail.eventMotivation": { it: "Motivazione principale", en: "Main Motivation" },
+  "userDetail.joined": { it: "Iscrizioni", en: "Joined" },
+  "userDetail.attended": { it: "Presenze", en: "Attended" },
+  "userDetail.waitlist": { it: "Lista attesa", en: "Waitlist" },
+  "userDetail.cancelled": { it: "Annullati", en: "Cancelled" },
+  "userDetail.noShow": { it: "No Show", en: "No Show" },
+  "userDetail.streak": { it: "Serie", en: "Streak" },
+  "userDetail.lastAttended": { it: "Ultimo evento frequentato", en: "Last Event Attended" },
+  "userDetail.avgFitScore": { it: "Compatibilità media eventi", en: "Avg Event Fit Score" },
+
+  // ── Organizer Detail Page ──
+  "orgDetail.performance": { it: "Performance", en: "Performance" },
+  "orgDetail.eventsCreated": { it: "Eventi creati", en: "Events Created" },
+  "orgDetail.avgFillRate": { it: "Riempimento medio", en: "Avg Fill Rate" },
+  "orgDetail.avgAttendance": { it: "Presenza media", en: "Avg Attendance" },
+  "orgDetail.cancellationRate": { it: "Tasso cancellazioni", en: "Cancellation Rate" },
+  "orgDetail.noShowRate": { it: "No-show", en: "No-show Rate" },
+  "orgDetail.fillRate": { it: "Riempimento", en: "Fill Rate" },
+  "orgDetail.attendanceRate": { it: "Presenza", en: "Attendance" },
+  "orgDetail.noEvents": { it: "Nessun evento organizzato", en: "No events organized" },
+  "orgDetail.healthExcellent": { it: "Ottimo", en: "Excellent" },
+  "orgDetail.healthGood": { it: "Buono", en: "Good" },
+  "orgDetail.healthWarning": { it: "Attenzione", en: "Warning" },
+  "orgDetail.healthCritical": { it: "Critico", en: "Critical" },
+  "orgDetail.performanceView": { it: "Vista Performance Organizzatori", en: "Organizer Performance View" },
+
+  // ── Export ──
+  "export.exportCsv": { it: "Esporta CSV", en: "Export CSV" },
+  "export.exporting": { it: "Esportazione...", en: "Exporting..." },
+
   // ── Profile Page ──
   "profile.title": { it: "Il mio Profilo", en: "My Profile" },
   "profile.subtitle": { it: "Gestisci le impostazioni del tuo account", en: "Manage your account settings" },
