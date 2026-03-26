@@ -631,6 +631,8 @@ export default function Dashboard() {
                 value={totalUsers.toLocaleString()}
                 icon={Users}
                 iconBg="bg-primary"
+                change={trendUsers.change}
+                changeType={trendUsers.changeType}
                 onClick={() => openKPI("total-users")}
               />
               <PremiumStatCard
@@ -639,6 +641,8 @@ export default function Dashboard() {
                 icon={UserCheck}
                 iconBg="bg-success"
                 subtitle={`${t("dashboard.paidMembership")} ${currentYear}`}
+                change={trendMembers.change ? trendMembers.change.replace("mese prec.", `${currentYear - 1}`) : undefined}
+                changeType={trendMembers.changeType}
                 onClick={() => openKPI("active-members")}
               />
               <PremiumStatCard
@@ -647,6 +651,8 @@ export default function Dashboard() {
                 icon={CheckCircle2}
                 iconBg="bg-secondary"
                 subtitle={`${t("dashboard.atLeast1Event")} ${currentYear}`}
+                change={trendAttended.change}
+                changeType={trendAttended.changeType}
                 onClick={() => openKPI("participating-users")}
               />
               <PremiumStatCard
@@ -655,6 +661,8 @@ export default function Dashboard() {
                 icon={Calendar}
                 iconBg="bg-accent"
                 subtitle={`${t("dashboard.in")} ${currentYear}`}
+                change={trendEvents.change}
+                changeType={trendEvents.changeType}
                 onClick={() => openKPI("events-created")}
               />
               <PremiumStatCard
@@ -671,6 +679,8 @@ export default function Dashboard() {
                 icon={ListChecks}
                 iconBg="bg-success"
                 subtitle={t("dashboard.attendanceSub")}
+                change={trendAttendanceRate.change}
+                changeType={trendAttendanceRate.changeType}
                 onClick={() => openKPI("attendance-rate")}
               />
             </>
