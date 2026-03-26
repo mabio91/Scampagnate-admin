@@ -504,6 +504,7 @@ export default function Dashboard() {
       const { data: events } = await supabase.from("events").select("category_id");
       if (!categories) return [];
       return categories.map((cat) => ({
+        id: cat.id,
         name: cat.name,
         value: events?.filter((e) => e.category_id === cat.id).length || 0,
       })).filter((c) => c.value > 0);
@@ -515,7 +516,7 @@ export default function Dashboard() {
     queryFn: async () => {
       const { data: events } = await supabase.from("events").select("date, id");
       const { data: regs } = await supabase.from("event_registrations").select("created_at");
-      const months: { month: string; events: number; registrations: number }[] = [];
+      const months: { month: string; events: number; registrations: number; dateFrom: string; dateTo: string }[] = [];
       for (let i = 6; i >= 0; i--) {
         const d = subMonths(new Date(), i);
         const label = format(d, "MMM");
@@ -525,6 +526,8 @@ export default function Dashboard() {
           month: label,
           events: events?.filter((e) => e.date >= start && e.date < end).length || 0,
           registrations: regs?.filter((r) => r.created_at >= start && r.created_at < end).length || 0,
+          dateFrom: start,
+          dateTo: end,
         });
       }
       return months;
@@ -535,7 +538,7 @@ export default function Dashboard() {
     queryKey: ["stats-issues-trend"],
     queryFn: async () => {
       const { data: issues } = await supabase.from("issues").select("created_at, status, resolved_at");
-      const weeks: { week: string; opened: number; resolved: number }[] = [];
+      const weeks: { week: string; opened: number; resolved: number; dateFrom: string; dateTo: string }[] = [];
       for (let i = 5; i >= 0; i--) {
         const start = new Date(); start.setDate(start.getDate() - (i + 1) * 7);
         const end = new Date(); end.setDate(end.getDate() - i * 7);
@@ -543,6 +546,8 @@ export default function Dashboard() {
           week: `W${6 - i}`,
           opened: issues?.filter((is) => new Date(is.created_at) >= start && new Date(is.created_at) < end).length || 0,
           resolved: issues?.filter((is) => is.resolved_at && new Date(is.resolved_at) >= start && new Date(is.resolved_at) < end).length || 0,
+          dateFrom: start.toISOString(),
+          dateTo: end.toISOString(),
         });
       }
       return weeks;
