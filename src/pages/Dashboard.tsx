@@ -549,17 +549,187 @@ export default function Dashboard() {
     },
   });
 
+  // ── ATTENTION REQUIRED ALERTS ──
+  const { data: alerts = [] } = useQuery({
+    queryKey: ["dashboard-alerts"],
+    queryFn: async () => {
+      const alertItems: { id: string; message: string; severity: "warning" | "danger"; route: string; icon: string }[] = [];
+
+      // 1. Memberships expiring (active but from previous year)
+      const { count: expiringMembers } = await supabase
+        .from("profiles")
+        .select("*", { count: "exact", head: true })
+        .eq("membership_status", "Active")
+        .lt("membership_year", currentYear);
+      if (expiringMembers && expiringMembers > 0) {
+        alertItems.push({
+          id: "expiring-members",
+          message: `${expiringMembers} tessere in scadenza (anno precedente)`,
+          severity: "warning",
+          route: "/members?status=expiring",
+          icon: "membership",
+        });
+      }
+
+      // 2. Events with high no-show rate (>40%)
+      const { data: recentEventsForNoShow } = await supabase
+        .from("events")
+        .select("id, title")
+        .in("status", ["past", "closed"])
+        .order("date", { ascending: false })
+        .limit(50);
+      if (recentEventsForNoShow && recentEventsForNoShow.length > 0) {
+        const eventIds = recentEventsForNoShow.map(e => e.id);
+        const { data: regsForNoShow } = await supabase
+          .from("event_registrations")
+          .select("event_id, checked_in, status")
+          .in("event_id", eventIds)
+          .in("status", ["registered", "paid", "attended", "no_show"]);
+        if (regsForNoShow) {
+          const byEvent: Record<string, { total: number; noShow: number }> = {};
+          regsForNoShow.forEach(r => {
+            if (!byEvent[r.event_id]) byEvent[r.event_id] = { total: 0, noShow: 0 };
+            byEvent[r.event_id].total++;
+            if (!r.checked_in && r.status !== "cancelled") byEvent[r.event_id].noShow++;
+          });
+          const highNoShow = Object.entries(byEvent).filter(([_, v]) => v.total >= 3 && (v.noShow / v.total) > 0.4).length;
+          if (highNoShow > 0) {
+            alertItems.push({
+              id: "high-no-show",
+              message: `${highNoShow} eventi con no-show superiore al 40%`,
+              severity: "danger",
+              route: "/events?sort=no-show",
+              icon: "noshow",
+            });
+          }
+        }
+      }
+
+      // 3. Open issues older than 5 days
+      const fiveDaysAgo = new Date();
+      fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+      const { count: oldIssues } = await supabase
+        .from("issues")
+        .select("*", { count: "exact", head: true })
+        .in("status", ["open", "in_progress"])
+        .lt("created_at", fiveDaysAgo.toISOString());
+      if (oldIssues && oldIssues > 0) {
+        alertItems.push({
+          id: "old-issues",
+          message: `${oldIssues} segnalazioni aperte da oltre 5 giorni`,
+          severity: "danger",
+          route: "/issues?sort=oldest",
+          icon: "issue",
+        });
+      }
+
+      // 4. Events with 0 registrations (upcoming)
+      const today = format(new Date(), "yyyy-MM-dd");
+      const { count: emptyEvents } = await supabase
+        .from("events")
+        .select("*", { count: "exact", head: true })
+        .gte("date", today)
+        .in("status", ["published", "available"])
+        .eq("spots_taken", 0);
+      if (emptyEvents && emptyEvents > 0) {
+        alertItems.push({
+          id: "empty-events",
+          message: `${emptyEvents} eventi senza iscritti`,
+          severity: "warning",
+          route: "/events?filter=empty",
+          icon: "empty-event",
+        });
+      }
+
+      // 5. Pending approval registrations
+      const { count: pendingApprovals } = await supabase
+        .from("event_registrations")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "pending_approval");
+      if (pendingApprovals && pendingApprovals > 0) {
+        alertItems.push({
+          id: "pending-approvals",
+          message: `${pendingApprovals} iscrizioni in attesa di approvazione`,
+          severity: "warning",
+          route: "/events?filter=pending",
+          icon: "approval",
+        });
+      }
+
+      return alertItems;
+    },
+    staleTime: 120000,
+  });
+
   const { data: recentActivity = [] } = useQuery({
     queryKey: ["stats-recent"],
     queryFn: async () => {
-      const activities: { action: string; detail: string; time: string; type: string }[] = [];
-      const { data: recentUsers } = await supabase.from("profiles").select("first_name, last_name, created_at").order("created_at", { ascending: false }).limit(3);
-      recentUsers?.forEach((u) => activities.push({ action: "new_user", detail: `${u.first_name} ${u.last_name}`, time: u.created_at, type: "user" }));
-      const { data: recentEvents } = await supabase.from("events").select("title, created_at").order("created_at", { ascending: false }).limit(3);
-      recentEvents?.forEach((e) => activities.push({ action: "event_created", detail: e.title, time: e.created_at, type: "event" }));
-      const { data: recentIssues } = await supabase.from("issues").select("title, created_at").order("created_at", { ascending: false }).limit(3);
-      recentIssues?.forEach((is) => activities.push({ action: "issue_reported", detail: is.title, time: is.created_at, type: "issue" }));
-      return activities.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 6);
+      const activities: { action: string; detail: string; time: string; type: string; entityId?: string; route?: string }[] = [];
+
+      // New users registered
+      const { data: recentUsers } = await supabase.from("profiles").select("id, first_name, last_name, created_at, onboarding_completed, membership_status").order("created_at", { ascending: false }).limit(5);
+      recentUsers?.forEach((u) => {
+        activities.push({ action: "new_user", detail: `${u.first_name} ${u.last_name}`, time: u.created_at, type: "user", entityId: u.id, route: `/users` });
+        if (u.onboarding_completed) {
+          activities.push({ action: "onboarding_completed", detail: `${u.first_name} ${u.last_name}`, time: u.created_at, type: "user", entityId: u.id, route: `/users` });
+        }
+        if (u.membership_status === "Active") {
+          activities.push({ action: "membership_activated", detail: `${u.first_name} ${u.last_name}`, time: u.created_at, type: "membership", entityId: u.id, route: `/members` });
+        }
+      });
+
+      // Events created / updated / cancelled
+      const { data: recentEvents } = await supabase.from("events").select("id, title, created_at, updated_at, status").order("updated_at", { ascending: false }).limit(5);
+      recentEvents?.forEach((e) => {
+        activities.push({ action: "event_created", detail: e.title, time: e.created_at, type: "event", entityId: e.id, route: `/events` });
+        if (e.status === "cancelled") {
+          activities.push({ action: "event_cancelled", detail: e.title, time: e.updated_at, type: "event", entityId: e.id, route: `/events` });
+        }
+      });
+
+      // Issues opened / resolved
+      const { data: recentIssues } = await supabase.from("issues").select("id, title, created_at, status, resolved_at").order("created_at", { ascending: false }).limit(5);
+      recentIssues?.forEach((is) => {
+        activities.push({ action: "issue_opened", detail: is.title, time: is.created_at, type: "issue", entityId: is.id, route: `/issues` });
+        if (is.status === "resolved" && is.resolved_at) {
+          activities.push({ action: "issue_resolved", detail: is.title, time: is.resolved_at, type: "issue", entityId: is.id, route: `/issues` });
+        }
+      });
+
+      // Waitlist registrations
+      const { data: waitlistRegs } = await supabase
+        .from("event_registrations")
+        .select("id, created_at, status, user_id, events!inner(title)")
+        .eq("status", "waitlist")
+        .order("created_at", { ascending: false })
+        .limit(3);
+      waitlistRegs?.forEach((r: any) => {
+        activities.push({ action: "waitlist_activated", detail: r.events?.title || "Evento", time: r.created_at, type: "event", route: `/events` });
+      });
+
+      // Pending approvals
+      const { data: pendingRegs } = await supabase
+        .from("event_registrations")
+        .select("id, created_at, status, events!inner(title)")
+        .eq("status", "pending_approval")
+        .order("created_at", { ascending: false })
+        .limit(3);
+      pendingRegs?.forEach((r: any) => {
+        activities.push({ action: "approval_requested", detail: r.events?.title || "Evento", time: r.created_at, type: "event", route: `/events` });
+      });
+
+      // Paid registrations
+      const { data: paidRegs } = await supabase
+        .from("event_registrations")
+        .select("id, created_at, payment_status, events!inner(title)")
+        .eq("payment_status", "paid")
+        .order("created_at", { ascending: false })
+        .limit(3);
+      paidRegs?.forEach((r: any) => {
+        activities.push({ action: "payment_completed", detail: r.events?.title || "Evento", time: r.created_at, type: "payment", route: `/events` });
+      });
+
+      return activities.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 12);
     },
   });
 
@@ -567,6 +737,8 @@ export default function Dashboard() {
     user: { bg: "bg-primary/8 text-primary border-primary/20", dot: "bg-primary" },
     event: { bg: "bg-accent/8 text-accent border-accent/20", dot: "bg-accent" },
     issue: { bg: "bg-destructive/8 text-destructive border-destructive/20", dot: "bg-destructive" },
+    membership: { bg: "bg-success/8 text-success border-success/20", dot: "bg-success" },
+    payment: { bg: "bg-secondary/8 text-secondary border-secondary/20", dot: "bg-secondary" },
     organizer: { bg: "bg-secondary/8 text-secondary border-secondary/20", dot: "bg-secondary" },
   };
 
