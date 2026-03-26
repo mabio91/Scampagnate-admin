@@ -215,6 +215,8 @@ export default function Dashboard() {
     if (filters.dateTo) params.set("dateTo", filters.dateTo.toISOString());
     if (filters.categoryId) params.set("categoryId", filters.categoryId);
     if (filters.organizerId) params.set("organizerId", filters.organizerId);
+    if (filters.eventStatus) params.set("eventStatus", filters.eventStatus);
+    if (filters.membershipYear) params.set("membershipYear", filters.membershipYear);
     navigate(`/kpi?${params.toString()}`);
   };
 
