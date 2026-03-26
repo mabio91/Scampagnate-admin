@@ -207,6 +207,15 @@ export default function Dashboard() {
     organizerId: undefined,
   });
 
+  const openKPI = (type: string) => {
+    const params = new URLSearchParams({ type });
+    if (filters.dateFrom) params.set("dateFrom", filters.dateFrom.toISOString());
+    if (filters.dateTo) params.set("dateTo", filters.dateTo.toISOString());
+    if (filters.categoryId) params.set("categoryId", filters.categoryId);
+    if (filters.organizerId) params.set("organizerId", filters.organizerId);
+    navigate(`/kpi?${params.toString()}`);
+  };
+
   const currentYear = new Date().getFullYear();
   const yearStart = `${currentYear}-01-01`;
 
