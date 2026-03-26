@@ -300,7 +300,7 @@ export default function UserDetailPage() {
                         <TableRow
                           key={activity.id}
                           className="cursor-pointer hover:bg-muted/50"
-                          onClick={() => ev?.id && navigate(`/events`)}
+                          onClick={() => ev?.id && navigate(`/events?search=${encodeURIComponent(ev.title)}`)}
                         >
                           <TableCell className="font-medium">{ev?.title || "—"}</TableCell>
                           <TableCell>

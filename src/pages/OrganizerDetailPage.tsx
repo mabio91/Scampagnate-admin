@@ -215,7 +215,7 @@ export default function OrganizerDetailPage() {
                         <TableRow
                           key={event.id}
                           className="cursor-pointer hover:bg-muted/50"
-                          onClick={() => navigate(`/events`)}
+                          onClick={() => navigate(`/events?search=${encodeURIComponent(event.title)}`)}
                         >
                           <TableCell className="font-medium">{event.title}</TableCell>
                           <TableCell>
