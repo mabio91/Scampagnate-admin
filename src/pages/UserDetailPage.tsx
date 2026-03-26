@@ -349,11 +349,19 @@ function InfoField({ label, value, mono }: { label: string; value: string; mono?
   );
 }
 
+const metricStyles: Record<string, { card: string; text: string }> = {
+  primary: { card: "bg-primary/5 border-primary/20", text: "text-primary" },
+  success: { card: "bg-green-500/5 border-green-500/20", text: "text-green-600" },
+  warning: { card: "bg-yellow-500/5 border-yellow-500/20", text: "text-yellow-600" },
+  destructive: { card: "bg-destructive/5 border-destructive/20", text: "text-destructive" },
+};
+
 function MetricCard({ label, value, color }: { label: string; value: number; color: string }) {
+  const style = metricStyles[color] || metricStyles.primary;
   return (
-    <Card className={`bg-${color}/5 border-${color}/20`}>
+    <Card className={style.card}>
       <CardContent className="p-4 text-center">
-        <div className={`text-2xl font-bold text-${color}`}>{value}</div>
+        <div className={`text-2xl font-bold ${style.text}`}>{value}</div>
         <div className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{label}</div>
       </CardContent>
     </Card>
