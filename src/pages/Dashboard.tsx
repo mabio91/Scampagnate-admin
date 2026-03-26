@@ -511,7 +511,6 @@ export default function Dashboard() {
                 iconBg="bg-primary"
                 onClick={() => setActiveKPI("total-users")}
               />
-              />
               <PremiumStatCard
                 title={t("dashboard.activeMembers")}
                 value={activeMembers.toLocaleString()}
