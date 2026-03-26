@@ -71,6 +71,7 @@ export function AdminLayout() {
         <div className="flex-1 flex flex-col">
           <header className="h-14 flex items-center border-b bg-card px-4 gap-3">
             <SidebarTrigger />
+            <GlobalSearch />
             <div className="flex items-center gap-2 ml-auto">
               <LanguageSwitcher />
               <ThemeSwitcher />
