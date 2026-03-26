@@ -466,6 +466,15 @@ export const translations = {
   "globalSearch.placeholder": { it: "Cerca utenti, eventi, prodotti...", en: "Search users, events, products..." },
   "globalSearch.searching": { it: "Ricerca in corso...", en: "Searching..." },
   "globalSearch.noResults": { it: "Nessun risultato trovato", en: "No results found" },
+
+  // ── User Segments ──
+  "segments.all": { it: "Tutti", en: "All" },
+  "segments.newUsers": { it: "Nuovi utenti", en: "New users" },
+  "segments.activeUsers": { it: "Utenti attivi", en: "Active users" },
+  "segments.inactiveUsers": { it: "Utenti inattivi", en: "Inactive users" },
+  "segments.incompleteOnboarding": { it: "Onboarding incompleto", en: "Incomplete onboarding" },
+  "segments.noParticipation": { it: "Senza partecipazioni", en: "No participation" },
+  "segments.highParticipation": { it: "Alta partecipazione", en: "High participation" },
 } as const;
 
 export type TranslationKey = keyof typeof translations;
