@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Edit2, Trash2, MessageCircle, Upload, ImageIcon, X } from "lucide-react";
+import { Plus, Edit2, Trash2, MessageCircle, Upload, X, ChevronLeft, ChevronRight, GripVertical, Star } from "lucide-react";
 import RefreshButton from "@/components/RefreshButton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,8 +15,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { cn } from "@/lib/utils";
 
 type MerchProduct = Tables<"merch_products">;
+
+const MAX_GALLERY_IMAGES = 5;
 
 const emptyProduct = {
   name: "",
@@ -25,6 +28,7 @@ const emptyProduct = {
   description_it: "",
   price: 0,
   image_url: "",
+  gallery_images: [] as string[],
   badge: "",
   badge_it: "",
   is_active: true,
@@ -32,11 +36,172 @@ const emptyProduct = {
   whatsapp_number: "",
 };
 
+// --- Product Card with Image Carousel ---
+function ProductImageCarousel({ images, alt }: { images: string[]; alt: string }) {
+  const [current, setCurrent] = useState(0);
+
+  if (images.length === 0) return null;
+  if (images.length === 1) {
+    return <img src={images[0]} alt={alt} className="w-full h-full object-contain" />;
+  }
+
+  return (
+    <div className="relative w-full h-full group/carousel">
+      <img src={images[current]} alt={`${alt} ${current + 1}`} className="w-full h-full object-contain transition-opacity duration-200" />
+      <button
+        onClick={(e) => { e.stopPropagation(); setCurrent((p) => (p - 1 + images.length) % images.length); }}
+        className="absolute left-1 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur-sm rounded-full p-1 opacity-0 group-hover/carousel:opacity-100 transition-opacity"
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </button>
+      <button
+        onClick={(e) => { e.stopPropagation(); setCurrent((p) => (p + 1) % images.length); }}
+        className="absolute right-1 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur-sm rounded-full p-1 opacity-0 group-hover/carousel:opacity-100 transition-opacity"
+      >
+        <ChevronRight className="h-4 w-4" />
+      </button>
+      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+        {images.map((_, i) => (
+          <button
+            key={i}
+            onClick={(e) => { e.stopPropagation(); setCurrent(i); }}
+            className={cn(
+              "h-1.5 rounded-full transition-all",
+              i === current ? "w-4 bg-primary" : "w-1.5 bg-muted-foreground/40"
+            )}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// --- Gallery Editor in Dialog ---
+function GalleryEditor({
+  heroUrl,
+  galleryImages,
+  onHeroChange,
+  onGalleryChange,
+  uploading,
+  onUpload,
+}: {
+  heroUrl: string;
+  galleryImages: string[];
+  onHeroChange: (url: string) => void;
+  onGalleryChange: (urls: string[]) => void;
+  uploading: boolean;
+  onUpload: (target: "hero" | "gallery") => void;
+}) {
+  const { t } = useLanguage();
+
+  const removeGalleryImage = (index: number) => {
+    onGalleryChange(galleryImages.filter((_, i) => i !== index));
+  };
+
+  const promoteToHero = (index: number) => {
+    const newHero = galleryImages[index];
+    const newGallery = [...galleryImages];
+    newGallery[index] = heroUrl;
+    onHeroChange(newHero);
+    onGalleryChange(newGallery.filter(Boolean));
+  };
+
+  return (
+    <div className="space-y-3">
+      {/* Hero Image */}
+      <div>
+        <Label className="flex items-center gap-1.5">
+          <Star className="h-3.5 w-3.5 text-primary" />
+          {t("merch.heroImage")} <span className="text-destructive">*</span>
+        </Label>
+        <div className="mt-1.5">
+          {heroUrl ? (
+            <div className="relative rounded-lg border border-border overflow-hidden bg-muted/30">
+              <img src={heroUrl} alt="Hero" className="w-full h-48 object-contain p-2" />
+              <Button
+                variant="destructive"
+                size="icon"
+                className="absolute top-2 right-2 h-7 w-7"
+                onClick={() => onHeroChange("")}
+                type="button"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onUpload("hero")}
+              className="w-full h-36 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center gap-2 text-muted-foreground hover:border-primary/50 hover:bg-muted/20 transition-colors cursor-pointer"
+              disabled={uploading}
+            >
+              {uploading ? (
+                <>
+                  <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  <span className="text-sm">{t("merch.uploading")}</span>
+                </>
+              ) : (
+                <>
+                  <Upload className="h-8 w-8" />
+                  <span className="text-sm">{t("merch.uploadHeroHint")}</span>
+                </>
+              )}
+            </button>
+          )}
+          {heroUrl && (
+            <Button variant="outline" size="sm" className="mt-2 gap-2" onClick={() => onUpload("hero")} disabled={uploading} type="button">
+              <Upload className="h-3.5 w-3.5" />
+              {uploading ? t("merch.uploading") : t("merch.changeImage")}
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Gallery Images */}
+      <div>
+        <Label>{t("merch.galleryImages")} ({galleryImages.length}/{MAX_GALLERY_IMAGES})</Label>
+        <div className="mt-1.5 grid grid-cols-3 gap-2">
+          {galleryImages.map((url, i) => (
+            <div key={i} className="relative rounded-lg border border-border overflow-hidden bg-muted/30 aspect-square group/thumb">
+              <img src={url} alt={`Gallery ${i + 1}`} className="w-full h-full object-contain p-1" />
+              <div className="absolute inset-0 bg-background/60 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                <Button variant="secondary" size="icon" className="h-7 w-7" onClick={() => promoteToHero(i)} type="button" title={t("merch.setAsHero")}>
+                  <Star className="h-3.5 w-3.5" />
+                </Button>
+                <Button variant="destructive" size="icon" className="h-7 w-7" onClick={() => removeGalleryImage(i)} type="button">
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          ))}
+          {galleryImages.length < MAX_GALLERY_IMAGES && (
+            <button
+              type="button"
+              onClick={() => onUpload("gallery")}
+              className="aspect-square border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center gap-1 text-muted-foreground hover:border-primary/50 hover:bg-muted/20 transition-colors cursor-pointer"
+              disabled={uploading}
+            >
+              {uploading ? (
+                <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <>
+                  <Plus className="h-5 w-5" />
+                  <span className="text-xs">{t("merch.addImage")}</span>
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function MerchPage() {
   const { t, language } = useLanguage();
   const [editProduct, setEditProduct] = useState<(Partial<MerchProduct> & { isNew?: boolean }) | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadTarget, setUploadTarget] = useState<"hero" | "gallery">("hero");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
@@ -78,33 +243,54 @@ export default function MerchPage() {
       return;
     }
 
-    // Show preview immediately
-    const reader = new FileReader();
-    reader.onload = (ev) => setImagePreview(ev.target?.result as string);
-    reader.readAsDataURL(file);
-
     setUploading(true);
     try {
       const url = await uploadImage(file);
-      setEditProduct((prev) => prev ? { ...prev, image_url: url } : null);
+      if (uploadTarget === "hero") {
+        setEditProduct((prev) => prev ? { ...prev, image_url: url } : null);
+      } else {
+        setEditProduct((prev) => {
+          if (!prev) return null;
+          const current = getGalleryArray(prev.gallery_images);
+          if (current.length >= MAX_GALLERY_IMAGES) {
+            toast.error(`Maximum ${MAX_GALLERY_IMAGES} gallery images allowed`);
+            return prev;
+          }
+          return { ...prev, gallery_images: [...current, url] };
+        });
+      }
       toast.success(t("merch.imageUploaded"));
     } catch (err: any) {
       toast.error(err.message);
-      setImagePreview(null);
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
-  const removeImage = () => {
-    setEditProduct((prev) => prev ? { ...prev, image_url: "" } : null);
-    setImagePreview(null);
+  const triggerUpload = (target: "hero" | "gallery") => {
+    setUploadTarget(target);
+    setTimeout(() => fileInputRef.current?.click(), 0);
+  };
+
+  const getGalleryArray = (val: any): string[] => {
+    if (Array.isArray(val)) return val.filter((v) => typeof v === "string" && v);
+    return [];
+  };
+
+  const getAllImages = (product: MerchProduct): string[] => {
+    const images: string[] = [];
+    if (product.image_url) images.push(product.image_url);
+    const gallery = getGalleryArray((product as any).gallery_images);
+    images.push(...gallery);
+    return images;
   };
 
   const saveMutation = useMutation({
     mutationFn: async (product: any) => {
       const { isNew, id, created_at, updated_at, ...data } = product;
+      // Ensure gallery_images is a proper array
+      data.gallery_images = getGalleryArray(data.gallery_images);
       if (isNew) {
         const { error } = await supabase.from("merch_products").insert(data);
         if (error) throw error;
@@ -117,7 +303,6 @@ export default function MerchPage() {
       toast.success(t("merch.saved"));
       queryClient.invalidateQueries({ queryKey: ["admin-merch"] });
       setEditProduct(null);
-      setImagePreview(null);
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -139,21 +324,18 @@ export default function MerchPage() {
   const getBadge = (p: MerchProduct) => (language === "it" && p.badge_it ? p.badge_it : p.badge);
 
   const openWhatsApp = (product: MerchProduct) => {
-    const number = (product as any).whatsapp_number || "";
+    const number = product.whatsapp_number || "";
     const msg = encodeURIComponent(`Ciao! Sono interessato al prodotto "${getName(product)}" (€${product.price.toFixed(2)}). Vorrei avere maggiori informazioni.`);
     window.open(`https://wa.me/${number}?text=${msg}`, "_blank");
   };
 
   const openEditDialog = (product?: MerchProduct) => {
-    setImagePreview(null);
     if (product) {
-      setEditProduct(product);
+      setEditProduct({ ...product, gallery_images: getGalleryArray((product as any).gallery_images) } as any);
     } else {
       setEditProduct({ ...emptyProduct, isNew: true });
     }
   };
-
-  const currentImageUrl = imagePreview || editProduct?.image_url;
 
   return (
     <div className="space-y-6">
@@ -178,53 +360,48 @@ export default function MerchPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {products.map((product) => (
-            <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow group">
-              <div className="relative bg-muted/30 aspect-square flex items-center justify-center p-4">
-                {product.image_url ? (
-                  <img
-                    src={product.image_url}
-                    alt={getName(product)}
-                    className="w-full h-full object-contain"
-                  />
-                ) : (
-                  <div className="text-muted-foreground text-sm">{t("merch.noImage")}</div>
-                )}
-                {getBadge(product) && (
-                  <Badge className="absolute top-3 left-3 bg-primary hover:bg-primary/90 text-primary-foreground border-0">
-                    {getBadge(product)}
-                  </Badge>
-                )}
-                {!product.is_active && (
-                  <Badge variant="secondary" className="absolute top-3 right-3">
-                    {t("common.inactive")}
-                  </Badge>
-                )}
-                <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button variant="secondary" size="icon" className="h-8 w-8" onClick={() => openEditDialog(product)}>
-                    <Edit2 className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button variant="secondary" size="icon" className="h-8 w-8 text-destructive" onClick={() => { if (confirm(t("merch.deleteConfirm"))) deleteMutation.mutate(product.id); }}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+          {products.map((product) => {
+            const allImages = getAllImages(product);
+            return (
+              <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow group">
+                <div className="relative bg-muted/30 aspect-square flex items-center justify-center p-4">
+                  {allImages.length > 0 ? (
+                    <ProductImageCarousel images={allImages} alt={getName(product)} />
+                  ) : (
+                    <div className="text-muted-foreground text-sm">{t("merch.noImage")}</div>
+                  )}
+                  {getBadge(product) && (
+                    <Badge className="absolute top-3 left-3 bg-primary hover:bg-primary/90 text-primary-foreground border-0 z-10">
+                      {getBadge(product)}
+                    </Badge>
+                  )}
+                  {!product.is_active && (
+                    <Badge variant="secondary" className="absolute top-3 right-3 z-10">
+                      {t("common.inactive")}
+                    </Badge>
+                  )}
+                  <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                    <Button variant="secondary" size="icon" className="h-8 w-8" onClick={() => openEditDialog(product)}>
+                      <Edit2 className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="secondary" size="icon" className="h-8 w-8 text-destructive" onClick={() => { if (confirm(t("merch.deleteConfirm"))) deleteMutation.mutate(product.id); }}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-              <CardContent className="p-4 space-y-2">
-                <h3 className="font-semibold text-lg">{getName(product)}</h3>
-                <p className="text-xl font-bold text-primary">€{product.price.toFixed(2)}</p>
-                {getDesc(product) && (
-                  <p className="text-sm text-muted-foreground line-clamp-2">{getDesc(product)}</p>
-                )}
-                <Button
-                  variant="default"
-                  className="w-full mt-2 gap-2"
-                  onClick={() => openWhatsApp(product)}
-                >
-                  <MessageCircle className="h-4 w-4" /> WhatsApp
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+                <CardContent className="p-4 space-y-2">
+                  <h3 className="font-semibold text-lg">{getName(product)}</h3>
+                  <p className="text-xl font-bold text-primary">€{product.price.toFixed(2)}</p>
+                  {getDesc(product) && (
+                    <p className="text-sm text-muted-foreground line-clamp-2">{getDesc(product)}</p>
+                  )}
+                  <Button variant="default" className="w-full mt-2 gap-2" onClick={() => openWhatsApp(product)}>
+                    <MessageCircle className="h-4 w-4" /> WhatsApp
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          })}
           {products.length === 0 && (
             <p className="text-muted-foreground col-span-full text-center py-8">{t("merch.noProducts")}</p>
           )}
@@ -232,7 +409,7 @@ export default function MerchPage() {
       )}
 
       {/* Edit/Create Dialog */}
-      <Dialog open={!!editProduct} onOpenChange={(o) => { if (!o) { setEditProduct(null); setImagePreview(null); } }}>
+      <Dialog open={!!editProduct} onOpenChange={(o) => { if (!o) setEditProduct(null); }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editProduct?.isNew ? t("merch.createProduct") : t("merch.editProduct")}</DialogTitle>
@@ -270,69 +447,22 @@ export default function MerchPage() {
                 </div>
               </div>
 
-              {/* Image Upload */}
-              <div>
-                <Label>{t("merch.productImage")}</Label>
-                <div className="mt-2">
-                  {currentImageUrl ? (
-                    <div className="relative rounded-lg border border-border overflow-hidden bg-muted/30">
-                      <img
-                        src={currentImageUrl}
-                        alt="Preview"
-                        className="w-full h-48 object-contain p-2"
-                      />
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        className="absolute top-2 right-2 h-7 w-7"
-                        onClick={removeImage}
-                        type="button"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="w-full h-36 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center gap-2 text-muted-foreground hover:border-primary/50 hover:bg-muted/20 transition-colors cursor-pointer"
-                      disabled={uploading}
-                    >
-                      {uploading ? (
-                        <>
-                          <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                          <span className="text-sm">{t("merch.uploading")}</span>
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="h-8 w-8" />
-                          <span className="text-sm">{t("merch.uploadHint")}</span>
-                        </>
-                      )}
-                    </button>
-                  )}
-                  {currentImageUrl && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="mt-2 gap-2"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={uploading}
-                      type="button"
-                    >
-                      <Upload className="h-3.5 w-3.5" />
-                      {uploading ? t("merch.uploading") : t("merch.changeImage")}
-                    </Button>
-                  )}
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/png,image/jpeg,image/jpg"
-                    className="hidden"
-                    onChange={handleFileSelect}
-                  />
-                </div>
-              </div>
+              {/* Multi-Image Editor */}
+              <GalleryEditor
+                heroUrl={editProduct.image_url || ""}
+                galleryImages={getGalleryArray(editProduct.gallery_images)}
+                onHeroChange={(url) => setEditProduct({ ...editProduct, image_url: url })}
+                onGalleryChange={(urls) => setEditProduct({ ...editProduct, gallery_images: urls } as any)}
+                uploading={uploading}
+                onUpload={triggerUpload}
+              />
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/jpg"
+                className="hidden"
+                onChange={handleFileSelect}
+              />
 
               {/* WhatsApp Number */}
               <div>
@@ -365,7 +495,7 @@ export default function MerchPage() {
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setEditProduct(null); setImagePreview(null); }}>{t("common.cancel")}</Button>
+            <Button variant="outline" onClick={() => setEditProduct(null)}>{t("common.cancel")}</Button>
             <Button onClick={() => saveMutation.mutate(editProduct)} disabled={saveMutation.isPending || uploading}>
               {saveMutation.isPending ? t("common.saving") : t("common.save")}
             </Button>
