@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Landmark, Car, Target, Activity, TrendingUp, Calendar, MapPin } from "lucide-react";
+import { ArrowLeft, Landmark, Car, Target, Activity, TrendingUp, Calendar, MapPin, ChevronRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/i18n/LanguageContext";
@@ -286,6 +286,7 @@ export default function UserDetailPage() {
                       <TableHead>{t("common.date")}</TableHead>
                       <TableHead>{t("common.status")}</TableHead>
                       <TableHead>{t("profile.attendance")}</TableHead>
+                      <TableHead className="w-8"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -300,7 +301,7 @@ export default function UserDetailPage() {
                         <TableRow
                           key={activity.id}
                           className="cursor-pointer hover:bg-muted/50"
-                          onClick={() => ev?.id && navigate(`/events`)}
+                          onClick={() => ev?.id && navigate(`/events?search=${encodeURIComponent(ev.title)}`)}
                         >
                           <TableCell className="font-medium">{ev?.title || "—"}</TableCell>
                           <TableCell>
@@ -325,6 +326,9 @@ export default function UserDetailPage() {
                             ) : (
                               <span className="text-muted-foreground text-sm">—</span>
                             )}
+                          </TableCell>
+                          <TableCell>
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
                           </TableCell>
                         </TableRow>
                       );

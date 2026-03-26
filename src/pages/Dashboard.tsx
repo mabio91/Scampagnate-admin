@@ -54,11 +54,19 @@ function useChartTheme() {
         border: `1px solid ${getVar("--border") || "hsl(40, 15%, 87%)"}`,
         borderRadius: "0.75rem",
         fontSize: "0.8rem",
-        boxShadow: "0 8px 32px -8px rgba(0,0,0,0.12)",
+        boxShadow: "0 8px 32px -8px rgba(0,0,0,0.25)",
         padding: "10px 14px",
         color: getVar("--popover-foreground") || "inherit",
       },
+      labelStyle: {
+        color: getVar("--popover-foreground") || "inherit",
+        fontWeight: 600,
+      },
+      itemStyle: {
+        color: getVar("--popover-foreground") || "inherit",
+      },
     },
+    legendStyle: { fontSize: "12px", paddingTop: "12px", color: getVar("--muted-foreground") || "inherit" },
     gridStroke: getVar("--border") || "hsl(40, 15%, 90%)",
     tickFill: getVar("--muted-foreground") || "hsl(150, 10%, 45%)",
     cursorFill: getVar("--muted") || "hsl(40, 15%, 94%)",
@@ -1067,7 +1075,7 @@ export default function Dashboard() {
               <XAxis dataKey="month" tick={{ fontSize: 12, fill: chartTheme.tickFill }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 12, fill: chartTheme.tickFill }} axisLine={false} tickLine={false} />
               <Tooltip {...chartTheme.tooltipStyle} cursor={{ fill: chartTheme.cursorFill }} />
-              <Legend wrapperStyle={{ fontSize: "12px", paddingTop: "12px" }} />
+              <Legend wrapperStyle={chartTheme.legendStyle} />
               <Bar dataKey="events" fill="url(#barEvents)" radius={[6, 6, 0, 0]} maxBarSize={32} className="cursor-pointer" />
               <Bar dataKey="registrations" fill="url(#barRegs)" radius={[6, 6, 0, 0]} maxBarSize={32} className="cursor-pointer" />
             </BarChart>
@@ -1152,7 +1160,7 @@ export default function Dashboard() {
               <XAxis dataKey="week" tick={{ fontSize: 12, fill: chartTheme.tickFill }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 12, fill: chartTheme.tickFill }} axisLine={false} tickLine={false} />
               <Tooltip {...chartTheme.tooltipStyle} />
-              <Legend wrapperStyle={{ fontSize: "12px", paddingTop: "8px" }} />
+              <Legend wrapperStyle={chartTheme.legendStyle} />
               <Line type="monotone" dataKey="opened" stroke="hsl(0, 65%, 50%)" strokeWidth={2.5} dot={{ r: 4, strokeWidth: 2, fill: chartTheme.dotFill }} activeDot={{ r: 7, className: "cursor-pointer" }} />
               <Line type="monotone" dataKey="resolved" stroke="hsl(140, 50%, 40%)" strokeWidth={2.5} dot={{ r: 4, strokeWidth: 2, fill: chartTheme.dotFill }} activeDot={{ r: 7, className: "cursor-pointer" }} />
             </LineChart>
