@@ -6,7 +6,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Landmark, Car, Target, Activity, TrendingUp, Calendar, MapPin, ChevronRight } from "lucide-react";
+import { ArrowLeft, Landmark, Car, Target, Activity, TrendingUp, Calendar, MapPin, ChevronRight, Gamepad2 } from "lucide-react";
+import { UserGamificationSection } from "@/components/gamification/UserGamificationSection";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/i18n/LanguageContext";
@@ -143,9 +144,10 @@ export default function UserDetailPage() {
       </div>
 
       <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 max-w-md">
+        <TabsList className="grid w-full grid-cols-3 max-w-lg">
           <TabsTrigger value="profile">{t("users.profileOverview")}</TabsTrigger>
           <TabsTrigger value="activity">{t("users.activityHistory")}</TabsTrigger>
+          <TabsTrigger value="gamification" className="gap-1"><Gamepad2 className="h-3.5 w-3.5" /> Gamification</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile" className="space-y-6 mt-6">
@@ -338,6 +340,17 @@ export default function UserDetailPage() {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        <TabsContent value="gamification" className="mt-6">
+          <UserGamificationSection
+            userId={user.id}
+            userName={`${user.first_name} ${user.last_name}`}
+            totalPoints={user.total_points || 0}
+            avatarUrl={user.avatar_url}
+            firstName={user.first_name}
+            lastName={user.last_name}
+          />
         </TabsContent>
       </Tabs>
     </div>

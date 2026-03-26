@@ -23,6 +23,8 @@ import DiscountCodesPage from "@/pages/DiscountCodesPage";
 import MerchPage from "@/pages/MerchPage";
 import ContentPagesPage from "@/pages/ContentPagesPage";
 import ContentPageView from "@/pages/ContentPageView";
+import MissionsPage from "@/pages/MissionsPage";
+import GamificationSettingsPage from "@/pages/GamificationSettingsPage";
 import KPIDetailPage from "@/pages/KPIDetailPage";
 import LoginPage from "@/pages/LoginPage";
 import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
@@ -65,6 +67,8 @@ const App = () => (
               <Route path="/discount-codes" element={<DiscountCodesPage />} />
               <Route path="/merch" element={<MerchPage />} />
               <Route path="/content-pages" element={<ContentPagesPage />} />
+              <Route path="/missions" element={<MissionsPage />} />
+              <Route path="/gamification-settings" element={<GamificationSettingsPage />} />
               <Route path="/kpi" element={<KPIDetailPage />} />
               <Route path="/profile" element={<ProfilePage />} />
             </Route>
