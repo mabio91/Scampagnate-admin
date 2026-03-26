@@ -1098,7 +1098,7 @@ export default function Dashboard() {
         </ChartCard>
 
         <ChartCard title={t("dashboard.recentActivity")} icon={Activity} className="lg:col-span-2">
-          <div className="space-y-1">
+          <div className="space-y-0.5 max-h-[320px] overflow-y-auto">
             {recentActivity.length === 0 ? (
               <div className="flex items-center justify-center h-[240px]">
                 <p className="text-sm text-muted-foreground">{t("dashboard.noRecentActivity")}</p>
@@ -1106,24 +1106,61 @@ export default function Dashboard() {
             ) : (
               recentActivity.map((item, i) => {
                 const config = typeConfig[item.type] || typeConfig.user;
+                const actionLabels: Record<string, string> = {
+                  new_user: "Nuovo utente registrato",
+                  onboarding_completed: "Onboarding completato",
+                  membership_activated: "Tessera attivata",
+                  event_created: "Evento creato",
+                  event_cancelled: "Evento annullato",
+                  issue_opened: "Segnalazione aperta",
+                  issue_resolved: "Segnalazione risolta",
+                  waitlist_activated: "Lista d'attesa attivata",
+                  approval_requested: "Approvazione richiesta",
+                  payment_completed: "Pagamento completato",
+                };
+                const actionIcons: Record<string, typeof Users> = {
+                  new_user: UserPlus,
+                  onboarding_completed: CheckCircle2,
+                  membership_activated: UserCheck,
+                  event_created: Calendar,
+                  event_cancelled: CalendarX,
+                  issue_opened: FileWarning,
+                  issue_resolved: CheckCircle2,
+                  waitlist_activated: Clock,
+                  approval_requested: UserCog,
+                  payment_completed: CreditCard,
+                };
+                const ActionIcon = actionIcons[item.action] || CircleDot;
+                const typeLabels: Record<string, string> = {
+                  user: "Utente",
+                  event: "Evento",
+                  issue: "Segnalazione",
+                  membership: "Tessera",
+                  payment: "Pagamento",
+                };
                 return (
-                  <div key={i} className="flex items-center justify-between py-3 px-3 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className={cn("h-2 w-2 rounded-full shrink-0", config.dot)} />
-                      <div>
-                        <p className="text-sm font-medium group-hover:text-foreground transition-colors">
-                          {item.action === "new_user" ? t("dashboard.newUserRegistered") :
-                           item.action === "event_created" ? t("dashboard.eventCreated") :
-                           t("dashboard.issueReported")}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{item.detail}</p>
+                  <div
+                    key={`${item.action}-${i}`}
+                    className={cn(
+                      "flex items-center justify-between py-2.5 px-3 rounded-lg transition-colors",
+                      item.route && "cursor-pointer hover:bg-muted/50"
+                    )}
+                    onClick={() => item.route && navigate(item.route)}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={cn("p-1.5 rounded-lg shrink-0", `${config.dot}/10`)}>
+                        <ActionIcon className={cn("h-3.5 w-3.5", config.dot.replace("bg-", "text-"))} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{actionLabels[item.action] || item.action}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate">{item.detail}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 shrink-0 ml-3">
                       <Badge variant="outline" className={cn("text-[10px] font-medium border", config.bg)}>
-                        {item.type}
+                        {typeLabels[item.type] || item.type}
                       </Badge>
-                      <span className="text-xs text-muted-foreground whitespace-nowrap tabular-nums">{timeAgo(item.time)}</span>
+                      <span className="text-[11px] text-muted-foreground whitespace-nowrap tabular-nums">{timeAgo(item.time)}</span>
                     </div>
                   </div>
                 );
