@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/i18n/LanguageContext";
@@ -202,6 +202,7 @@ export default function OrganizerDetailPage() {
                       <TableHead>{t("events.spots")}</TableHead>
                       <TableHead>{t("orgDetail.fillRate")}</TableHead>
                       <TableHead>{t("orgDetail.attendanceRate")}</TableHead>
+                      <TableHead className="w-8"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -235,6 +236,9 @@ export default function OrganizerDetailPage() {
                           <TableCell>{event.spots_taken}/{event.spots_total}</TableCell>
                           <TableCell>{fillRate}%</TableCell>
                           <TableCell>{isPast && attRate ? `${attRate}%` : "—"}</TableCell>
+                          <TableCell>
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          </TableCell>
                         </TableRow>
                       );
                     })}
