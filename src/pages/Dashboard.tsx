@@ -518,7 +518,7 @@ export default function Dashboard() {
                 value={totalUsers.toLocaleString()}
                 icon={Users}
                 iconBg="bg-primary"
-                onClick={() => setActiveKPI("total-users")}
+                onClick={() => openKPI("total-users")}
               />
               <PremiumStatCard
                 title={t("dashboard.activeMembers")}
@@ -526,7 +526,7 @@ export default function Dashboard() {
                 icon={UserCheck}
                 iconBg="bg-success"
                 subtitle={`${t("dashboard.paidMembership")} ${currentYear}`}
-                onClick={() => setActiveKPI("active-members")}
+                onClick={() => openKPI("active-members")}
               />
               <PremiumStatCard
                 title={t("dashboard.usersAttended")}
@@ -534,7 +534,7 @@ export default function Dashboard() {
                 icon={CheckCircle2}
                 iconBg="bg-secondary"
                 subtitle={`${t("dashboard.atLeast1Event")} ${currentYear}`}
-                onClick={() => setActiveKPI("participating-users")}
+                onClick={() => openKPI("participating-users")}
               />
               <PremiumStatCard
                 title={t("dashboard.eventsCreated")}
@@ -542,7 +542,7 @@ export default function Dashboard() {
                 icon={Calendar}
                 iconBg="bg-accent"
                 subtitle={`${t("dashboard.in")} ${currentYear}`}
-                onClick={() => setActiveKPI("events-created")}
+                onClick={() => openKPI("events-created")}
               />
               <PremiumStatCard
                 title={t("dashboard.participationRate")}
@@ -550,7 +550,7 @@ export default function Dashboard() {
                 icon={Percent}
                 iconBg="bg-primary"
                 subtitle={t("dashboard.participationSub")}
-                onClick={() => setActiveKPI("participation-rate")}
+                onClick={() => openKPI("participation-rate")}
               />
               <PremiumStatCard
                 title={t("dashboard.attendanceRate")}
@@ -558,7 +558,7 @@ export default function Dashboard() {
                 icon={ListChecks}
                 iconBg="bg-success"
                 subtitle={t("dashboard.attendanceSub")}
-                onClick={() => setActiveKPI("attendance-rate")}
+                onClick={() => openKPI("attendance-rate")}
               />
             </>
           )}
@@ -575,7 +575,7 @@ export default function Dashboard() {
             icon={BarChart3}
             iconBg="bg-secondary"
             subtitle={t("dashboard.avgFillSub")}
-            onClick={() => setActiveKPI("fill-rate")}
+            onClick={() => openKPI("fill-rate")}
           />
           <PremiumStatCard
             title={t("dashboard.waitlistRequests")}
@@ -584,7 +584,7 @@ export default function Dashboard() {
             iconBg="bg-warning"
             changeType={totalWaitlist > 0 ? "negative" : "neutral"}
             change={totalWaitlist > 0 ? `${totalWaitlist} ${t("dashboard.waiting")}` : t("dashboard.noWaitlist")}
-            onClick={() => setActiveKPI("waitlist")}
+            onClick={() => openKPI("waitlist")}
           />
           <PremiumStatCard
             title={t("dashboard.repeatParticipants")}
@@ -592,7 +592,7 @@ export default function Dashboard() {
             icon={Repeat}
             iconBg="bg-accent"
             subtitle={t("dashboard.repeatSub")}
-            onClick={() => setActiveKPI("repeat-participants")}
+            onClick={() => openKPI("repeat-participants")}
           />
           <PremiumStatCard
             title={t("dashboard.newUsersMonth")}
@@ -600,7 +600,7 @@ export default function Dashboard() {
             icon={UserPlus}
             iconBg="bg-primary"
             subtitle={format(new Date(), "MMMM yyyy")}
-            onClick={() => setActiveKPI("total-users")}
+            onClick={() => openKPI("total-users")}
           />
           <PremiumStatCard
             title={t("dashboard.topCategory")}
@@ -608,7 +608,7 @@ export default function Dashboard() {
             icon={Trophy}
             iconBg="bg-secondary"
             subtitle={t("dashboard.topCategorySub")}
-            onClick={() => setActiveKPI("top-category")}
+            onClick={() => openKPI("top-category")}
           />
         </div>
       </div>
@@ -628,7 +628,7 @@ export default function Dashboard() {
           changeType={openIssues > 0 ? "negative" : "positive"}
           change={openIssues === 0 ? t("dashboard.allClear") : `${openIssues} ${t("dashboard.needAttention")}`}
           iconBg="bg-destructive"
-          onClick={() => setActiveKPI("open-issues")}
+          onClick={() => openKPI("open-issues")}
         />
         <PremiumStatCard
           title={t("dashboard.totalEvents")}
@@ -636,7 +636,7 @@ export default function Dashboard() {
           icon={Calendar}
           iconBg="bg-accent"
           subtitle={t("dashboard.allTime")}
-          onClick={() => setActiveKPI("events-created")}
+          onClick={() => openKPI("events-created")}
         />
         <PremiumStatCard
           title={t("dashboard.communityHealth")}
@@ -648,7 +648,7 @@ export default function Dashboard() {
           iconBg="bg-success"
           changeType={Number(attendanceRate.replace('%', '')) > 40 ? "positive" : "negative"}
           change={`${attendanceRate} ${t("dashboard.attendance")}`}
-          onClick={() => setActiveKPI("community-health")}
+          onClick={() => openKPI("community-health")}
         />
       </div>
 
