@@ -193,7 +193,7 @@ export default function UsersPage() {
       </div>
 
       <Card>
-        <CardHeader className="pb-3">
+        <CardHeader className="pb-3 space-y-3">
           <div className="flex flex-wrap gap-4">
             <div className="relative max-w-sm flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -210,6 +210,26 @@ export default function UsersPage() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {([
+              { key: "all", label: t("segments.all") },
+              { key: "new", label: t("segments.newUsers") },
+              { key: "active", label: t("segments.activeUsers") },
+              { key: "inactive", label: t("segments.inactiveUsers") },
+              { key: "incomplete_onboarding", label: t("segments.incompleteOnboarding") },
+              { key: "no_participation", label: t("segments.noParticipation") },
+              { key: "high_participation", label: t("segments.highParticipation") },
+            ] as const).map((seg) => (
+              <Badge
+                key={seg.key}
+                variant={segment === seg.key ? "default" : "outline"}
+                className={`cursor-pointer text-xs px-3 py-1 transition-colors ${segment === seg.key ? "" : "hover:bg-accent"}`}
+                onClick={() => setSegment(seg.key)}
+              >
+                {seg.label}
+              </Badge>
+            ))}
           </div>
         </CardHeader>
         <CardContent className="overflow-x-auto">
