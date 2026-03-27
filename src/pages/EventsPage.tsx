@@ -68,7 +68,8 @@ const emptyEvent = {
   title: "", description: "", location: "", date: "", time: "09:00",
   spots_total: 20, price: 0, payment_type: "free" as const,
   status: "draft" as const, visibility: "public" as const,
-  organizer_name: "", category_id: null as string | null,
+  organizer_name: "", organizer_id: null as string | null,
+  category_id: null as string | null,
   image_url: "" as string,
   gallery_images: [] as string[],
   access_rules: null as AccessRules | null,
@@ -142,6 +143,26 @@ export default function EventsPage() {
     queryFn: async () => {
       const { data } = await supabase.from("badges").select("id, name, icon");
       return data || [];
+    },
+  });
+
+  const { data: organizers = [] } = useQuery({
+    queryKey: ["admin-organizers-list"],
+    queryFn: async () => {
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("user_id, role")
+        .in("role", ["organizer", "admin"]);
+      if (!roles || roles.length === 0) return [];
+      const userIds = [...new Set(roles.map((r) => r.user_id))];
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, first_name, last_name")
+        .in("id", userIds);
+      return (profiles || []).map((p) => ({
+        id: p.id,
+        name: `${p.first_name} ${p.last_name}`.trim(),
+      }));
     },
   });
 
@@ -405,8 +426,26 @@ export default function EventsPage() {
 
               {/* Organizer */}
               <div>
-                <Label>Organizer Name</Label>
-                <Input value={editEvent.organizer_name || ""} onChange={(e) => setEditEvent({ ...editEvent, organizer_name: e.target.value })} />
+                <Label>Organizzatore</Label>
+                <Select
+                  value={editEvent.organizer_id || "none"}
+                  onValueChange={(v) => {
+                    if (v === "none") {
+                      setEditEvent({ ...editEvent, organizer_id: null, organizer_name: "" });
+                    } else {
+                      const org = organizers.find((o) => o.id === v);
+                      setEditEvent({ ...editEvent, organizer_id: v, organizer_name: org?.name || "" });
+                    }
+                  }}
+                >
+                  <SelectTrigger><SelectValue placeholder="Seleziona organizzatore" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nessuno</SelectItem>
+                    {organizers.map((o) => (
+                      <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Spots & Price */}
