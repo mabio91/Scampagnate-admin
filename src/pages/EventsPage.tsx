@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, MoreHorizontal, Eye, Edit2, Trash2, Plus, Upload, X, ArrowUp, ArrowDown, Image as ImageIcon, Loader2, Shield, Lock, Star, Users, Award, Crown, CheckCircle2, DollarSign, Tag, Sparkles } from "lucide-react";
+import { Search, MoreHorizontal, Eye, Edit2, Trash2, Plus, Upload, X, ArrowUp, ArrowDown, Image as ImageIcon, Loader2, Shield, Lock, Star, Users, Award, Crown, CheckCircle2, DollarSign, Tag, Sparkles, Copy, MessageCircle } from "lucide-react";
 import { MANUAL_BADGE_OPTIONS, EventBadgePills, computeAutoBadgesForStorage } from "@/components/EventBadges";
 import RefreshButton from "@/components/RefreshButton";
 
@@ -402,6 +402,14 @@ export default function EventsPage() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => navigate(`/events/${event.id}`)}><Eye className="h-4 w-4 mr-2" /> View</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => setEditEvent(event)}><Edit2 className="h-4 w-4 mr-2" /> Edit</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/events/${event.id}`); toast.success("Link copiato!"); }}>
+                            <Copy className="h-4 w-4 mr-2" /> Copia link
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <a href={`https://wa.me/?text=${encodeURIComponent(`Sei invitato a "${event.title}"!\n${window.location.origin}/events/${event.id}`)}`} target="_blank" rel="noopener noreferrer">
+                              <MessageCircle className="h-4 w-4 mr-2" /> Condividi WhatsApp
+                            </a>
+                          </DropdownMenuItem>
                           <DropdownMenuItem className="text-destructive" onClick={() => { if (confirm("Delete this event?")) deleteMutation.mutate(event.id); }}>
                             <Trash2 className="h-4 w-4 mr-2" /> Delete
                           </DropdownMenuItem>
