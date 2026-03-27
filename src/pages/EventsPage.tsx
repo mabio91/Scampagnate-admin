@@ -673,30 +673,33 @@ export default function EventsPage() {
 
                 {/* ── Dynamic Pricing ── */}
                 {(editEvent.payment_type === "paid" || editEvent.payment_type === "deposit") && (
-                  <div className="space-y-3 p-3 rounded-lg border border-dashed border-primary/30 bg-primary/5">
+                   <div className="space-y-3 p-3 rounded-lg border border-dashed border-primary/30 bg-primary/5">
                     <div className="flex items-center justify-between">
                       <Label className="text-xs font-semibold flex items-center gap-1.5">
-                        <Tag className="h-3.5 w-3.5 text-primary" /> Dynamic Pricing Rules
+                        <Tag className="h-3.5 w-3.5 text-primary" /> Fasce di prezzo
                       </Label>
                       <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={addPricingRule}>
-                        <Plus className="h-3 w-3 mr-1" /> Add Rule
+                        <Plus className="h-3 w-3 mr-1" /> Aggiungi fascia
                       </Button>
                     </div>
                     <p className="text-[10px] text-muted-foreground">
-                      Standard price: <strong>€{editEvent.price ?? 0}</strong>. Define reserved prices for eligible users.
+                      Prezzo standard: <strong>€{editEvent.price ?? 0}</strong>. Le fasce vengono valutate dall'alto verso il basso. L'utente vede la <strong>prima fascia corrispondente</strong>.
                     </p>
 
                     {getPricingRules(editEvent).length === 0 && (
-                      <p className="text-xs text-muted-foreground italic text-center py-2">No pricing rules. All users see the standard price.</p>
+                      <p className="text-xs text-muted-foreground italic text-center py-2">Nessuna fascia di prezzo. Tutti gli utenti vedono il prezzo standard.</p>
                     )}
 
-                    {getPricingRules(editEvent).map((rule) => (
+                    {getPricingRules(editEvent).map((rule, ruleIndex) => (
                       <div key={rule.id} className="space-y-2 p-3 rounded-md border bg-card">
                         <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold text-muted-foreground bg-muted rounded-full w-5 h-5 flex items-center justify-center shrink-0">
+                            {ruleIndex + 1}
+                          </span>
                           <DollarSign className="h-3.5 w-3.5 text-primary shrink-0" />
                           <Input
                             className="h-8 text-sm"
-                            placeholder="Rule name (e.g. Member Price)"
+                            placeholder="Nome fascia (es. Prezzo Soci)"
                             value={rule.name}
                             onChange={(e) => updatePricingRule(rule.id, { name: e.target.value })}
                           />
@@ -704,9 +707,9 @@ export default function EventsPage() {
                             <X className="h-3.5 w-3.5" />
                           </Button>
                         </div>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-2 gap-2">
                           <div>
-                            <Label className="text-[10px]">Reserved Price (€)</Label>
+                            <Label className="text-[10px]">Prezzo riservato (€)</Label>
                             <Input
                               type="number"
                               step="0.01"
@@ -717,50 +720,83 @@ export default function EventsPage() {
                             />
                           </div>
                           <div>
-                            <Label className="text-[10px]">Condition</Label>
+                            <Label className="text-[10px]">Chi vede questo prezzo</Label>
                             <Select value={rule.condition} onValueChange={(v) => updatePricingRule(rule.id, { condition: v as any, condition_value: null })}>
                               <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                               <SelectContent>
                                 {PRICING_CONDITIONS.map((c) => (
-                                  <SelectItem key={c.value} value={c.value} className="text-xs">{c.label}</SelectItem>
+                                  <SelectItem key={c.value} value={c.value} className="text-xs">
+                                    {c.label}
+                                  </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
-                          </div>
-                          <div>
-                            {rule.condition === "has_badge" && (
-                              <>
-                                <Label className="text-[10px]">Badge</Label>
-                                <Select value={rule.condition_value as string || "none"} onValueChange={(v) => updatePricingRule(rule.id, { condition_value: v === "none" ? null : v })}>
-                                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="none">Select badge</SelectItem>
-                                    {badges.map((b) => (
-                                      <SelectItem key={b.id} value={b.id} className="text-xs">{b.icon} {b.name}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </>
-                            )}
-                            {rule.condition === "min_events" && (
-                              <>
-                                <Label className="text-[10px]">Min. Events</Label>
-                                <Input
-                                  type="number"
-                                  min={1}
-                                  className="h-8 text-sm"
-                                  value={rule.condition_value as number ?? ""}
-                                  onChange={(e) => updatePricingRule(rule.id, { condition_value: parseInt(e.target.value) || null })}
-                                />
-                              </>
-                            )}
-                            {!["has_badge", "min_events"].includes(rule.condition) && (
-                              <p className="text-[10px] text-muted-foreground pt-5">No extra config needed</p>
-                            )}
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              {PRICING_CONDITIONS.find(c => c.value === rule.condition)?.description}
+                            </p>
                           </div>
                         </div>
+                        {rule.condition === "specific_badge" && (
+                          <div className="space-y-1.5">
+                            <Label className="text-[10px]">Seleziona badge o livelli (l'utente deve averne almeno uno)</Label>
+                            <div className="grid grid-cols-2 gap-1.5 max-h-40 overflow-y-auto p-2 rounded border bg-muted/30">
+                              {badges.length > 0 && (
+                                <>
+                                  <p className="col-span-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Badge</p>
+                                  {badges.map((b) => {
+                                    const selected = (rule.condition_value || []).includes(b.id);
+                                    return (
+                                      <div key={b.id} className="flex items-center gap-1.5">
+                                        <Checkbox
+                                          checked={selected}
+                                          onCheckedChange={(v) => {
+                                            const current = rule.condition_value || [];
+                                            const updated = v ? [...current, b.id] : current.filter(id => id !== b.id);
+                                            updatePricingRule(rule.id, { condition_value: updated.length > 0 ? updated : null });
+                                          }}
+                                        />
+                                        <span className="text-xs">{b.icon} {b.name}</span>
+                                      </div>
+                                    );
+                                  })}
+                                </>
+                              )}
+                              {communityLevels.length > 0 && (
+                                <>
+                                  <p className="col-span-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">Livelli</p>
+                                  {communityLevels.map((l) => {
+                                    const levelKey = `level_${l.id}`;
+                                    const selected = (rule.condition_value || []).includes(levelKey);
+                                    return (
+                                      <div key={l.id} className="flex items-center gap-1.5">
+                                        <Checkbox
+                                          checked={selected}
+                                          onCheckedChange={(v) => {
+                                            const current = rule.condition_value || [];
+                                            const updated = v ? [...current, levelKey] : current.filter(id => id !== levelKey);
+                                            updatePricingRule(rule.id, { condition_value: updated.length > 0 ? updated : null });
+                                          }}
+                                        />
+                                        <span className="text-xs">{l.icon} {l.name}</span>
+                                      </div>
+                                    );
+                                  })}
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
+
+                    {getPricingRules(editEvent).length > 1 && (
+                      <div className="flex items-center gap-2 p-2 rounded bg-accent/50 border border-accent">
+                        <ArrowDown className="h-3.5 w-3.5 text-primary shrink-0" />
+                        <p className="text-[10px] text-accent-foreground">
+                          Le fasce vengono valutate in ordine (dall'alto verso il basso). La prima condizione corrispondente viene applicata.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
 
