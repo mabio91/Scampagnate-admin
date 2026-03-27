@@ -33,6 +33,7 @@ export default function ProposalsPage() {
   const [viewProposal, setViewProposal] = useState<Proposal | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ proposal: Proposal; action: "archive" } | null>(null);
   const [deleteProposal, setDeleteProposal] = useState<Proposal | null>(null);
+  const [showDeleteAll, setShowDeleteAll] = useState(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -99,12 +100,40 @@ export default function ProposalsPage() {
     });
   };
 
-  const handleContactProposer = (proposal: Proposal) => {
-    if (proposal.proposer_id) {
-      // Open mailto or navigate to a contact method
-      toast.info(`Contact proposer: ${proposal.proposer_name}`);
+  const deleteAllMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("activity_proposals")
+        .delete()
+        .neq("id", "00000000-0000-0000-0000-000000000000"); // delete all rows
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-proposals"] });
+      toast.success("Tutte le proposte sono state eliminate");
+      setShowDeleteAll(false);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const handleContactProposer = async (proposal: Proposal) => {
+    if (!proposal.proposer_id) {
+      toast.warning("Nessuna informazione di contatto disponibile");
+      return;
+    }
+    // Fetch the proposer's phone from profiles
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("phone")
+      .eq("id", proposal.proposer_id)
+      .single();
+
+    if (profile?.phone) {
+      const phone = profile.phone.replace(/[^0-9+]/g, "");
+      const message = encodeURIComponent(`Ciao ${proposal.proposer_name}, riguardo la tua proposta "${proposal.activity_title}"...`);
+      window.open(`https://wa.me/${phone}?text=${message}`, "_blank");
     } else {
-      toast.warning("No contact information available for this proposer");
+      toast.warning("Nessun numero di telefono disponibile per questo utente");
     }
   };
 
@@ -138,6 +167,11 @@ export default function ProposalsPage() {
         </div>
         <div className="flex items-center gap-2">
           <RefreshButton queryKeys={[["admin-proposals"]]} />
+          {proposals.length > 0 && (
+            <Button variant="destructive" size="sm" onClick={() => setShowDeleteAll(true)}>
+              <Trash2 className="mr-2 h-4 w-4" /> Elimina tutte
+            </Button>
+          )}
           <Badge variant="outline" className="text-primary border-primary/30">
             {proposals.length} {t("common.total")}
           </Badge>
@@ -234,14 +268,12 @@ export default function ProposalsPage() {
                                 </DropdownMenuItem>
                               </>
                             )}
-                            {proposal.status === "archived" && (
-                              <DropdownMenuItem
-                                onClick={() => setDeleteProposal(proposal)}
-                                className="text-destructive focus:text-destructive"
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" /> Delete Permanently
-                              </DropdownMenuItem>
-                            )}
+                            <DropdownMenuItem
+                              onClick={() => setDeleteProposal(proposal)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" /> Elimina
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
