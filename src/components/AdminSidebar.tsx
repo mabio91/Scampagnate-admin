@@ -1,4 +1,4 @@
-import { Users, Building2, Tags, Calendar, AlertTriangle, LayoutDashboard, Shield, IdCard, Package, User, LogOut, Lightbulb, TicketPercent, ShoppingBag, FileText, Target, Settings2 } from "lucide-react";
+import { Users, Building2, Tags, Calendar, AlertTriangle, LayoutDashboard, Shield, IdCard, Package, User, LogOut, Lightbulb, TicketPercent, ShoppingBag, FileText, Target, Settings2, Mountain } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import logo from "@/assets/logo.png";
@@ -35,6 +35,7 @@ const navItems: { titleKey: TranslationKey; url: string; icon: any }[] = [
   { titleKey: "sidebar.contentPages", url: "/content-pages", icon: FileText },
   { titleKey: "sidebar.missions", url: "/missions", icon: Target },
   { titleKey: "sidebar.gamificationSettings", url: "/gamification-settings", icon: Settings2 },
+  { titleKey: "sidebar.trekkingDifficulty", url: "/trekking-difficulty", icon: Mountain },
 ];
 
 export function AdminSidebar() {
