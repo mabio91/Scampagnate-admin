@@ -33,6 +33,7 @@ export default function ProposalsPage() {
   const [viewProposal, setViewProposal] = useState<Proposal | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ proposal: Proposal; action: "archive" } | null>(null);
   const [deleteProposal, setDeleteProposal] = useState<Proposal | null>(null);
+  const [showDeleteAll, setShowDeleteAll] = useState(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -99,12 +100,40 @@ export default function ProposalsPage() {
     });
   };
 
-  const handleContactProposer = (proposal: Proposal) => {
-    if (proposal.proposer_id) {
-      // Open mailto or navigate to a contact method
-      toast.info(`Contact proposer: ${proposal.proposer_name}`);
+  const deleteAllMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("activity_proposals")
+        .delete()
+        .neq("id", "00000000-0000-0000-0000-000000000000"); // delete all rows
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-proposals"] });
+      toast.success("Tutte le proposte sono state eliminate");
+      setShowDeleteAll(false);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const handleContactProposer = async (proposal: Proposal) => {
+    if (!proposal.proposer_id) {
+      toast.warning("Nessuna informazione di contatto disponibile");
+      return;
+    }
+    // Fetch the proposer's phone from profiles
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("phone")
+      .eq("id", proposal.proposer_id)
+      .single();
+
+    if (profile?.phone) {
+      const phone = profile.phone.replace(/[^0-9+]/g, "");
+      const message = encodeURIComponent(`Ciao ${proposal.proposer_name}, riguardo la tua proposta "${proposal.activity_title}"...`);
+      window.open(`https://wa.me/${phone}?text=${message}`, "_blank");
     } else {
-      toast.warning("No contact information available for this proposer");
+      toast.warning("Nessun numero di telefono disponibile per questo utente");
     }
   };
 
@@ -138,6 +167,11 @@ export default function ProposalsPage() {
         </div>
         <div className="flex items-center gap-2">
           <RefreshButton queryKeys={[["admin-proposals"]]} />
+          {proposals.length > 0 && (
+            <Button variant="destructive" size="sm" onClick={() => setShowDeleteAll(true)}>
+              <Trash2 className="mr-2 h-4 w-4" /> Elimina tutte
+            </Button>
+          )}
           <Badge variant="outline" className="text-primary border-primary/30">
             {proposals.length} {t("common.total")}
           </Badge>
@@ -234,14 +268,12 @@ export default function ProposalsPage() {
                                 </DropdownMenuItem>
                               </>
                             )}
-                            {proposal.status === "archived" && (
-                              <DropdownMenuItem
-                                onClick={() => setDeleteProposal(proposal)}
-                                className="text-destructive focus:text-destructive"
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" /> Delete Permanently
-                              </DropdownMenuItem>
-                            )}
+                            <DropdownMenuItem
+                              onClick={() => setDeleteProposal(proposal)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" /> Elimina
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -303,45 +335,34 @@ export default function ProposalsPage() {
                 <p className="text-sm leading-relaxed">{viewProposal.description || "No description provided."}</p>
               </div>
 
-              {(viewProposal.status === "pending" || viewProposal.status === "approved") && (
-                <>
-                  <Separator />
-                  <div className="flex flex-wrap gap-2">
-                    {viewProposal.status === "pending" && (
-                      <Button size="sm" variant="default" onClick={() => updateStatusMutation.mutate({ id: viewProposal.id, status: "approved" })}>
-                        <CheckCircle className="mr-2 h-4 w-4" /> Approve
-                      </Button>
-                    )}
+              <Separator />
+              <div className="flex flex-wrap gap-2">
+                {viewProposal.status === "pending" && (
+                  <Button size="sm" variant="default" onClick={() => updateStatusMutation.mutate({ id: viewProposal.id, status: "approved" })}>
+                    <CheckCircle className="mr-2 h-4 w-4" /> Approva
+                  </Button>
+                )}
+                {(viewProposal.status === "pending" || viewProposal.status === "approved") && (
+                  <>
                     <Button size="sm" onClick={() => handleConvertToEvent(viewProposal)}>
-                      <CalendarPlus className="mr-2 h-4 w-4" /> Convert to Event
+                      <CalendarPlus className="mr-2 h-4 w-4" /> Converti in Evento
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleContactProposer(viewProposal)}>
-                      <Mail className="mr-2 h-4 w-4" /> Contact Proposer
+                    <Button size="sm" variant="outline" onClick={() => setConfirmAction({ proposal: viewProposal, action: "archive" })}>
+                      <Archive className="mr-2 h-4 w-4" /> Archivia
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setConfirmAction({ proposal: viewProposal, action: "archive" })}
-                    >
-                      <Archive className="mr-2 h-4 w-4" /> Archive
-                    </Button>
-                  </div>
-                </>
-              )}
-              {viewProposal.status === "archived" && (
-                <>
-                  <Separator />
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => setDeleteProposal(viewProposal)}
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" /> Delete Permanently
-                    </Button>
-                  </div>
-                </>
-              )}
+                  </>
+                )}
+                <Button size="sm" variant="outline" onClick={() => handleContactProposer(viewProposal)}>
+                  <Mail className="mr-2 h-4 w-4" /> Contatta
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => setDeleteProposal(viewProposal)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" /> Elimina
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>
@@ -351,14 +372,14 @@ export default function ProposalsPage() {
       <Dialog open={!!confirmAction} onOpenChange={() => setConfirmAction(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Archive Proposal</DialogTitle>
+            <DialogTitle>Archivia Proposta</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Are you sure you want to archive "{confirmAction?.proposal.activity_title}"? You can delete it permanently later.
+            Sei sicuro di voler archiviare "{confirmAction?.proposal.activity_title}"?
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmAction(null)}>
-              Cancel
+              Annulla
             </Button>
             <Button
               onClick={() => {
@@ -371,7 +392,7 @@ export default function ProposalsPage() {
               }}
               disabled={updateStatusMutation.isPending}
             >
-              Archive
+              Archivia
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -381,13 +402,13 @@ export default function ProposalsPage() {
       <AlertDialog open={!!deleteProposal} onOpenChange={() => setDeleteProposal(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Proposal Permanently</AlertDialogTitle>
+            <AlertDialogTitle>Elimina Proposta</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete "{deleteProposal?.activity_title}". This action cannot be undone.
+              Questa azione eliminerà permanentemente "{deleteProposal?.activity_title}". Non può essere annullata.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => {
@@ -396,7 +417,29 @@ export default function ProposalsPage() {
                 }
               }}
             >
-              Delete
+              Elimina
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirm Delete All Dialog */}
+      <AlertDialog open={showDeleteAll} onOpenChange={setShowDeleteAll}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Elimina tutte le proposte</AlertDialogTitle>
+            <AlertDialogDescription>
+              Questa azione eliminerà permanentemente tutte le {proposals.length} proposte (incluse quelle convertite, approvate e archiviate). Non può essere annullata.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteAllMutation.mutate()}
+              disabled={deleteAllMutation.isPending}
+            >
+              {deleteAllMutation.isPending ? "Eliminazione..." : "Elimina tutte"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
