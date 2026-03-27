@@ -235,6 +235,15 @@ export default function EventsPage() {
   const saveMutation = useMutation({
     mutationFn: async (evt: any) => {
       const { isNew, event_categories, ...data } = evt;
+
+      // Auto-compute founding_event badge
+      const foundingBadge = badges.find((b) => b.name === "Founding Member");
+      const autoBadges = computeAutoBadgesForStorage(data, foundingBadge?.id);
+      const manualBadges = ((data.event_badges as any[]) || []).filter(
+        (b: any) => b !== "founding_event"
+      );
+      data.event_badges = [...new Set([...autoBadges, ...manualBadges])];
+
       let savedId = data.id;
 
       if (isNew) {
@@ -870,6 +879,81 @@ export default function EventsPage() {
                     </p>
                   </div>
                 )}
+              </div>
+
+              {/* ═══ Event Badges ═══ */}
+              <Separator />
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  <h4 className="text-sm font-semibold">Badge Evento</h4>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Massimo 2 badge visibili. I badge automatici (ULTIMI POSTI, GRATUITO, FOUNDING EVENT) hanno priorità sui manuali.
+                </p>
+
+                <div className="space-y-2">
+                  <Label className="text-xs">Badge manuali</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {MANUAL_BADGE_OPTIONS.map((badge) => {
+                      const storedBadges = ((editEvent.event_badges as any[]) || []).filter((b: any) => typeof b === "string");
+                      const selected = storedBadges.includes(badge.value);
+                      return (
+                        <button
+                          key={badge.value}
+                          type="button"
+                          onClick={() => {
+                            const current = ((editEvent.event_badges as any[]) || []);
+                            const updated = selected
+                              ? current.filter((b: any) => b !== badge.value)
+                              : [...current, badge.value];
+                            setEditEvent({ ...editEvent, event_badges: updated });
+                          }}
+                          className={`flex items-center gap-2 p-2 rounded-lg border text-xs text-left transition-colors ${
+                            selected
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-border bg-card text-muted-foreground hover:border-primary/50"
+                          }`}
+                        >
+                          <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${badge.color}`}>
+                            {badge.label}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-xs">Badge personalizzato (testo libero)</Label>
+                  <Input
+                    className="h-8 text-sm"
+                    placeholder="es. NUOVO, SPECIALE..."
+                    value={
+                      (() => {
+                        const custom = ((editEvent.event_badges as any[]) || []).find(
+                          (b: any) => typeof b === "object" && b?.type === "custom"
+                        );
+                        return custom?.label || "";
+                      })()
+                    }
+                    onChange={(e) => {
+                      const current = ((editEvent.event_badges as any[]) || []).filter(
+                        (b: any) => !(typeof b === "object" && b?.type === "custom")
+                      );
+                      const val = e.target.value.trim();
+                      const updated = val ? [...current, { type: "custom", label: val }] : current;
+                      setEditEvent({ ...editEvent, event_badges: updated });
+                    }}
+                  />
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Opzionale. Verrà mostrato solo se ci sono meno di 2 badge con priorità più alta.</p>
+                </div>
+
+                {/* Preview */}
+                <div className="p-2 rounded border bg-muted/30">
+                  <p className="text-[10px] text-muted-foreground mb-1">Anteprima badge:</p>
+                  <EventBadgePills event={editEvent as any} />
+                </div>
               </div>
 
               <div className="space-y-4 pt-2 border-t mt-4">
