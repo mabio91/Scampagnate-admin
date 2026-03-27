@@ -129,9 +129,6 @@ export default function EventsPage() {
       return data || [];
     },
   });
-      return data || [];
-    },
-  });
 
   const { data: organizers = [] } = useQuery({
     queryKey: ["admin-organizers-list"],
