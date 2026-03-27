@@ -718,7 +718,7 @@ export default function EventsPage() {
 
                 {/* ── Dynamic Pricing ── */}
                 {(editEvent.payment_type === "paid" || editEvent.payment_type === "deposit") && (
-                   <div className="space-y-3 p-3 rounded-lg border border-dashed border-primary/30 bg-primary/5">
+                  <div className="space-y-3 p-3 rounded-lg border border-dashed border-primary/30 bg-primary/5">
                     <div className="flex items-center justify-between">
                       <Label className="text-xs font-semibold flex items-center gap-1.5">
                         <Tag className="h-3.5 w-3.5 text-primary" /> Fasce di prezzo
@@ -868,11 +868,10 @@ export default function EventsPage() {
                           key={tag.value}
                           type="button"
                           onClick={() => toggleExclusivityTag(tag.value)}
-                          className={`flex items-center gap-2 p-2.5 rounded-lg border text-xs text-left transition-colors ${
-                            selected
-                              ? "border-primary bg-primary/10 text-primary"
-                              : "border-border bg-card text-muted-foreground hover:border-primary/50"
-                          }`}
+                          className={`flex items-center gap-2 p-2.5 rounded-lg border text-xs text-left transition-colors ${selected
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border bg-card text-muted-foreground hover:border-primary/50"
+                            }`}
                         >
                           <TagIcon className="h-3.5 w-3.5 shrink-0" />
                           {tag.label}
@@ -920,11 +919,10 @@ export default function EventsPage() {
                               : [...current, badge.value];
                             setEditEvent({ ...editEvent, event_badges: updated });
                           }}
-                          className={`flex items-center gap-2 p-2 rounded-lg border text-xs text-left transition-colors ${
-                            selected
-                              ? "border-primary bg-primary/10 text-primary"
-                              : "border-border bg-card text-muted-foreground hover:border-primary/50"
-                          }`}
+                          className={`flex items-center gap-2 p-2 rounded-lg border text-xs text-left transition-colors ${selected
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border bg-card text-muted-foreground hover:border-primary/50"
+                            }`}
                         >
                           <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${badge.color}`}>
                             {badge.label}
