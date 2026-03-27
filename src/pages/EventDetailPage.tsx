@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EventParticipantsList } from "@/components/participants/EventParticipantsList";
+import { EventBadgePills } from "@/components/EventBadges";
 import {
   ArrowLeft, MapPin, Calendar, Clock, Users, DollarSign,
   Eye, Shield, Image as ImageIcon, ChevronRight,
@@ -116,10 +117,14 @@ export default function EventDetailPage() {
         <div className="lg:col-span-2 space-y-6">
           {/* Cover Image */}
           {event.image_url ? (
-            <img src={event.image_url} alt={event.title} className="w-full h-56 object-cover rounded-xl border" />
+            <div className="relative">
+              <img src={event.image_url} alt={event.title} className="w-full h-56 object-cover rounded-xl border" />
+              <EventBadgePills event={event} className="absolute top-3 left-3" />
+            </div>
           ) : (
-            <div className="w-full h-56 bg-muted rounded-xl flex items-center justify-center border border-dashed">
+            <div className="relative w-full h-56 bg-muted rounded-xl flex items-center justify-center border border-dashed">
               <ImageIcon className="h-10 w-10 text-muted-foreground" />
+              <EventBadgePills event={event} className="absolute top-3 left-3" />
             </div>
           )}
 
