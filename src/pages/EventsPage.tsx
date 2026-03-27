@@ -50,7 +50,31 @@ type PricingRule = {
   condition_value?: string[] | null; // array of badge/level IDs for specific_badge
 };
 
-const PRICING_CONDITIONS = [
+type AccessRules = {
+  min_trekking_events?: number | null;
+  min_activities?: number | null;
+  required_badge_id?: string | null;
+  require_active_membership?: boolean;
+  require_manual_approval?: boolean;
+  restriction_message?: string;
+  exclusivity_tags?: string[];
+  pricing_rules?: PricingRule[];
+  detail_visibility?: "everyone" | "registered_only" | "eligible_only";
+  registration_rule?: "open" | "eligible_only" | "invite_only";
+  allowed_user_groups?: string[];
+};
+
+const emptyEvent = {
+  title: "", description: "", location: "", date: "", time: "09:00",
+  spots_total: 20, price: 0, payment_type: "free" as const,
+  status: "draft" as const, visibility: "public" as const,
+  organizer_name: "", organizer_id: null as string | null,
+  category_id: null as string | null,
+  image_url: "" as string,
+  gallery_images: [] as string[],
+  access_rules: null as AccessRules | null,
+};
+
   { value: "everyone", label: "Tutti", description: "Visibile a tutti gli utenti" },
   { value: "active_members", label: "Soci attivi", description: "Utenti con tessera attiva" },
   { value: "new_users", label: "Nuovi utenti (0 eventi)", description: "Utenti che non hanno mai partecipato" },
