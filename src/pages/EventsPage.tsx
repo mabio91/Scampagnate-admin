@@ -74,7 +74,7 @@ const emptyEvent = {
   gallery_images: [] as string[],
   access_rules: null as AccessRules | null,
 };
-
+const PRICING_CONDITIONS = [
   { value: "everyone", label: "Tutti", description: "Visibile a tutti gli utenti" },
   { value: "active_members", label: "Soci attivi", description: "Utenti con tessera attiva" },
   { value: "new_users", label: "Nuovi utenti (0 eventi)", description: "Utenti che non hanno mai partecipato" },
