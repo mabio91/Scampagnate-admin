@@ -46,41 +46,17 @@ type PricingRule = {
   id: string;
   name: string;
   price: number;
-  condition: "has_participated" | "has_membership" | "has_badge" | "early_community" | "min_events";
-  condition_value?: string | number | null;
-};
-
-type AccessRules = {
-  min_trekking_events?: number | null;
-  min_activities?: number | null;
-  required_badge_id?: string | null;
-  require_active_membership?: boolean;
-  require_manual_approval?: boolean;
-  restriction_message?: string;
-  exclusivity_tags?: string[];
-  pricing_rules?: PricingRule[];
-  detail_visibility?: "everyone" | "registered_only" | "eligible_only";
-  registration_rule?: "open" | "eligible_only" | "invite_only";
-  allowed_user_groups?: string[];
-};
-
-const emptyEvent = {
-  title: "", description: "", location: "", date: "", time: "09:00",
-  spots_total: 20, price: 0, payment_type: "free" as const,
-  status: "draft" as const, visibility: "public" as const,
-  organizer_name: "", organizer_id: null as string | null,
-  category_id: null as string | null,
-  image_url: "" as string,
-  gallery_images: [] as string[],
-  access_rules: null as AccessRules | null,
+  condition: "everyone" | "active_members" | "new_users" | "experienced_users" | "loyal_participants" | "specific_badge";
+  condition_value?: string[] | null; // array of badge/level IDs for specific_badge
 };
 
 const PRICING_CONDITIONS = [
-  { value: "has_participated", label: "Has participated in at least 1 event" },
-  { value: "has_membership", label: "Has active membership" },
-  { value: "has_badge", label: "Has a specific badge" },
-  { value: "early_community", label: "Early community member" },
-  { value: "min_events", label: "Min. events attended" },
+  { value: "everyone", label: "Tutti", description: "Visibile a tutti gli utenti" },
+  { value: "active_members", label: "Soci attivi", description: "Utenti con tessera attiva" },
+  { value: "new_users", label: "Nuovi utenti (0 eventi)", description: "Utenti che non hanno mai partecipato" },
+  { value: "experienced_users", label: "Utenti esperti (1+ eventi)", description: "Utenti con almeno 1 evento" },
+  { value: "loyal_participants", label: "Partecipanti fedeli (5+ eventi)", description: "Utenti con 5 o più eventi" },
+  { value: "specific_badge", label: "Badge / Livello specifico", description: "Seleziona uno o più badge o livelli" },
 ];
 
 const EXCLUSIVITY_TAGS = [
