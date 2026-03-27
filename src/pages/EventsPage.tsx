@@ -376,10 +376,13 @@ export default function EventsPage() {
               <TableBody>
                 {filtered.map((event) => (
                   <TableRow key={event.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/events/${event.id}`)}>
-                    <TableCell className="font-medium flex items-center gap-1.5">
-                      {hasAnyAccessRule(event) && <Shield className="h-3.5 w-3.5 text-primary shrink-0" />}
-                      {getPricingRules(event).length > 0 && <Tag className="h-3.5 w-3.5 text-accent-foreground shrink-0" />}
-                      {event.title}
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-1.5">
+                        {hasAnyAccessRule(event) && <Shield className="h-3.5 w-3.5 text-primary shrink-0" />}
+                        {getPricingRules(event).length > 0 && <Tag className="h-3.5 w-3.5 text-accent-foreground shrink-0" />}
+                        <span className="truncate">{event.title}</span>
+                        <EventBadgePills event={event} className="ml-1" />
+                      </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{event.organizer_name}</TableCell>
                     <TableCell><Badge variant="secondary">{getCategoryName(event.category_id)}</Badge></TableCell>
