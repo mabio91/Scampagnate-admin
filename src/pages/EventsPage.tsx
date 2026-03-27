@@ -882,9 +882,9 @@ export default function EventsPage() {
                     )}
                     {((editEvent.gallery_images as any[]) || []).map((img, idx) => (
                       <div key={idx} className="flex items-center gap-3 bg-muted/30 p-2 rounded-md border">
-                        <img src={img} alt={`Gallery ${idx}`} className="w-12 h-10 object-cover rounded border" />
+                        <img src={typeof img === 'string' ? img : ''} alt={`Gallery ${idx}`} className="w-12 h-10 object-cover rounded border" />
                         <div className="flex-1 text-[10px] truncate max-w-[200px] font-mono text-muted-foreground">
-                          {img.split("/").pop()}
+                          {typeof img === 'string' ? img.split("/").pop() : ''}
                         </div>
                         <div className="flex items-center gap-1">
                           <Button variant="ghost" size="icon" className="h-7 w-7" disabled={idx === 0} onClick={() => moveGalleryImage(idx, "up")}>
