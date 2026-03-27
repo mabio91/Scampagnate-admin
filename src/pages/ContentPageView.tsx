@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TrekkingDifficultyGuide } from "@/components/TrekkingDifficultyGuide";
 
 interface ContentPage {
   id: string;
@@ -65,6 +66,7 @@ export default function ContentPageView() {
         className="prose dark:prose-invert max-w-none"
         dangerouslySetInnerHTML={{ __html: page.content_html }}
       />
+      {slug === "guida-difficolta-trekking" && <TrekkingDifficultyGuide />}
     </div>
   );
 }
