@@ -129,7 +129,12 @@ export default function ProposalsPage() {
       .single();
 
     if (profile?.phone) {
-      const phone = profile.phone.replace(/[^0-9+]/g, "");
+      // Strip everything except digits (wa.me needs pure digits, e.g. 393331234567)
+      const phone = profile.phone.replace(/[^0-9]/g, "");
+      if (!phone) {
+        toast.warning("Numero di telefono non valido");
+        return;
+      }
       const message = encodeURIComponent(`Ciao ${proposal.proposer_name}, riguardo la tua proposta "${proposal.activity_title}"...`);
       window.open(`https://wa.me/${phone}?text=${message}`, "_blank");
     } else {
