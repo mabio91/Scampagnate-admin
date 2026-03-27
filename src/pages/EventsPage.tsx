@@ -122,6 +122,17 @@ export default function EventsPage() {
     },
   });
 
+  const { data: communityLevels = [] } = useQuery({
+    queryKey: ["admin-community-levels"],
+    queryFn: async () => {
+      const { data } = await supabase.from("community_levels").select("id, name, icon, level_number").order("level_number");
+      return data || [];
+    },
+  });
+      return data || [];
+    },
+  });
+
   const { data: organizers = [] } = useQuery({
     queryKey: ["admin-organizers-list"],
     queryFn: async () => {
@@ -171,7 +182,7 @@ export default function EventsPage() {
       id: crypto.randomUUID(),
       name: "",
       price: 0,
-      condition: "has_participated",
+      condition: "everyone",
     };
     updateAccessRules({ pricing_rules: [...rules, newRule] });
   };
