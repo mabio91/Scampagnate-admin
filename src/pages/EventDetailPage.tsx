@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EventParticipantsList } from "@/components/participants/EventParticipantsList";
 import { EventBadgePills } from "@/components/EventBadges";
+import { EventShareLinks } from "@/components/EventShareLinks";
 import {
   ArrowLeft, MapPin, Calendar, Clock, Users, DollarSign,
   Eye, Shield, Image as ImageIcon, ChevronRight,
@@ -237,6 +238,9 @@ export default function EventDetailPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Share Links */}
+          <EventShareLinks eventId={event.id} eventTitle={event.title} visibility={event.visibility} />
 
           {/* Participants List */}
           <Card>
