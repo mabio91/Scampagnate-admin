@@ -35,7 +35,7 @@ const navItems: { titleKey: TranslationKey; url: string; icon: any }[] = [
   { titleKey: "sidebar.contentPages", url: "/content-pages", icon: FileText },
   { titleKey: "sidebar.missions", url: "/missions", icon: Target },
   { titleKey: "sidebar.gamificationSettings", url: "/gamification-settings", icon: Settings2 },
-  { titleKey: "sidebar.rewards" as any, url: "/rewards", icon: Gift },
+  { titleKey: "sidebar.rewards", url: "/rewards", icon: Gift },
   { titleKey: "sidebar.trekkingDifficulty", url: "/trekking-difficulty", icon: Mountain },
   { titleKey: "sidebar.emailTemplates", url: "/email-templates", icon: Mail },
 ];
