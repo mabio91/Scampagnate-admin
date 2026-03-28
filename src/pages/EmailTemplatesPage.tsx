@@ -13,7 +13,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Mail, Eye, Send, Pencil, Check, Smartphone, Monitor, RefreshCw } from "lucide-react";
+import { Mail, Eye, Send, Pencil, Check, Smartphone, Monitor, RefreshCw, Shield, ShieldCheck, ShieldAlert, Settings2 } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 import { RichTextEditor } from "@/components/RichTextEditor";
 
 interface EmailTemplate {
@@ -171,6 +172,23 @@ export default function EmailTemplatesPage() {
     return <div className="p-6 text-muted-foreground">{t("common.loading")}</div>;
   }
 
+  // Get last test sent from email_send_log
+  const { data: lastTestSent } = useQuery({
+    queryKey: ["last-test-email"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("email_send_log")
+        .select("sent_at, status, recipient_email")
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (error) throw error;
+      return data?.[0] || null;
+    },
+  });
+
+  // Get active template info for settings card
+  const activeTemplate = templates?.find((t) => t.is_active);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -180,6 +198,77 @@ export default function EmailTemplatesPage() {
           <p className="text-sm text-muted-foreground">Gestisci i template delle email di benvenuto</p>
         </div>
       </div>
+
+      {/* Deliverability Settings Card */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <Settings2 className="h-5 w-5 text-primary" />
+            <CardTitle className="text-lg">Impostazioni Email & Deliverability</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="space-y-1">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Email mittente</span>
+              <p className="text-sm font-semibold text-foreground">noreply@scampagnate.com</p>
+            </div>
+            <div className="space-y-1">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Nome mittente</span>
+              <p className="text-sm font-semibold text-foreground">{activeTemplate?.sender_name || "Scampagnate"}</p>
+            </div>
+            <div className="space-y-1">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Reply-to</span>
+              <p className="text-sm font-semibold text-foreground">{activeTemplate?.reply_to || "—"}</p>
+            </div>
+            <div className="space-y-1">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Template attivo</span>
+              <p className="text-sm font-semibold text-foreground">
+                {activeTemplate ? (
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-green-500" />
+                    {activeTemplate.name}
+                  </span>
+                ) : (
+                  <span className="text-destructive">Nessun template attivo</span>
+                )}
+              </p>
+            </div>
+            <div className="space-y-1">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Ultimo invio test</span>
+              <p className="text-sm font-semibold text-foreground">
+                {lastTestSent?.sent_at
+                  ? new Date(lastTestSent.sent_at).toLocaleString("it-IT", { dateStyle: "short", timeStyle: "short" })
+                  : "Mai"}
+              </p>
+            </div>
+            <div className="space-y-1">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Dominio autenticato</span>
+              <p className="text-sm font-semibold text-foreground">
+                <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
+                  <ShieldAlert className="h-3 w-3 mr-1" /> Da verificare su Resend
+                </Badge>
+              </p>
+            </div>
+          </div>
+          <Separator />
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider mr-2">DNS Records:</span>
+            <Badge variant="outline" className="text-muted-foreground border-muted">
+              <Shield className="h-3 w-3 mr-1" /> SPF: In attesa
+            </Badge>
+            <Badge variant="outline" className="text-muted-foreground border-muted">
+              <Shield className="h-3 w-3 mr-1" /> DKIM: In attesa
+            </Badge>
+            <Badge variant="outline" className="text-muted-foreground border-muted">
+              <Shield className="h-3 w-3 mr-1" /> DMARC: In attesa
+            </Badge>
+            <span className="text-xs text-muted-foreground ml-2">
+              Verifica il dominio su <a href="https://resend.com/domains" target="_blank" rel="noopener noreferrer" className="underline text-primary hover:text-primary/80">resend.com/domains</a>
+            </span>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6">
         {templates?.map((tpl) => (
