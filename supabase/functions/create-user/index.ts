@@ -55,6 +55,20 @@ serve(async (req) => {
       await supabaseAdmin.from("user_roles").insert({ user_id: newUser.user.id, role });
     }
 
+    // Send welcome email asynchronously (non-blocking)
+    try {
+      await supabaseAdmin.functions.invoke("send-welcome-email", {
+        body: {
+          recipientEmail: email,
+          userId: newUser.user.id,
+          firstName: first_name || "",
+          lastName: last_name || "",
+        },
+      });
+    } catch (emailErr) {
+      console.error("Welcome email failed (non-blocking):", emailErr);
+    }
+
     return new Response(JSON.stringify({ success: true, user_id: newUser.user.id }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

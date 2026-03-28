@@ -27,6 +27,7 @@ import ContentPageView from "@/pages/ContentPageView";
 import MissionsPage from "@/pages/MissionsPage";
 import GamificationSettingsPage from "@/pages/GamificationSettingsPage";
 import TrekkingDifficultyPage from "@/pages/TrekkingDifficultyPage";
+import EmailTemplatesPage from "@/pages/EmailTemplatesPage";
 import KPIDetailPage from "@/pages/KPIDetailPage";
 import LoginPage from "@/pages/LoginPage";
 import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
@@ -73,6 +74,7 @@ const App = () => (
               <Route path="/missions" element={<MissionsPage />} />
               <Route path="/gamification-settings" element={<GamificationSettingsPage />} />
               <Route path="/trekking-difficulty" element={<TrekkingDifficultyPage />} />
+              <Route path="/email-templates" element={<EmailTemplatesPage />} />
               <Route path="/kpi" element={<KPIDetailPage />} />
               <Route path="/profile" element={<ProfilePage />} />
             </Route>
