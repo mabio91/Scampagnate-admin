@@ -115,9 +115,7 @@ serve(async (req) => {
     // Send via Resend
     if (!resendApiKey) throw new Error("RESEND_API_KEY not configured");
 
-    const fromAddress = template.reply_to
-      ? `${template.sender_name || "Scampagnate"} <${template.reply_to}>`
-      : `${template.sender_name || "Scampagnate"} <noreply@resend.dev>`;
+    const fromAddress = `${template.sender_name || "Scampagnate"} <noreply@scampagnate.com>`;
 
     const resendResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
