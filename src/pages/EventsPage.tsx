@@ -276,7 +276,15 @@ export default function EventsPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  const filtered = events.filter((e) => e.title.toLowerCase().includes(search.toLowerCase()));
+  const filtered = events.filter((e) => {
+    const matchesSearch = e.title.toLowerCase().includes(search.toLowerCase());
+    if (!matchesSearch) return false;
+    if (dashboardFilter === "empty") {
+      const today = new Date().toISOString().slice(0, 10);
+      return e.date >= today && ["published", "available"].includes(e.status) && e.spots_taken === 0;
+    }
+    return true;
+  });
 
   const getCategoryName = (id: string | null) => categories.find((c) => c.id === id)?.name || "—";
 
