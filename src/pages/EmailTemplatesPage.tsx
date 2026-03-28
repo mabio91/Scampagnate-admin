@@ -334,19 +334,38 @@ export default function EmailTemplatesPage() {
                   <Badge variant="secondary">Inattivo</Badge>
                 )}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Button variant="outline" size="sm" onClick={() => { setPreviewTemplate(tpl); }}>
                   <Eye className="h-4 w-4 mr-1" /> Anteprima
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => { setTestTemplateId(tpl.id); setTestEmailDialog(true); }}>
                   <Send className="h-4 w-4 mr-1" /> Test
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => setEditingTemplate({ ...tpl })}>
+                <Button variant="outline" size="sm" onClick={() => { setIsCreating(false); setEditingTemplate({ ...tpl }); }}>
                   <Pencil className="h-4 w-4 mr-1" /> Modifica
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => {
+                  setIsCreating(true);
+                  setEditingTemplate({
+                    ...tpl,
+                    id: "",
+                    name: `${tpl.name} (copia)`,
+                    template_key: `${tpl.template_key}_copy_${Date.now()}`,
+                    is_active: false,
+                    created_at: "",
+                    updated_at: "",
+                  });
+                }}>
+                  <Copy className="h-4 w-4 mr-1" /> Duplica
                 </Button>
                 {!tpl.is_active && (
                   <Button size="sm" onClick={() => activateMutation.mutate(tpl.id)}>
                     <Check className="h-4 w-4 mr-1" /> Attiva
+                  </Button>
+                )}
+                {!tpl.is_active && (
+                  <Button variant="destructive" size="sm" onClick={() => setDeleteConfirm(tpl)}>
+                    <Trash2 className="h-4 w-4 mr-1" /> Elimina
                   </Button>
                 )}
               </div>
