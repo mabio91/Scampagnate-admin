@@ -132,6 +132,20 @@ export default function EventsPage() {
     },
   });
 
+  // Fetch event IDs with pending approval registrations (for dashboard filter)
+  const { data: pendingEventIds = [] } = useQuery({
+    queryKey: ["admin-events-pending-approvals"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("event_registrations")
+        .select("event_id")
+        .eq("status", "pending_approval");
+      if (!data) return [];
+      return [...new Set(data.map(r => r.event_id))];
+    },
+    enabled: dashboardFilter === "pending",
+  });
+
   const { data: categories = [] } = useQuery({
     queryKey: ["admin-categories-list"],
     queryFn: async () => {
