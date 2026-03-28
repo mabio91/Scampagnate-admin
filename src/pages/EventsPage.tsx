@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, MoreHorizontal, Eye, Edit2, Trash2, Plus, Upload, X, ArrowUp, ArrowDown, Image as ImageIcon, Loader2, Shield, Lock, Star, Users, Award, Crown, CheckCircle2, DollarSign, Tag, Sparkles, Copy, MessageCircle } from "lucide-react";
+import { Search, MoreHorizontal, Eye, Edit2, Trash2, Plus, Upload, X, ArrowUp, ArrowDown, Image as ImageIcon, Loader2, Shield, Lock, Star, Users, Award, Crown, CheckCircle2, DollarSign, Tag, Sparkles, Copy, MessageCircle, CalendarX } from "lucide-react";
 import { MANUAL_BADGE_OPTIONS, EventBadgePills, computeAutoBadgesForStorage } from "@/components/EventBadges";
 import RefreshButton from "@/components/RefreshButton";
 
@@ -115,6 +115,7 @@ export default function EventsPage() {
   const navigate = useNavigate();
   const { t } = useLanguage();
   const [search, setSearch] = useState(searchParams.get("search") || "");
+  const dashboardFilter = searchParams.get("filter"); // "empty" | "pending" | null
   const [editEvent, setEditEvent] = useState<(Partial<Event> & { isNew?: boolean }) | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const queryClient = useQueryClient();
@@ -129,6 +130,20 @@ export default function EventsPage() {
       if (error) throw error;
       return (data || []) as EventWithCategory[];
     },
+  });
+
+  // Fetch event IDs with pending approval registrations (for dashboard filter)
+  const { data: pendingEventIds = [] } = useQuery({
+    queryKey: ["admin-events-pending-approvals"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("event_registrations")
+        .select("event_id")
+        .eq("status", "pending_approval");
+      if (!data) return [];
+      return [...new Set(data.map(r => r.event_id))];
+    },
+    enabled: dashboardFilter === "pending",
   });
 
   const { data: categories = [] } = useQuery({
@@ -275,7 +290,18 @@ export default function EventsPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  const filtered = events.filter((e) => e.title.toLowerCase().includes(search.toLowerCase()));
+  const filtered = events.filter((e) => {
+    const matchesSearch = e.title.toLowerCase().includes(search.toLowerCase());
+    if (!matchesSearch) return false;
+    if (dashboardFilter === "empty") {
+      const today = new Date().toISOString().slice(0, 10);
+      return e.date >= today && ["published", "available"].includes(e.status) && e.spots_taken === 0;
+    }
+    if (dashboardFilter === "pending") {
+      return pendingEventIds.includes(e.id);
+    }
+    return true;
+  });
 
   const getCategoryName = (id: string | null) => categories.find((c) => c.id === id)?.name || "—";
 
@@ -348,6 +374,16 @@ export default function EventsPage() {
           </Button>
         </div>
       </div>
+
+      {dashboardFilter && (
+        <div className="flex items-center gap-2 p-3 rounded-lg border border-warning/30 bg-warning/5">
+          <CalendarX className="h-4 w-4 text-warning shrink-0" />
+          <p className="text-sm text-foreground flex-1">
+            {dashboardFilter === "empty" ? "Filtro attivo: eventi senza iscritti" : dashboardFilter === "pending" ? "Filtro attivo: iscrizioni in attesa" : `Filtro: ${dashboardFilter}`}
+          </p>
+          <Button variant="ghost" size="sm" onClick={() => navigate("/events")}>Rimuovi filtro</Button>
+        </div>
+      )}
 
       <Card>
         <CardHeader className="pb-3">
