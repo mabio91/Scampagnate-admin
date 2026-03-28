@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -18,14 +17,6 @@ const statusLabels: Record<string, string> = {
   redeemed: "Riscattato",
 };
 
-const statusColors: Record<string, string> = {
-  active: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-  used: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400",
-  expired: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-  pending: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
-  redeemed: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-};
-
 const typeIcons: Record<string, React.ReactNode> = {
   coupon: <Ticket className="h-5 w-5" />,
   badge: <Award className="h-5 w-5" />,
@@ -36,10 +27,10 @@ const typeIcons: Record<string, React.ReactNode> = {
 export default function RewardsAdminPage() {
   const queryClient = useQueryClient();
 
-  const { data: rewards = [], isLoading } = useQuery({
+  const { data: rewards = [] } = useQuery({
     queryKey: ["admin-rewards"],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const { data } = await supabase
         .from("user_rewards")
         .select("*")
         .order("created_at", { ascending: false });
@@ -57,9 +48,9 @@ export default function RewardsAdminPage() {
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const updates: any = { status };
+      const updates: Record<string, string> = { status };
       if (status === "redeemed") updates.redeemed_at = new Date().toISOString();
-      const { error } = await (supabase as any).from("user_rewards").update(updates).eq("id", id);
+      const { error } = await supabase.from("user_rewards").update(updates).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -96,13 +87,13 @@ export default function RewardsAdminPage() {
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-green-600">{activeRewards.length}</div>
+            <div className="text-2xl font-bold text-accent-foreground">{activeRewards.length}</div>
             <div className="text-xs text-muted-foreground uppercase tracking-wider">Attive</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-amber-600">
+            <div className="text-2xl font-bold text-primary">
               {rewards.filter((r: any) => r.status === "pending").length}
             </div>
             <div className="text-xs text-muted-foreground uppercase tracking-wider">Da ritirare</div>
@@ -125,73 +116,75 @@ export default function RewardsAdminPage() {
         <TabsContent value="active" className="mt-4">
           <Card>
             <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Utente</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Ricompensa</TableHead>
-                    <TableHead>Stato</TableHead>
-                    <TableHead>Scadenza</TableHead>
-                    <TableHead>Azioni</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {activeRewards.length === 0 ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
-                        <Gift className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        Nessuna ricompensa attiva
-                      </TableCell>
+                      <TableHead>Utente</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Ricompensa</TableHead>
+                      <TableHead>Stato</TableHead>
+                      <TableHead>Scadenza</TableHead>
+                      <TableHead>Azioni</TableHead>
                     </TableRow>
-                  ) : (
-                    activeRewards.map((r: any) => (
-                      <TableRow key={r.id}>
-                        <TableCell className="font-medium">{getProfileName(r.user_id)}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1.5">
-                            {typeIcons[r.type]}
-                            <span className="text-sm capitalize">{r.type}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>{r.title || r.value || "—"}</TableCell>
-                        <TableCell>
-                          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[r.status]}`}>
-                            {statusLabels[r.status]}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {r.expiry_date ? new Date(r.expiry_date).toLocaleDateString("it-IT") : "—"}
-                        </TableCell>
-                        <TableCell>
-                          {r.status === "pending" && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => updateStatusMutation.mutate({ id: r.id, status: "redeemed" })}
-                              className="gap-1"
-                            >
-                              <CheckCircle className="h-3.5 w-3.5" />
-                              Consegnato
-                            </Button>
-                          )}
-                          {r.status === "active" && r.type === "coupon" && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => updateStatusMutation.mutate({ id: r.id, status: "used" })}
-                              className="gap-1"
-                            >
-                              <CheckCircle className="h-3.5 w-3.5" />
-                              Usato
-                            </Button>
-                          )}
+                  </TableHeader>
+                  <TableBody>
+                    {activeRewards.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                          <Gift className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                          Nessuna ricompensa attiva
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                    ) : (
+                      activeRewards.map((r: any) => (
+                        <TableRow key={r.id}>
+                          <TableCell className="font-medium">{getProfileName(r.user_id)}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1.5 text-muted-foreground">
+                              {typeIcons[r.type]}
+                              <span className="text-sm capitalize">{r.type}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>{r.title || r.value || "—"}</TableCell>
+                          <TableCell>
+                            <Badge variant="secondary" className="text-xs">
+                              {statusLabels[r.status] || r.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {r.expiry_date ? new Date(r.expiry_date).toLocaleDateString("it-IT") : "—"}
+                          </TableCell>
+                          <TableCell>
+                            {r.status === "pending" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => updateStatusMutation.mutate({ id: r.id, status: "redeemed" })}
+                                className="gap-1"
+                              >
+                                <CheckCircle className="h-3.5 w-3.5" />
+                                Consegnato
+                              </Button>
+                            )}
+                            {r.status === "active" && r.type === "coupon" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => updateStatusMutation.mutate({ id: r.id, status: "used" })}
+                                className="gap-1"
+                              >
+                                <CheckCircle className="h-3.5 w-3.5" />
+                                Usato
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -199,48 +192,50 @@ export default function RewardsAdminPage() {
         <TabsContent value="history" className="mt-4">
           <Card>
             <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Utente</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Ricompensa</TableHead>
-                    <TableHead>Stato</TableHead>
-                    <TableHead>Data</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {historyRewards.length === 0 ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
-                        <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        Nessun elemento nello storico
-                      </TableCell>
+                      <TableHead>Utente</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Ricompensa</TableHead>
+                      <TableHead>Stato</TableHead>
+                      <TableHead>Data</TableHead>
                     </TableRow>
-                  ) : (
-                    historyRewards.map((r: any) => (
-                      <TableRow key={r.id}>
-                        <TableCell className="font-medium">{getProfileName(r.user_id)}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1.5">
-                            {typeIcons[r.type]}
-                            <span className="text-sm capitalize">{r.type}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>{r.title || r.value || "—"}</TableCell>
-                        <TableCell>
-                          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[r.status]}`}>
-                            {statusLabels[r.status]}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {r.redeemed_at ? new Date(r.redeemed_at).toLocaleDateString("it-IT") : new Date(r.created_at).toLocaleDateString("it-IT")}
+                  </TableHeader>
+                  <TableBody>
+                    {historyRewards.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                          <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                          Nessun elemento nello storico
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                    ) : (
+                      historyRewards.map((r: any) => (
+                        <TableRow key={r.id}>
+                          <TableCell className="font-medium">{getProfileName(r.user_id)}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1.5 text-muted-foreground">
+                              {typeIcons[r.type]}
+                              <span className="text-sm capitalize">{r.type}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>{r.title || r.value || "—"}</TableCell>
+                          <TableCell>
+                            <Badge variant="secondary" className="text-xs">
+                              {statusLabels[r.status] || r.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {r.redeemed_at ? new Date(r.redeemed_at).toLocaleDateString("it-IT") : new Date(r.created_at).toLocaleDateString("it-IT")}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

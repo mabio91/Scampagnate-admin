@@ -19,7 +19,7 @@ export default function MissionStatsCards({ missions }: Props) {
       </Card>
       <Card>
         <CardContent className="p-4 text-center">
-          <div className="text-2xl font-bold text-green-600">{active}</div>
+          <div className="text-2xl font-bold text-accent-foreground">{active}</div>
           <div className="text-xs text-muted-foreground uppercase tracking-wider">Attive</div>
         </CardContent>
       </Card>
@@ -31,7 +31,7 @@ export default function MissionStatsCards({ missions }: Props) {
       </Card>
       <Card>
         <CardContent className="p-4 text-center">
-          <div className="text-2xl font-bold text-amber-600">{withRewards}</div>
+          <div className="text-2xl font-bold text-primary">{withRewards}</div>
           <div className="text-xs text-muted-foreground uppercase tracking-wider">Con Reward</div>
         </CardContent>
       </Card>

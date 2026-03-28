@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -82,13 +82,15 @@ interface Props {
 
 export default function MissionFormDialog({ open, onOpenChange, form, setForm, onSave, isPending, categories, badges }: Props) {
   const showStreakFields = form.type === "streak";
-  const showCategoryField = form.type === "category" || !!form.category;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby="mission-form-desc">
         <DialogHeader>
           <DialogTitle>{form.id ? "Modifica Missione" : "Nuova Missione"}</DialogTitle>
+          <DialogDescription id="mission-form-desc">
+            Configura i dettagli, le regole e le ricompense della missione.
+          </DialogDescription>
         </DialogHeader>
         
         <Tabs defaultValue="general" className="w-full">
