@@ -13,9 +13,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Mail, Eye, Send, Pencil, Check, Smartphone, Monitor, RefreshCw, Shield, ShieldCheck, ShieldAlert, Settings2 } from "lucide-react";
+import { Mail, Eye, Send, Pencil, Check, Smartphone, Monitor, RefreshCw, Shield, ShieldCheck, ShieldAlert, Settings2, Plus, Trash2, Copy } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { RichTextEditor } from "@/components/RichTextEditor";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface EmailTemplate {
   id: string;
@@ -83,12 +84,14 @@ export default function EmailTemplatesPage() {
   const { t } = useLanguage();
   const queryClient = useQueryClient();
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<EmailTemplate | null>(null);
   const [previewViewport, setPreviewViewport] = useState<"desktop" | "mobile">("desktop");
   const [testEmailDialog, setTestEmailDialog] = useState(false);
   const [testTemplateId, setTestTemplateId] = useState<string | null>(null);
   const [testEmail, setTestEmail] = useState("");
   const [sendingTest, setSendingTest] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<EmailTemplate | null>(null);
 
   const { data: templates, isLoading } = useQuery({
     queryKey: ["email-templates"],
@@ -132,6 +135,32 @@ export default function EmailTemplatesPage() {
     onError: () => toast.error("Errore nel salvataggio"),
   });
 
+  const createMutation = useMutation({
+    mutationFn: async (template: Omit<EmailTemplate, "id" | "created_at" | "updated_at">) => {
+      const { error } = await supabase.from("email_templates").insert(template);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["email-templates"] });
+      toast.success("Template creato");
+      setEditingTemplate(null);
+      setIsCreating(false);
+    },
+    onError: () => toast.error("Errore nella creazione"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("email_templates").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["email-templates"] });
+      toast.success("Template eliminato");
+      setDeleteConfirm(null);
+    },
+    onError: () => toast.error("Errore nell'eliminazione"),
+  });
   const activateMutation = useMutation({
     mutationFn: async (templateId: string) => {
       // Deactivate all welcome templates, then activate the selected one
@@ -192,12 +221,34 @@ export default function EmailTemplatesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Mail className="h-6 w-6 text-primary" />
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Email Templates</h1>
-          <p className="text-sm text-muted-foreground">Gestisci i template delle email di benvenuto</p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Mail className="h-6 w-6 text-primary" />
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Email Templates</h1>
+            <p className="text-sm text-muted-foreground">Gestisci i template delle email</p>
+          </div>
         </div>
+        <Button onClick={() => {
+          setIsCreating(true);
+          setEditingTemplate({
+            id: "",
+            template_key: `email_template_${Date.now()}`,
+            name: "",
+            subject: "",
+            preview_text: "",
+            body_html: "<p>Ciao {{first_name}},</p><p></p>",
+            cta_label: "",
+            cta_url: "",
+            sender_name: "Scampagnate",
+            reply_to: "",
+            is_active: false,
+            created_at: "",
+            updated_at: "",
+          });
+        }}>
+          <Plus className="h-4 w-4 mr-1" /> Nuovo Template
+        </Button>
       </div>
 
       {/* Deliverability Settings Card */}
@@ -283,19 +334,38 @@ export default function EmailTemplatesPage() {
                   <Badge variant="secondary">Inattivo</Badge>
                 )}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Button variant="outline" size="sm" onClick={() => { setPreviewTemplate(tpl); }}>
                   <Eye className="h-4 w-4 mr-1" /> Anteprima
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => { setTestTemplateId(tpl.id); setTestEmailDialog(true); }}>
                   <Send className="h-4 w-4 mr-1" /> Test
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => setEditingTemplate({ ...tpl })}>
+                <Button variant="outline" size="sm" onClick={() => { setIsCreating(false); setEditingTemplate({ ...tpl }); }}>
                   <Pencil className="h-4 w-4 mr-1" /> Modifica
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => {
+                  setIsCreating(true);
+                  setEditingTemplate({
+                    ...tpl,
+                    id: "",
+                    name: `${tpl.name} (copia)`,
+                    template_key: `${tpl.template_key}_copy_${Date.now()}`,
+                    is_active: false,
+                    created_at: "",
+                    updated_at: "",
+                  });
+                }}>
+                  <Copy className="h-4 w-4 mr-1" /> Duplica
                 </Button>
                 {!tpl.is_active && (
                   <Button size="sm" onClick={() => activateMutation.mutate(tpl.id)}>
                     <Check className="h-4 w-4 mr-1" /> Attiva
+                  </Button>
+                )}
+                {!tpl.is_active && (
+                  <Button variant="destructive" size="sm" onClick={() => setDeleteConfirm(tpl)}>
+                    <Trash2 className="h-4 w-4 mr-1" /> Elimina
                   </Button>
                 )}
               </div>
@@ -324,11 +394,11 @@ export default function EmailTemplatesPage() {
         ))}
       </div>
 
-      {/* Edit Dialog */}
-      <Dialog open={!!editingTemplate} onOpenChange={(open) => { if (!open) setEditingTemplate(null); }}>
+      {/* Edit/Create Dialog */}
+      <Dialog open={!!editingTemplate} onOpenChange={(open) => { if (!open) { setEditingTemplate(null); setIsCreating(false); } }}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Modifica Template</DialogTitle>
+            <DialogTitle>{isCreating ? "Nuovo Template" : "Modifica Template"}</DialogTitle>
           </DialogHeader>
           {editingTemplate && (
             <div className="space-y-4">
@@ -338,9 +408,13 @@ export default function EmailTemplatesPage() {
                   <Input value={editingTemplate.name} onChange={(e) => setEditingTemplate({ ...editingTemplate, name: e.target.value })} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Oggetto email</Label>
-                  <Input value={editingTemplate.subject} onChange={(e) => setEditingTemplate({ ...editingTemplate, subject: e.target.value })} />
+                  <Label>Chiave template</Label>
+                  <Input value={editingTemplate.template_key} onChange={(e) => setEditingTemplate({ ...editingTemplate, template_key: e.target.value })} placeholder="es. welcome_email_v1" />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Oggetto email</Label>
+                <Input value={editingTemplate.subject} onChange={(e) => setEditingTemplate({ ...editingTemplate, subject: e.target.value })} />
               </div>
               <div className="space-y-2">
                 <Label>Testo anteprima (opzionale)</Label>
@@ -372,9 +446,19 @@ export default function EmailTemplatesPage() {
                 </div>
               </div>
               <div className="flex justify-end gap-2 pt-4">
-                <Button variant="outline" onClick={() => setEditingTemplate(null)}>Annulla</Button>
-                <Button onClick={() => updateMutation.mutate(editingTemplate)} disabled={updateMutation.isPending}>
-                  {updateMutation.isPending ? "Salvataggio..." : "Salva modifiche"}
+                <Button variant="outline" onClick={() => { setEditingTemplate(null); setIsCreating(false); }}>Annulla</Button>
+                <Button
+                  onClick={() => {
+                    if (isCreating) {
+                      const { id, created_at, updated_at, ...rest } = editingTemplate;
+                      createMutation.mutate(rest);
+                    } else {
+                      updateMutation.mutate(editingTemplate);
+                    }
+                  }}
+                  disabled={createMutation.isPending || updateMutation.isPending || !editingTemplate.name || !editingTemplate.template_key}
+                >
+                  {(createMutation.isPending || updateMutation.isPending) ? "Salvataggio..." : isCreating ? "Crea template" : "Salva modifiche"}
                 </Button>
               </div>
             </div>
@@ -437,6 +521,23 @@ export default function EmailTemplatesPage() {
           </div>
         </DialogContent>
       </Dialog>
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteConfirm} onOpenChange={(open) => { if (!open) setDeleteConfirm(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Elimina template</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sei sicuro di voler eliminare il template "{deleteConfirm?.name}"? Questa azione non può essere annullata.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteConfirm && deleteMutation.mutate(deleteConfirm.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Elimina
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
