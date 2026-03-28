@@ -297,6 +297,9 @@ export default function EventsPage() {
       const today = new Date().toISOString().slice(0, 10);
       return e.date >= today && ["published", "available"].includes(e.status) && e.spots_taken === 0;
     }
+    if (dashboardFilter === "pending") {
+      return pendingEventIds.includes(e.id);
+    }
     return true;
   });
 
