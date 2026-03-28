@@ -113,7 +113,9 @@ serve(async (req) => {
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
     const body = await req.json();
-    const { templateId, recipientEmail, userId, firstName, lastName, isTest } = body;
+    const { templateId, userId, firstName, lastName, isTest } = body;
+    // Accept both "recipientEmail" (from admin UI) and "email" (from DB trigger)
+    const recipientEmail = body.recipientEmail || body.email;
 
     if (!recipientEmail) {
       throw new Error("recipientEmail is required");
