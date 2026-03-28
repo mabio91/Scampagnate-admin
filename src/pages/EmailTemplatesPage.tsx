@@ -168,10 +168,6 @@ export default function EmailTemplatesPage() {
     }
   };
 
-  if (isLoading) {
-    return <div className="p-6 text-muted-foreground">{t("common.loading")}</div>;
-  }
-
   // Get last test sent from email_send_log
   const { data: lastTestSent } = useQuery({
     queryKey: ["last-test-email"],
@@ -185,6 +181,10 @@ export default function EmailTemplatesPage() {
       return data?.[0] || null;
     },
   });
+
+  if (isLoading) {
+    return <div className="p-6 text-muted-foreground">{t("common.loading")}</div>;
+  }
 
   // Get active template info for settings card
   const activeTemplate = templates?.find((t) => t.is_active);
