@@ -84,12 +84,14 @@ export default function EmailTemplatesPage() {
   const { t } = useLanguage();
   const queryClient = useQueryClient();
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<EmailTemplate | null>(null);
   const [previewViewport, setPreviewViewport] = useState<"desktop" | "mobile">("desktop");
   const [testEmailDialog, setTestEmailDialog] = useState(false);
   const [testTemplateId, setTestTemplateId] = useState<string | null>(null);
   const [testEmail, setTestEmail] = useState("");
   const [sendingTest, setSendingTest] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<EmailTemplate | null>(null);
 
   const { data: templates, isLoading } = useQuery({
     queryKey: ["email-templates"],
@@ -133,6 +135,32 @@ export default function EmailTemplatesPage() {
     onError: () => toast.error("Errore nel salvataggio"),
   });
 
+  const createMutation = useMutation({
+    mutationFn: async (template: Omit<EmailTemplate, "id" | "created_at" | "updated_at">) => {
+      const { error } = await supabase.from("email_templates").insert(template);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["email-templates"] });
+      toast.success("Template creato");
+      setEditingTemplate(null);
+      setIsCreating(false);
+    },
+    onError: () => toast.error("Errore nella creazione"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("email_templates").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["email-templates"] });
+      toast.success("Template eliminato");
+      setDeleteConfirm(null);
+    },
+    onError: () => toast.error("Errore nell'eliminazione"),
+  });
   const activateMutation = useMutation({
     mutationFn: async (templateId: string) => {
       // Deactivate all welcome templates, then activate the selected one
