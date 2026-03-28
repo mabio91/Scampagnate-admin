@@ -324,50 +324,52 @@ export default function EmailTemplatesPage() {
 
       <div className="grid gap-6">
         {templates?.map((tpl) => (
-          <Card key={tpl.id} className={tpl.is_active ? "border-primary/50 shadow-md" : ""}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <div className="flex items-center gap-3">
-                <CardTitle className="text-lg">{tpl.name}</CardTitle>
-                {tpl.is_active ? (
-                  <Badge className="bg-success text-success-foreground">Attivo</Badge>
-                ) : (
-                  <Badge variant="secondary">Inattivo</Badge>
-                )}
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <Button variant="outline" size="sm" onClick={() => { setPreviewTemplate(tpl); }}>
-                  <Eye className="h-4 w-4 mr-1" /> Anteprima
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => { setTestTemplateId(tpl.id); setTestEmailDialog(true); }}>
-                  <Send className="h-4 w-4 mr-1" /> Test
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => { setIsCreating(false); setEditingTemplate({ ...tpl }); }}>
-                  <Pencil className="h-4 w-4 mr-1" /> Modifica
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => {
-                  setIsCreating(true);
-                  setEditingTemplate({
-                    ...tpl,
-                    id: "",
-                    name: `${tpl.name} (copia)`,
-                    template_key: `${tpl.template_key}_copy_${Date.now()}`,
-                    is_active: false,
-                    created_at: "",
-                    updated_at: "",
-                  });
-                }}>
-                  <Copy className="h-4 w-4 mr-1" /> Duplica
-                </Button>
-                {!tpl.is_active && (
-                  <Button size="sm" onClick={() => activateMutation.mutate(tpl.id)}>
-                    <Check className="h-4 w-4 mr-1" /> Attiva
+           <Card key={tpl.id} className={tpl.is_active ? "border-primary/50 shadow-md" : ""}>
+            <CardHeader className="pb-3 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-lg">{tpl.name}</CardTitle>
+                  {tpl.is_active ? (
+                    <Badge className="bg-success text-success-foreground">Attivo</Badge>
+                  ) : (
+                    <Badge variant="secondary">Inattivo</Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <Button variant="outline" size="sm" onClick={() => { setPreviewTemplate(tpl); }}>
+                    <Eye className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Anteprima</span>
                   </Button>
-                )}
-                {!tpl.is_active && (
-                  <Button variant="destructive" size="sm" onClick={() => setDeleteConfirm(tpl)}>
-                    <Trash2 className="h-4 w-4 mr-1" /> Elimina
+                  <Button variant="outline" size="sm" onClick={() => { setTestTemplateId(tpl.id); setTestEmailDialog(true); }}>
+                    <Send className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Test</span>
                   </Button>
-                )}
+                  <Button variant="outline" size="sm" onClick={() => { setIsCreating(false); setEditingTemplate({ ...tpl }); }}>
+                    <Pencil className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Modifica</span>
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => {
+                    setIsCreating(true);
+                    setEditingTemplate({
+                      ...tpl,
+                      id: "",
+                      name: `${tpl.name} (copia)`,
+                      template_key: `${tpl.template_key}_copy_${Date.now()}`,
+                      is_active: false,
+                      created_at: "",
+                      updated_at: "",
+                    });
+                  }}>
+                    <Copy className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Duplica</span>
+                  </Button>
+                  {!tpl.is_active && (
+                    <Button size="sm" onClick={() => activateMutation.mutate(tpl.id)}>
+                      <Check className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Attiva</span>
+                    </Button>
+                  )}
+                  {!tpl.is_active && (
+                    <Button variant="destructive" size="sm" onClick={() => setDeleteConfirm(tpl)}>
+                      <Trash2 className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Elimina</span>
+                    </Button>
+                  )}
+                </div>
               </div>
             </CardHeader>
             <CardContent>
