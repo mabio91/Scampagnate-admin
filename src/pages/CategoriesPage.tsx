@@ -11,6 +11,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import IconPicker from "@/components/IconPicker";
+import DynamicIcon from "@/components/DynamicIcon";
 import type { Tables } from "@/integrations/supabase/types";
 import { useLanguage } from "@/i18n/LanguageContext";
 
@@ -99,7 +101,7 @@ export default function CategoriesPage() {
               <CardContent className="p-5">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-lg bg-primary/10 text-xl">{cat.icon || "📂"}</div>
+                    <div className="p-2.5 rounded-lg bg-primary/10 flex items-center justify-center"><DynamicIcon value={cat.icon || "📂"} size={22} /></div>
                     <div>
                       <h3 className="font-semibold font-sans">{cat.name}</h3>
                       <p className="text-sm text-muted-foreground">{eventCounts[cat.id] || 0} {t("categories.events")}</p>
@@ -130,7 +132,7 @@ export default function CategoriesPage() {
           {editCat && (
             <div className="space-y-4">
               <div><Label>{t("categories.categoryName")}</Label><Input value={editCat.name || ""} onChange={(e) => setEditCat({ ...editCat, name: e.target.value })} /></div>
-              <div><Label>{t("categories.icon")}</Label><Input value={editCat.icon || ""} onChange={(e) => setEditCat({ ...editCat, icon: e.target.value })} /></div>
+              <div><Label>Icona</Label><IconPicker value={editCat.icon || ""} onChange={(v) => setEditCat({ ...editCat, icon: v })} /></div>
               <div><Label>{t("common.description")}</Label><Input value={editCat.description || ""} onChange={(e) => setEditCat({ ...editCat, description: e.target.value })} /></div>
               <div><Label>{t("categories.sortOrder")}</Label><Input type="number" value={editCat.sort_order ?? ""} onChange={(e) => setEditCat({ ...editCat, sort_order: e.target.value === "" ? undefined : parseInt(e.target.value, 10) })} /></div>
             </div>

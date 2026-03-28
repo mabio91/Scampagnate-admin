@@ -13,6 +13,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Plus, Trash2, Pencil, UserPlus } from "lucide-react";
+import IconPicker from "@/components/IconPicker";
+import DynamicIcon from "@/components/DynamicIcon";
 
 interface BadgeForm {
   name: string;
@@ -189,8 +191,8 @@ export default function BadgesTab() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Icona (emoji)</Label>
-                  <Input value={form.icon} onChange={(e) => setForm((p) => ({ ...p, icon: e.target.value }))} placeholder="🏆" />
+                  <Label>Icona</Label>
+                  <IconPicker value={form.icon} onChange={(v) => setForm((p) => ({ ...p, icon: v }))} />
                 </div>
                 <div>
                   <Label>Categoria</Label>
@@ -262,7 +264,7 @@ export default function BadgesTab() {
           <TableBody>
             {badges.map((b: any) => (
               <TableRow key={b.id}>
-                <TableCell className="text-xl">{b.icon}</TableCell>
+                <TableCell><DynamicIcon value={b.icon} size={24} /></TableCell>
                 <TableCell>
                   <div>
                     <span className="font-medium">{b.name}</span>

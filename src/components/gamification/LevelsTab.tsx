@@ -10,6 +10,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Save, Plus, Trash2 } from "lucide-react";
+import IconPicker from "@/components/IconPicker";
+import DynamicIcon from "@/components/DynamicIcon";
 
 export default function LevelsTab() {
   const queryClient = useQueryClient();
@@ -108,11 +110,10 @@ export default function LevelsTab() {
                   />
                 </div>
                 <div>
-                  <Label>Icona (emoji)</Label>
-                  <Input
-                    placeholder="es. ⭐"
+                  <Label>Icona</Label>
+                  <IconPicker
                     value={newLevel.icon}
-                    onChange={(e) => setNewLevel((p) => ({ ...p, icon: e.target.value }))}
+                    onChange={(v) => setNewLevel((p) => ({ ...p, icon: v }))}
                   />
                 </div>
                 <div>
@@ -184,13 +185,12 @@ export default function LevelsTab() {
                   />
                 </TableCell>
                 <TableCell>
-                  <Input
-                    className="h-8 w-16"
-                    value={editedLevels[lv.id]?.icon !== undefined ? editedLevels[lv.id].icon : lv.icon}
-                    onChange={(e) =>
+                  <IconPicker
+                    value={editedLevels[lv.id]?.icon !== undefined ? editedLevels[lv.id].icon! : lv.icon}
+                    onChange={(v) =>
                       setEditedLevels((prev) => ({
                         ...prev,
-                        [lv.id]: { ...prev[lv.id], icon: e.target.value },
+                        [lv.id]: { ...prev[lv.id], icon: v },
                       }))
                     }
                   />
