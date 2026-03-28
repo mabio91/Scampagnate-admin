@@ -394,11 +394,11 @@ export default function EmailTemplatesPage() {
         ))}
       </div>
 
-      {/* Edit Dialog */}
-      <Dialog open={!!editingTemplate} onOpenChange={(open) => { if (!open) setEditingTemplate(null); }}>
+      {/* Edit/Create Dialog */}
+      <Dialog open={!!editingTemplate} onOpenChange={(open) => { if (!open) { setEditingTemplate(null); setIsCreating(false); } }}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Modifica Template</DialogTitle>
+            <DialogTitle>{isCreating ? "Nuovo Template" : "Modifica Template"}</DialogTitle>
           </DialogHeader>
           {editingTemplate && (
             <div className="space-y-4">
@@ -408,9 +408,13 @@ export default function EmailTemplatesPage() {
                   <Input value={editingTemplate.name} onChange={(e) => setEditingTemplate({ ...editingTemplate, name: e.target.value })} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Oggetto email</Label>
-                  <Input value={editingTemplate.subject} onChange={(e) => setEditingTemplate({ ...editingTemplate, subject: e.target.value })} />
+                  <Label>Chiave template</Label>
+                  <Input value={editingTemplate.template_key} onChange={(e) => setEditingTemplate({ ...editingTemplate, template_key: e.target.value })} placeholder="es. welcome_email_v1" />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Oggetto email</Label>
+                <Input value={editingTemplate.subject} onChange={(e) => setEditingTemplate({ ...editingTemplate, subject: e.target.value })} />
               </div>
               <div className="space-y-2">
                 <Label>Testo anteprima (opzionale)</Label>
@@ -442,9 +446,19 @@ export default function EmailTemplatesPage() {
                 </div>
               </div>
               <div className="flex justify-end gap-2 pt-4">
-                <Button variant="outline" onClick={() => setEditingTemplate(null)}>Annulla</Button>
-                <Button onClick={() => updateMutation.mutate(editingTemplate)} disabled={updateMutation.isPending}>
-                  {updateMutation.isPending ? "Salvataggio..." : "Salva modifiche"}
+                <Button variant="outline" onClick={() => { setEditingTemplate(null); setIsCreating(false); }}>Annulla</Button>
+                <Button
+                  onClick={() => {
+                    if (isCreating) {
+                      const { id, created_at, updated_at, ...rest } = editingTemplate;
+                      createMutation.mutate(rest);
+                    } else {
+                      updateMutation.mutate(editingTemplate);
+                    }
+                  }}
+                  disabled={createMutation.isPending || updateMutation.isPending || !editingTemplate.name || !editingTemplate.template_key}
+                >
+                  {(createMutation.isPending || updateMutation.isPending) ? "Salvataggio..." : isCreating ? "Crea template" : "Salva modifiche"}
                 </Button>
               </div>
             </div>
