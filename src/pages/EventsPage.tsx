@@ -358,6 +358,16 @@ export default function EventsPage() {
         </div>
       </div>
 
+      {dashboardFilter && (
+        <div className="flex items-center gap-2 p-3 rounded-lg border border-warning/30 bg-warning/5">
+          <CalendarX className="h-4 w-4 text-warning shrink-0" />
+          <p className="text-sm text-foreground flex-1">
+            {dashboardFilter === "empty" ? "Filtro attivo: eventi senza iscritti" : dashboardFilter === "pending" ? "Filtro attivo: iscrizioni in attesa" : `Filtro: ${dashboardFilter}`}
+          </p>
+          <Button variant="ghost" size="sm" onClick={() => navigate("/events")}>Rimuovi filtro</Button>
+        </div>
+      )}
+
       <Card>
         <CardHeader className="pb-3">
           <div className="relative max-w-sm">
