@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Plus } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -164,8 +164,13 @@ export default function MissionsPage() {
 
       {/* Delete Confirm */}
       <Dialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Eliminare questa missione?</DialogTitle></DialogHeader>
+        <DialogContent aria-describedby="delete-mission-desc">
+          <DialogHeader>
+            <DialogTitle>Eliminare questa missione?</DialogTitle>
+            <DialogDescription id="delete-mission-desc">
+              Questa azione è irreversibile. La missione verrà eliminata definitivamente.
+            </DialogDescription>
+          </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteId(null)}>Annulla</Button>
             <Button variant="destructive" onClick={() => deleteId && deleteMutation.mutate(deleteId)} disabled={deleteMutation.isPending}>
