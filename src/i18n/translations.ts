@@ -55,6 +55,7 @@ export const translations = {
   "sidebar.myProfile": { it: "Il mio profilo", en: "My Profile" },
   "sidebar.missions": { it: "Missioni", en: "Missions" },
   "sidebar.gamificationSettings": { it: "Gamification", en: "Gamification" },
+  "sidebar.rewards": { it: "Ricompense", en: "Rewards" },
   "sidebar.trekkingDifficulty": { it: "Difficoltà Trekking", en: "Trekking Difficulty" },
   "sidebar.emailTemplates": { it: "Email Templates", en: "Email Templates" },
   "sidebar.logout": { it: "Esci", en: "Logout" },
