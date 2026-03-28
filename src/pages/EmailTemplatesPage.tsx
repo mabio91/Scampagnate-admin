@@ -70,7 +70,8 @@ function EmailPreview({ template, viewport }: { template: EmailTemplate; viewpor
           )}
         </div>
         {/* Email footer */}
-        <div className="bg-muted/30 p-4 text-center text-xs text-muted-foreground border-t">
+        <div className="bg-muted/30 p-4 text-center text-xs text-muted-foreground border-t space-y-1">
+          <p>Hai ricevuto questa email perché hai creato un account su Scampagnate.</p>
           <p>© {new Date().getFullYear()} Scampagnate. Tutti i diritti riservati.</p>
         </div>
       </div>
