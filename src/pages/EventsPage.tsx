@@ -115,6 +115,7 @@ export default function EventsPage() {
   const navigate = useNavigate();
   const { t } = useLanguage();
   const [search, setSearch] = useState(searchParams.get("search") || "");
+  const dashboardFilter = searchParams.get("filter"); // "empty" | "pending" | null
   const [editEvent, setEditEvent] = useState<(Partial<Event> & { isNew?: boolean }) | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const queryClient = useQueryClient();
