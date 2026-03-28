@@ -221,12 +221,34 @@ export default function EmailTemplatesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Mail className="h-6 w-6 text-primary" />
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Email Templates</h1>
-          <p className="text-sm text-muted-foreground">Gestisci i template delle email di benvenuto</p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Mail className="h-6 w-6 text-primary" />
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Email Templates</h1>
+            <p className="text-sm text-muted-foreground">Gestisci i template delle email</p>
+          </div>
         </div>
+        <Button onClick={() => {
+          setIsCreating(true);
+          setEditingTemplate({
+            id: "",
+            template_key: `email_template_${Date.now()}`,
+            name: "",
+            subject: "",
+            preview_text: "",
+            body_html: "<p>Ciao {{first_name}},</p><p></p>",
+            cta_label: "",
+            cta_url: "",
+            sender_name: "Scampagnate",
+            reply_to: "",
+            is_active: false,
+            created_at: "",
+            updated_at: "",
+          });
+        }}>
+          <Plus className="h-4 w-4 mr-1" /> Nuovo Template
+        </Button>
       </div>
 
       {/* Deliverability Settings Card */}
