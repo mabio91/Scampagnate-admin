@@ -286,7 +286,7 @@ export default function EquipmentTemplatesPage() {
                           <Label className="text-xs">Mandatory</Label>
                         </div>
                         <Button variant="outline" size="sm" onClick={addItem} disabled={!newItemName.trim()}>
-                          <Plus className="mr-1 h-3 w-3" /> Add Item
+                          {editingItemIndex !== null ? <><Check className="mr-1 h-3 w-3" /> Save Item</> : <><Plus className="mr-1 h-3 w-3" /> Add Item</>}
                         </Button>
                       </div>
                     </CardContent>
