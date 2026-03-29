@@ -271,7 +271,7 @@ export default function MembersPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-green-600">{activeCount}</div>
@@ -294,6 +294,49 @@ export default function MembersPage() {
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-amber-500">{foundingCount} <span className="text-sm font-normal text-muted-foreground">/ 150</span></div>
             <p className="text-sm text-muted-foreground">{t("members.foundingMembers")}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            {editingPrice ? (
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Euro className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="number"
+                    value={priceValue}
+                    onChange={(e) => setPriceValue(e.target.value)}
+                    className="pl-7 h-9"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") savePriceMutation.mutate(priceValue);
+                      if (e.key === "Escape") setEditingPrice(false);
+                    }}
+                  />
+                </div>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                  onClick={() => savePriceMutation.mutate(priceValue)}
+                  disabled={savePriceMutation.isPending}
+                >
+                  <Save className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <div
+                className="flex items-center gap-2 cursor-pointer group"
+                onClick={() => {
+                  setPriceValue(membershipPriceSetting?.value || "10");
+                  setEditingPrice(true);
+                }}
+              >
+                <div className="text-2xl font-bold">€{membershipPriceSetting?.value || "10"}</div>
+                <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            )}
+            <p className="text-sm text-muted-foreground mt-1">Quota Tessera</p>
           </CardContent>
         </Card>
       </div>
