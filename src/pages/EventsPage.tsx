@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, MoreHorizontal, Eye, Edit2, Trash2, Plus, Upload, X, ArrowUp, ArrowDown, Image as ImageIcon, Loader2, Shield, Lock, Star, Users, Award, Crown, CheckCircle2, DollarSign, Tag, Sparkles, Copy, MessageCircle, CalendarX } from "lucide-react";
+import { Search, MoreHorizontal, Eye, Edit2, Trash2, Plus, Upload, X, ArrowUp, ArrowDown, Image as ImageIcon, Loader2, Shield, Lock, Star, Users, Award, Crown, CheckCircle2, DollarSign, Tag, Sparkles, Copy, MessageCircle, CalendarX, CloudSun, Thermometer } from "lucide-react";
 import { MANUAL_BADGE_OPTIONS, EventBadgePills, computeAutoBadgesForStorage } from "@/components/EventBadges";
 import RefreshButton from "@/components/RefreshButton";
 
@@ -109,6 +109,25 @@ const USER_GROUP_OPTIONS = [
   { value: "veteran_hikers", label: "Veteran Hikers" },
   { value: "organizers", label: "Organizers" },
 ];
+
+const WEATHER_OPTIONS = [
+  { value: "sereno", emoji: "☀️", label: "Sereno" },
+  { value: "parzialmente_nuvoloso", emoji: "🌤", label: "Parzialmente nuvoloso" },
+  { value: "nuvoloso", emoji: "☁️", label: "Nuvoloso" },
+  { value: "pioggia_debole", emoji: "🌦️", label: "Pioggia debole" },
+  { value: "pioggia", emoji: "🌧", label: "Pioggia" },
+  { value: "temporale", emoji: "⛈", label: "Temporale" },
+  { value: "ventoso", emoji: "🌬", label: "Ventoso" },
+  { value: "neve", emoji: "❄️", label: "Neve" },
+  { value: "nebbia", emoji: "🌫", label: "Nebbia" },
+];
+
+type WeatherOverride = {
+  weather_condition?: string;
+  temp_min?: number | null;
+  temp_max?: number | null;
+  temp_avg?: number | null;
+};
 
 export default function EventsPage() {
   const [searchParams] = useSearchParams();
