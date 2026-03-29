@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Pencil, Trash2, Package, GripVertical, Loader2, ArrowUp, ArrowDown, Check } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import RefreshButton from "@/components/RefreshButton";
 import { useToast } from "@/hooks/use-toast";
 
