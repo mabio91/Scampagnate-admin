@@ -245,11 +245,21 @@ export default function EquipmentTemplatesPage() {
                   {items.length > 0 && (
                     <div className="border rounded-lg divide-y">
                       {items.map((item, i) => (
-                        <div key={i} className="flex items-center gap-3 p-3">
-                          <GripVertical className="h-4 w-4 text-muted-foreground" />
+                        <div key={i} className="flex items-center gap-2 p-3">
+                          <div className="flex flex-col">
+                            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => moveItem(i, "up")} disabled={i === 0}>
+                              <ArrowUp className="h-3 w-3" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => moveItem(i, "down")} disabled={i === items.length - 1}>
+                              <ArrowDown className="h-3 w-3" />
+                            </Button>
+                          </div>
                           <span className="flex-1 text-sm">{item.name}</span>
                           {item.is_mandatory && <Badge variant="destructive" className="text-xs">Mandatory</Badge>}
                           {item.notes && <span className="text-xs text-muted-foreground max-w-[150px] truncate">{item.notes}</span>}
+                          <Button variant="ghost" size="icon" onClick={() => editItem(i)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
                           <Button variant="ghost" size="icon" onClick={() => removeItem(i)}>
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
