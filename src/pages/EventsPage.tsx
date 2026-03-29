@@ -139,6 +139,7 @@ export default function EventsPage() {
   const [editEvent, setEditEvent] = useState<(Partial<Event> & { isNew?: boolean }) | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const queryClient = useQueryClient();
+  const { data: difficultyLevels = [] } = useTrekkingDifficultyLevels();
 
   const { data: events = [], isLoading } = useQuery({
     queryKey: ["admin-events"],
@@ -611,10 +612,14 @@ export default function EventsPage() {
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">None</SelectItem>
-                      <SelectItem value="facile">Facile</SelectItem>
-                      <SelectItem value="moderato">Moderato</SelectItem>
-                      <SelectItem value="impegnativo">Impegnativo</SelectItem>
-                      <SelectItem value="esperto">Esperto</SelectItem>
+                      {difficultyLevels.map((level) => (
+                        <SelectItem key={level.id} value={String(level.level_number)}>
+                          <span className="flex items-center gap-2">
+                            <span>{level.icon}</span>
+                            <span>Livello {level.level_number} – {level.label}</span>
+                          </span>
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
