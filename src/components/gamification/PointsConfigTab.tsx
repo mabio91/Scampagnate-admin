@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,10 +6,28 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Save, Plus, Trash2 } from "lucide-react";
+
+const ALL_ACTION_TYPES = [
+  { value: "event_attended", label: "Evento frequentato (check-in)", description: "Evento frequentato (check-in)" },
+  { value: "event_registration", label: "Iscrizione ad evento", description: "Iscrizione ad evento completata" },
+  { value: "first_event_ever", label: "Primo evento in assoluto", description: "Primo evento in assoluto (bonus)" },
+  { value: "first_event_category", label: "Primo evento in nuova categoria", description: "Primo evento in una nuova categoria" },
+  { value: "streak_3", label: "Serie di 3 eventi", description: "Serie di 3 eventi senza cancellazioni" },
+  { value: "profile_completed", label: "Profilo completato", description: "Profilo completato al 100%" },
+  { value: "proposal_submitted", label: "Proposta inviata", description: "Proposta attività inviata" },
+  { value: "proposal_approved", label: "Proposta approvata", description: "Proposta attività approvata" },
+  { value: "no_show", label: "Assenza senza preavviso", description: "Assenza senza preavviso" },
+  { value: "late_cancellation", label: "Cancellazione tardiva", description: "Cancellazione tardiva" },
+  { value: "referral", label: "Referral", description: "Invito di un nuovo utente" },
+  { value: "review_submitted", label: "Recensione inviata", description: "Recensione evento inviata" },
+  { value: "photo_shared", label: "Foto condivisa", description: "Foto evento condivisa" },
+  { value: "volunteer", label: "Volontariato", description: "Attività di volontariato" },
+];
 
 export default function PointsConfigTab() {
   const queryClient = useQueryClient();
