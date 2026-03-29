@@ -77,7 +77,44 @@ export default function MembersPage() {
     },
   });
 
-  const updateMembership = useMutation({
+  // Fetch membership price from platform_settings
+  const { data: membershipPriceSetting } = useQuery({
+    queryKey: ["membership-price-setting"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("platform_settings")
+        .select("*")
+        .eq("key", "membership_fee")
+        .maybeSingle();
+      return data;
+    },
+  });
+
+  const savePriceMutation = useMutation({
+    mutationFn: async (newPrice: string) => {
+      if (membershipPriceSetting) {
+        const { error } = await supabase
+          .from("platform_settings")
+          .update({ value: newPrice, updated_at: new Date().toISOString() })
+          .eq("id", membershipPriceSetting.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("platform_settings")
+          .insert({ key: "membership_fee", label: "Quota Tessera ASD", description: "Prezzo tessera associativa annuale", value: newPrice });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["membership-price-setting"] });
+      queryClient.invalidateQueries({ queryKey: ["platform-settings"] });
+      setEditingPrice(false);
+      toast.success("Prezzo tessera aggiornato");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+
     mutationFn: async () => {
       if (!editMember) return;
       const { error } = await supabase
