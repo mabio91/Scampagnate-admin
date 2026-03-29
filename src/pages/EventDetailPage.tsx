@@ -34,6 +34,7 @@ export default function EventDetailPage() {
   const navigate = useNavigate();
   const { data: difficultyLevels } = useTrekkingDifficultyLevels();
 
+  const { data: event, isLoading } = useQuery({
     queryKey: ["event-detail", id],
     enabled: !!id,
     queryFn: async () => {
