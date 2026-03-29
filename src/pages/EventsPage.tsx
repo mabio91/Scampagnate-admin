@@ -449,7 +449,7 @@ export default function EventsPage() {
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-1.5">
                         {hasAnyAccessRule(event) && <Shield className="h-3.5 w-3.5 text-primary shrink-0" />}
-                        {getPricingRules(event).length > 0 && <Tag className="h-3.5 w-3.5 text-accent-foreground shrink-0" />}
+                        {getPricingRules(event).length > 0 && <DollarSign className="h-3.5 w-3.5 text-accent-foreground shrink-0" />}
                         <span className="truncate">{event.title}</span>
                         <EventBadgePills event={event} className="ml-1" />
                       </div>
