@@ -213,8 +213,23 @@ export default function EventsPage() {
     if (!event?.access_rules) return {};
     return event.access_rules as AccessRules;
   };
+  const getWeatherOverride = (event: Partial<Event> | null): WeatherOverride => {
+    if (!event?.additional_fields) return {};
+    const af = event.additional_fields as any;
+    return af?.weather_override || {};
+  };
 
-  const updateAccessRules = (patch: Partial<AccessRules>) => {
+  const updateWeatherOverride = (patch: Partial<WeatherOverride>) => {
+    if (!editEvent) return;
+    const current = getWeatherOverride(editEvent);
+    const currentAf = (editEvent.additional_fields as any) || {};
+    setEditEvent({
+      ...editEvent,
+      additional_fields: { ...currentAf, weather_override: { ...current, ...patch } },
+    });
+  };
+
+
     if (!editEvent) return;
     const current = getAccessRules(editEvent);
     setEditEvent({ ...editEvent, access_rules: { ...current, ...patch } });
