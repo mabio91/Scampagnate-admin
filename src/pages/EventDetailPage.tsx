@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EventParticipantsList } from "@/components/participants/EventParticipantsList";
 import { EventBadgePills } from "@/components/EventBadges";
 import { EventShareLinks } from "@/components/EventShareLinks";
+import { useTrekkingDifficultyLevels, getDifficultyByValue } from "@/hooks/useTrekkingDifficultyLevels";
 import {
   ArrowLeft, MapPin, Calendar, Clock, Users, DollarSign,
   Eye, Shield, Image as ImageIcon, ChevronRight,
@@ -31,6 +32,7 @@ const statusColors: Record<string, string> = {
 export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { data: difficultyLevels } = useTrekkingDifficultyLevels();
 
   const { data: event, isLoading } = useQuery({
     queryKey: ["event-detail", id],
@@ -160,9 +162,27 @@ export default function EventDetailPage() {
                 </div>
               </div>
 
-              {event.difficulty && (
-                <p className="text-sm"><strong>Difficoltà:</strong> {event.difficulty}</p>
-              )}
+              {event.difficulty && (() => {
+                const dl = getDifficultyByValue(difficultyLevels, event.difficulty);
+                return dl ? (
+                  <div className="flex items-center gap-2 text-sm">
+                    <strong>Difficoltà:</strong>
+                    <span
+                      className="inline-flex items-center gap-1.5 rounded-full px-3 py-0.5 text-xs font-semibold"
+                      style={{
+                        backgroundColor: dl.color_background,
+                        color: dl.color_primary,
+                        border: `1px solid ${dl.color_border}`,
+                      }}
+                    >
+                      <span style={{ color: dl.color_icon }}>{dl.icon}</span>
+                      {dl.label}
+                    </span>
+                  </div>
+                ) : (
+                  <p className="text-sm"><strong>Difficoltà:</strong> {event.difficulty}</p>
+                );
+              })()}
               {event.duration && (
                 <p className="text-sm"><strong>Durata:</strong> {event.duration}</p>
               )}
