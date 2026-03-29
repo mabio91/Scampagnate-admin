@@ -35,6 +35,8 @@ export default function MembersPage() {
   const [showBulkExpireDialog, setShowBulkExpireDialog] = useState(false);
   const [bulkExpireYear, setBulkExpireYear] = useState((new Date().getFullYear() - 1).toString());
   const [showRenewalDialog, setShowRenewalDialog] = useState(false);
+  const [editingPrice, setEditingPrice] = useState(false);
+  const [priceValue, setPriceValue] = useState("");
   const queryClient = useQueryClient();
 
   const currentYear = new Date().getFullYear();
