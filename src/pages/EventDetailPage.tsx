@@ -32,8 +32,8 @@ const statusColors: Record<string, string> = {
 export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { data: difficultyLevels } = useTrekkingDifficultyLevels();
 
-  const { data: event, isLoading } = useQuery({
     queryKey: ["event-detail", id],
     enabled: !!id,
     queryFn: async () => {
