@@ -229,7 +229,7 @@ export default function EventsPage() {
     });
   };
 
-
+  const updateAccessRules = (patch: Partial<AccessRules>) => {
     if (!editEvent) return;
     const current = getAccessRules(editEvent);
     setEditEvent({ ...editEvent, access_rules: { ...current, ...patch } });
