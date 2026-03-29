@@ -35,6 +35,7 @@ export default function EquipmentTemplatesPage() {
   const [newItemName, setNewItemName] = useState("");
   const [newItemMandatory, setNewItemMandatory] = useState(false);
   const [newItemNotes, setNewItemNotes] = useState("");
+  const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
 
   const { data: templates, isLoading } = useQuery({
     queryKey: ["equipment-templates"],
