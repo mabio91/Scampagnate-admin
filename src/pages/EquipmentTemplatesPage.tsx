@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Pencil, Trash2, Package, GripVertical, Loader2, ArrowUp, ArrowDown, Check } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import RefreshButton from "@/components/RefreshButton";
 import { useToast } from "@/hooks/use-toast";
 
@@ -304,7 +305,7 @@ export default function EquipmentTemplatesPage() {
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+        <div className="grid gap-4">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-40 rounded-xl" />)}</div>
       ) : !templates?.length ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
