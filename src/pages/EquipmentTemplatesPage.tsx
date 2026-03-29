@@ -162,14 +162,36 @@ export default function EquipmentTemplatesPage() {
 
   function addItem() {
     if (!newItemName.trim()) return;
-    setItems([...items, { name: newItemName.trim(), is_mandatory: newItemMandatory, notes: newItemNotes || null, sort_order: items.length }]);
+    if (editingItemIndex !== null) {
+      setItems(items.map((item, i) => i === editingItemIndex ? { ...item, name: newItemName.trim(), is_mandatory: newItemMandatory, notes: newItemNotes || null } : item));
+      setEditingItemIndex(null);
+    } else {
+      setItems([...items, { name: newItemName.trim(), is_mandatory: newItemMandatory, notes: newItemNotes || null, sort_order: items.length }]);
+    }
     setNewItemName("");
     setNewItemMandatory(false);
     setNewItemNotes("");
   }
 
+  function editItem(index: number) {
+    const item = items[index];
+    setNewItemName(item.name);
+    setNewItemMandatory(item.is_mandatory);
+    setNewItemNotes(item.notes || "");
+    setEditingItemIndex(index);
+  }
+
+  function moveItem(index: number, direction: "up" | "down") {
+    const newItems = [...items];
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= newItems.length) return;
+    [newItems[index], newItems[targetIndex]] = [newItems[targetIndex], newItems[index]];
+    setItems(newItems);
+  }
+
   function removeItem(index: number) {
     setItems(items.filter((_, i) => i !== index));
+    if (editingItemIndex === index) { setEditingItemIndex(null); setNewItemName(""); setNewItemMandatory(false); setNewItemNotes(""); }
   }
 
   const getItemsForTemplate = (templateId: string) =>
