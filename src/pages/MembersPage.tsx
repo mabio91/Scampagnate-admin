@@ -114,7 +114,7 @@ export default function MembersPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
-
+  const updateMembership = useMutation({
     mutationFn: async () => {
       if (!editMember) return;
       const { error } = await supabase
