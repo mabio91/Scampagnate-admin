@@ -110,11 +110,33 @@ export default function PointsConfigTab() {
               <div className="space-y-4">
                 <div>
                   <Label>Tipo azione</Label>
-                  <Input
-                    placeholder="es. event_checkin"
+                  <Select
                     value={newRule.action_type}
-                    onChange={(e) => setNewRule((p) => ({ ...p, action_type: e.target.value }))}
-                  />
+                    onValueChange={(v) => {
+                      const preset = ALL_ACTION_TYPES.find((a) => a.value === v);
+                      setNewRule((p) => ({
+                        ...p,
+                        action_type: v,
+                        description: preset?.description || p.description,
+                      }));
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona un'azione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ALL_ACTION_TYPES
+                        .filter((a) => !pointsConfig.some((pc: any) => pc.action_type === a.value))
+                        .map((a) => (
+                          <SelectItem key={a.value} value={a.value}>
+                            <span className="flex items-center gap-2">
+                              <span className="font-mono text-xs text-muted-foreground">{a.value}</span>
+                              <span className="text-xs">— {a.label}</span>
+                            </span>
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label>Descrizione</Label>
