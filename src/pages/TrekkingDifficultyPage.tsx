@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Save, Mountain } from "lucide-react";
+import { Save, Mountain, Loader2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface DifficultyLevel {
   id: string;
@@ -82,7 +83,11 @@ export default function TrekkingDifficultyPage() {
       </div>
 
       {isLoading ? (
-        <p className="text-muted-foreground">Caricamento...</p>
+        <div className="grid gap-4">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-40 w-full" />
+          ))}
+        </div>
       ) : (
         <div className="grid gap-4">
           {levels.map((level) => (
