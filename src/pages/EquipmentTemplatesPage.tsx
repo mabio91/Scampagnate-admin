@@ -146,6 +146,7 @@ export default function EquipmentTemplatesPage() {
     setNewItemName("");
     setNewItemMandatory(false);
     setNewItemNotes("");
+    setEditingItemIndex(null);
   }
 
   function openEdit(template: any) {
