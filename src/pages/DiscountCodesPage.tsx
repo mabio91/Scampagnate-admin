@@ -265,7 +265,11 @@ const DiscountCodesPage = () => {
         </CardHeader>
         <CardContent className="overflow-x-auto">
           {isLoading ? (
-            <p className="text-muted-foreground">Loading...</p>
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
           ) : codes.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">No discount codes yet. Create one to get started.</p>
           ) : (
