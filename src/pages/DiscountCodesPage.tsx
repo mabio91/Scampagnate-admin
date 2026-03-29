@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, TicketPercent, Copy, ClipboardCopy, Eye, Search, X, User } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import RefreshButton from "@/components/RefreshButton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -264,7 +265,11 @@ const DiscountCodesPage = () => {
         </CardHeader>
         <CardContent className="overflow-x-auto">
           {isLoading ? (
-            <p className="text-muted-foreground">Loading...</p>
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
           ) : codes.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">No discount codes yet. Create one to get started.</p>
           ) : (
