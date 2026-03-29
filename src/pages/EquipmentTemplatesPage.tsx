@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, Package, GripVertical, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Package, GripVertical, Loader2, ArrowUp, ArrowDown, Check } from "lucide-react";
 import RefreshButton from "@/components/RefreshButton";
 import { useToast } from "@/hooks/use-toast";
 
@@ -35,6 +35,7 @@ export default function EquipmentTemplatesPage() {
   const [newItemName, setNewItemName] = useState("");
   const [newItemMandatory, setNewItemMandatory] = useState(false);
   const [newItemNotes, setNewItemNotes] = useState("");
+  const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
 
   const { data: templates, isLoading } = useQuery({
     queryKey: ["equipment-templates"],
@@ -145,6 +146,7 @@ export default function EquipmentTemplatesPage() {
     setNewItemName("");
     setNewItemMandatory(false);
     setNewItemNotes("");
+    setEditingItemIndex(null);
   }
 
   function openEdit(template: any) {
@@ -161,14 +163,36 @@ export default function EquipmentTemplatesPage() {
 
   function addItem() {
     if (!newItemName.trim()) return;
-    setItems([...items, { name: newItemName.trim(), is_mandatory: newItemMandatory, notes: newItemNotes || null, sort_order: items.length }]);
+    if (editingItemIndex !== null) {
+      setItems(items.map((item, i) => i === editingItemIndex ? { ...item, name: newItemName.trim(), is_mandatory: newItemMandatory, notes: newItemNotes || null } : item));
+      setEditingItemIndex(null);
+    } else {
+      setItems([...items, { name: newItemName.trim(), is_mandatory: newItemMandatory, notes: newItemNotes || null, sort_order: items.length }]);
+    }
     setNewItemName("");
     setNewItemMandatory(false);
     setNewItemNotes("");
   }
 
+  function editItem(index: number) {
+    const item = items[index];
+    setNewItemName(item.name);
+    setNewItemMandatory(item.is_mandatory);
+    setNewItemNotes(item.notes || "");
+    setEditingItemIndex(index);
+  }
+
+  function moveItem(index: number, direction: "up" | "down") {
+    const newItems = [...items];
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= newItems.length) return;
+    [newItems[index], newItems[targetIndex]] = [newItems[targetIndex], newItems[index]];
+    setItems(newItems);
+  }
+
   function removeItem(index: number) {
     setItems(items.filter((_, i) => i !== index));
+    if (editingItemIndex === index) { setEditingItemIndex(null); setNewItemName(""); setNewItemMandatory(false); setNewItemNotes(""); }
   }
 
   const getItemsForTemplate = (templateId: string) =>
@@ -222,11 +246,21 @@ export default function EquipmentTemplatesPage() {
                   {items.length > 0 && (
                     <div className="border rounded-lg divide-y">
                       {items.map((item, i) => (
-                        <div key={i} className="flex items-center gap-3 p-3">
-                          <GripVertical className="h-4 w-4 text-muted-foreground" />
+                        <div key={i} className="flex items-center gap-2 p-3">
+                          <div className="flex flex-col">
+                            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => moveItem(i, "up")} disabled={i === 0}>
+                              <ArrowUp className="h-3 w-3" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => moveItem(i, "down")} disabled={i === items.length - 1}>
+                              <ArrowDown className="h-3 w-3" />
+                            </Button>
+                          </div>
                           <span className="flex-1 text-sm">{item.name}</span>
                           {item.is_mandatory && <Badge variant="destructive" className="text-xs">Mandatory</Badge>}
                           {item.notes && <span className="text-xs text-muted-foreground max-w-[150px] truncate">{item.notes}</span>}
+                          <Button variant="ghost" size="icon" onClick={() => editItem(i)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
                           <Button variant="ghost" size="icon" onClick={() => removeItem(i)}>
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
@@ -253,7 +287,7 @@ export default function EquipmentTemplatesPage() {
                           <Label className="text-xs">Mandatory</Label>
                         </div>
                         <Button variant="outline" size="sm" onClick={addItem} disabled={!newItemName.trim()}>
-                          <Plus className="mr-1 h-3 w-3" /> Add Item
+                          {editingItemIndex !== null ? <><Check className="mr-1 h-3 w-3" /> Save Item</> : <><Plus className="mr-1 h-3 w-3" /> Add Item</>}
                         </Button>
                       </div>
                     </CardContent>
