@@ -624,7 +624,80 @@ export default function EventsPage() {
                 <div><Label>Elevation</Label><Input value={editEvent.elevation || ""} onChange={(e) => setEditEvent({ ...editEvent, elevation: e.target.value || null })} placeholder="e.g. 500 m" /></div>
               </div>
 
-              {/* Featured */}
+              {/* ═══ Weather Override ═══ */}
+              <Separator />
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <CloudSun className="h-4 w-4 text-primary" />
+                  <h4 className="text-sm font-semibold">Previsioni Meteo (Override)</h4>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Seleziona le condizioni meteo per l'evento. Le temperature possono essere inserite manualmente.
+                </p>
+
+                <div>
+                  <Label className="text-xs">Condizione Meteo</Label>
+                  <Select
+                    value={getWeatherOverride(editEvent).weather_condition || "none"}
+                    onValueChange={(v) => updateWeatherOverride({ weather_condition: v === "none" ? undefined : v })}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Seleziona condizione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">— Nessun override —</SelectItem>
+                      {WEATHER_OPTIONS.map((w) => (
+                        <SelectItem key={w.value} value={w.value}>
+                          {w.emoji} {w.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {getWeatherOverride(editEvent).weather_condition && (
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <Label className="text-xs flex items-center gap-1">
+                        <Thermometer className="h-3 w-3" /> Min (°C)
+                      </Label>
+                      <Input
+                        type="number"
+                        value={getWeatherOverride(editEvent).temp_min ?? ""}
+                        onChange={(e) => updateWeatherOverride({ temp_min: e.target.value ? Number(e.target.value) : null })}
+                        placeholder="es. 8"
+                        className="h-8"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs flex items-center gap-1">
+                        <Thermometer className="h-3 w-3" /> Media (°C)
+                      </Label>
+                      <Input
+                        type="number"
+                        value={getWeatherOverride(editEvent).temp_avg ?? ""}
+                        onChange={(e) => updateWeatherOverride({ temp_avg: e.target.value ? Number(e.target.value) : null })}
+                        placeholder="es. 15"
+                        className="h-8"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs flex items-center gap-1">
+                        <Thermometer className="h-3 w-3" /> Max (°C)
+                      </Label>
+                      <Input
+                        type="number"
+                        value={getWeatherOverride(editEvent).temp_max ?? ""}
+                        onChange={(e) => updateWeatherOverride({ temp_max: e.target.value ? Number(e.target.value) : null })}
+                        placeholder="es. 22"
+                        className="h-8"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+
               <div className="flex items-center justify-between">
                 <Label>Featured Event</Label>
                 <Switch checked={editEvent.featured || false} onCheckedChange={(v) => setEditEvent({ ...editEvent, featured: v })} />
