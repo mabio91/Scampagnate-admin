@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -166,14 +166,42 @@ const buildMeasure = (num: string, unit: string): string | null => {
 export default function EventsPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useLanguage();
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const dashboardFilter = searchParams.get("filter");
   const [editEvent, setEditEvent] = useState<(Record<string, any> & { isNew?: boolean }) | null>(null);
   const [localMeetingPoints, setLocalMeetingPoints] = useState<LocalMeetingPoint[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [convertProposalId, setConvertProposalId] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { data: difficultyLevels = [] } = useTrekkingDifficultyLevels();
+
+  /* ── Handle "Convert to Event" from ProposalsPage ── */
+  useEffect(() => {
+    const state = location.state as any;
+    if (state?.convertProposal) {
+      const p = state.convertProposal;
+      setLocalMeetingPoints([]);
+      setEditEvent({
+        ...emptyEvent,
+        isNew: true,
+        title: p.title || "",
+        description: p.description || "",
+        location: p.location || "",
+        location_label: p.location_label || "",
+        date: p.date || "",
+        time: p.time || "09:00",
+        spots_total: p.spots_total || 20,
+        category_id: p.category_id || null,
+      });
+      if (state.proposalId) {
+        setConvertProposalId(state.proposalId);
+      }
+      // Clear the state so it doesn't re-trigger on re-render
+      navigate("/events", { replace: true, state: {} });
+    }
+  }, [location.state]);
 
   /* ── Queries ── */
   const { data: events = [], isLoading } = useQuery({
@@ -388,9 +416,18 @@ export default function EventsPage() {
         }
       }
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      // If converting from a proposal, mark it as "converted"
+      if (convertProposalId) {
+        await supabase
+          .from("activity_proposals")
+          .update({ status: "converted", updated_at: new Date().toISOString() })
+          .eq("id", convertProposalId);
+        setConvertProposalId(null);
+      }
       toast.success("Evento salvato");
       queryClient.invalidateQueries({ queryKey: ["admin-events"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-proposals"] });
       setEditEvent(null);
     },
     onError: (e: any) => toast.error(e.message),

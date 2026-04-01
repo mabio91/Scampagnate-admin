@@ -84,16 +84,17 @@ export default function ProposalsPage() {
   });
 
   const handleConvertToEvent = (proposal: Proposal) => {
-    // Navigate to events page with proposal data as state
     navigate("/events", {
       state: {
         convertProposal: {
           title: proposal.activity_title,
           description: proposal.description,
           location: proposal.location,
+          location_label: proposal.location_label || "",
           date: proposal.suggested_date || "",
           time: proposal.suggested_time || "09:00",
           spots_total: proposal.max_participants || 20,
+          category_id: proposal.category_id || null,
         },
         proposalId: proposal.id,
       },
@@ -318,6 +319,9 @@ export default function ProposalsPage() {
                 <div>
                   <p className="text-muted-foreground text-xs mb-1">Location</p>
                   <p className="font-medium">{viewProposal.location || "—"}</p>
+                  {viewProposal.location_label && (
+                    <p className="text-xs text-muted-foreground mt-0.5">{viewProposal.location_label}</p>
+                  )}
                 </div>
                 <div>
                   <p className="text-muted-foreground text-xs mb-1">Suggested Date</p>
