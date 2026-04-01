@@ -319,6 +319,9 @@ export default function ProposalsPage() {
                 <div>
                   <p className="text-muted-foreground text-xs mb-1">Location</p>
                   <p className="font-medium">{viewProposal.location || "—"}</p>
+                  {viewProposal.location_label && (
+                    <p className="text-xs text-muted-foreground mt-0.5">{viewProposal.location_label}</p>
+                  )}
                 </div>
                 <div>
                   <p className="text-muted-foreground text-xs mb-1">Suggested Date</p>
