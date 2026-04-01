@@ -406,6 +406,10 @@ export default function MerchPage() {
       const { isNew, id, created_at, updated_at, ...data } = product;
       // Ensure gallery_images is a proper array
       data.gallery_images = getGalleryArray(data.gallery_images);
+      // Default sort_order to 0 if empty
+      if (data.sort_order === undefined || data.sort_order === null || isNaN(data.sort_order)) {
+        data.sort_order = 0;
+      }
       if (isNew) {
         const { error } = await supabase.from("merch_products").insert(data);
         if (error) throw error;
@@ -546,7 +550,7 @@ export default function MerchPage() {
                 </div>
                 <div>
                   <Label>{t("merch.sortOrder")}</Label>
-                  <Input type="number" value={editProduct.sort_order ?? ""} onChange={(e) => setEditProduct({ ...editProduct, sort_order: e.target.value === "" ? 0 : parseInt(e.target.value) })} />
+                  <Input type="number" value={editProduct.sort_order === 0 ? "0" : (editProduct.sort_order || "")} onChange={(e) => setEditProduct({ ...editProduct, sort_order: e.target.value === "" ? undefined as any : parseInt(e.target.value) })} />
                 </div>
               </div>
 
