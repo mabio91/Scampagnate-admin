@@ -531,25 +531,13 @@ export default function MerchPage() {
           </DialogHeader>
           {editProduct && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>{t("merch.nameEn")}</Label>
-                  <Input value={editProduct.name || ""} onChange={(e) => setEditProduct({ ...editProduct, name: e.target.value })} />
-                </div>
-                <div>
-                  <Label>{t("merch.nameIt")}</Label>
-                  <Input value={editProduct.name_it || ""} onChange={(e) => setEditProduct({ ...editProduct, name_it: e.target.value })} />
-                </div>
+              <div>
+                <Label>Nome</Label>
+                <Input value={editProduct.name_it || editProduct.name || ""} onChange={(e) => setEditProduct({ ...editProduct, name: e.target.value, name_it: e.target.value })} />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>{t("merch.descEn")}</Label>
-                  <Textarea value={editProduct.description || ""} onChange={(e) => setEditProduct({ ...editProduct, description: e.target.value })} rows={3} />
-                </div>
-                <div>
-                  <Label>{t("merch.descIt")}</Label>
-                  <Textarea value={editProduct.description_it || ""} onChange={(e) => setEditProduct({ ...editProduct, description_it: e.target.value })} rows={3} />
-                </div>
+              <div>
+                <Label>Descrizione</Label>
+                <Textarea value={editProduct.description_it || editProduct.description || ""} onChange={(e) => setEditProduct({ ...editProduct, description: e.target.value, description_it: e.target.value })} rows={3} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
