@@ -531,25 +531,13 @@ export default function MerchPage() {
           </DialogHeader>
           {editProduct && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>{t("merch.nameEn")}</Label>
-                  <Input value={editProduct.name || ""} onChange={(e) => setEditProduct({ ...editProduct, name: e.target.value })} />
-                </div>
-                <div>
-                  <Label>{t("merch.nameIt")}</Label>
-                  <Input value={editProduct.name_it || ""} onChange={(e) => setEditProduct({ ...editProduct, name_it: e.target.value })} />
-                </div>
+              <div>
+                <Label>Nome</Label>
+                <Input value={editProduct.name_it || editProduct.name || ""} onChange={(e) => setEditProduct({ ...editProduct, name: e.target.value, name_it: e.target.value })} />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>{t("merch.descEn")}</Label>
-                  <Textarea value={editProduct.description || ""} onChange={(e) => setEditProduct({ ...editProduct, description: e.target.value })} rows={3} />
-                </div>
-                <div>
-                  <Label>{t("merch.descIt")}</Label>
-                  <Textarea value={editProduct.description_it || ""} onChange={(e) => setEditProduct({ ...editProduct, description_it: e.target.value })} rows={3} />
-                </div>
+              <div>
+                <Label>Descrizione</Label>
+                <Textarea value={editProduct.description_it || editProduct.description || ""} onChange={(e) => setEditProduct({ ...editProduct, description: e.target.value, description_it: e.target.value })} rows={3} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -558,7 +546,7 @@ export default function MerchPage() {
                 </div>
                 <div>
                   <Label>{t("merch.sortOrder")}</Label>
-                  <Input type="number" value={editProduct.sort_order ?? 0} onChange={(e) => setEditProduct({ ...editProduct, sort_order: parseInt(e.target.value) || 0 })} />
+                  <Input type="number" value={editProduct.sort_order ?? ""} onChange={(e) => setEditProduct({ ...editProduct, sort_order: e.target.value === "" ? 0 : parseInt(e.target.value) })} />
                 </div>
               </div>
 
@@ -599,15 +587,9 @@ export default function MerchPage() {
                 <p className="text-xs text-muted-foreground mt-1">{t("merch.whatsappHint")}</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>{t("merch.badgeEn")}</Label>
-                  <Input value={editProduct.badge || ""} onChange={(e) => setEditProduct({ ...editProduct, badge: e.target.value })} placeholder="e.g. Bestseller" />
-                </div>
-                <div>
-                  <Label>{t("merch.badgeIt")}</Label>
-                  <Input value={editProduct.badge_it || ""} onChange={(e) => setEditProduct({ ...editProduct, badge_it: e.target.value })} placeholder="es. Più venduto" />
-                </div>
+              <div>
+                <Label>Badge</Label>
+                <Input value={editProduct.badge_it || editProduct.badge || ""} onChange={(e) => setEditProduct({ ...editProduct, badge: e.target.value, badge_it: e.target.value })} placeholder="es. Più venduto" />
               </div>
               <div className="flex items-center gap-2">
                 <Switch
