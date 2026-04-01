@@ -115,6 +115,18 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
         >
           <Italic className="h-4 w-4" />
         </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleUnderline().run()}
+          isActive={editor.isActive("underline")}
+        >
+          <UnderlineIcon className="h-4 w-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleStrike().run()}
+          isActive={editor.isActive("strike")}
+        >
+          <Strikethrough className="h-4 w-4" />
+        </ToolbarButton>
 
         <div className="w-px h-6 bg-border mx-1" />
 

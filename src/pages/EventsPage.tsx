@@ -527,7 +527,7 @@ export default function EventsPage() {
                 </div>
                 <div>
                   <Label>Descrizione</Label>
-                  <Textarea value={editEvent.description || ""} onChange={e => setEditEvent({ ...editEvent, description: e.target.value })} rows={3} />
+                  <RichTextEditor content={editEvent.description || ""} onChange={(html) => setEditEvent({ ...editEvent, description: html })} />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div><Label>Luogo (coordinate/indirizzo)</Label><Input value={editEvent.location || ""} onChange={e => setEditEvent({ ...editEvent, location: e.target.value })} /></div>
