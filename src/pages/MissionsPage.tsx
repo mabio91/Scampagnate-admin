@@ -124,6 +124,11 @@ export default function MissionsPage() {
       is_active: m.is_active,
       category: m.category || "",
       expires_at: m.expires_at ? new Date(m.expires_at).toISOString().slice(0, 16) : "",
+      starts_at: m.starts_at ? new Date(m.starts_at).toISOString().slice(0, 16) : "",
+      max_completions_per_user: m.max_completions_per_user ?? null,
+      notify_on_progress: m.notify_on_progress ?? false,
+      auto_generate_coupon: m.auto_generate_coupon ?? false,
+      category_filter: Array.isArray(m.category_filter) ? m.category_filter : [],
     });
     setDialog(true);
   };
