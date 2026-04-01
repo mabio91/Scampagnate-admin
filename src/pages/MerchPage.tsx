@@ -587,15 +587,9 @@ export default function MerchPage() {
                 <p className="text-xs text-muted-foreground mt-1">{t("merch.whatsappHint")}</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>{t("merch.badgeEn")}</Label>
-                  <Input value={editProduct.badge || ""} onChange={(e) => setEditProduct({ ...editProduct, badge: e.target.value })} placeholder="e.g. Bestseller" />
-                </div>
-                <div>
-                  <Label>{t("merch.badgeIt")}</Label>
-                  <Input value={editProduct.badge_it || ""} onChange={(e) => setEditProduct({ ...editProduct, badge_it: e.target.value })} placeholder="es. Più venduto" />
-                </div>
+              <div>
+                <Label>Badge</Label>
+                <Input value={editProduct.badge_it || editProduct.badge || ""} onChange={(e) => setEditProduct({ ...editProduct, badge: e.target.value, badge_it: e.target.value })} placeholder="es. Più venduto" />
               </div>
               <div className="flex items-center gap-2">
                 <Switch
