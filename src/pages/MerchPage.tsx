@@ -546,7 +546,7 @@ export default function MerchPage() {
                 </div>
                 <div>
                   <Label>{t("merch.sortOrder")}</Label>
-                  <Input type="number" value={editProduct.sort_order ?? ""} onChange={(e) => setEditProduct({ ...editProduct, sort_order: e.target.value === "" ? 0 : parseInt(e.target.value) })} />
+                  <Input type="number" value={editProduct.sort_order === 0 ? "0" : (editProduct.sort_order || "")} onChange={(e) => setEditProduct({ ...editProduct, sort_order: e.target.value === "" ? undefined as any : parseInt(e.target.value) })} />
                 </div>
               </div>
 
