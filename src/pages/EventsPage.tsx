@@ -416,9 +416,18 @@ export default function EventsPage() {
         }
       }
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      // If converting from a proposal, mark it as "converted"
+      if (convertProposalId) {
+        await supabase
+          .from("activity_proposals")
+          .update({ status: "converted", updated_at: new Date().toISOString() })
+          .eq("id", convertProposalId);
+        setConvertProposalId(null);
+      }
       toast.success("Evento salvato");
       queryClient.invalidateQueries({ queryKey: ["admin-events"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-proposals"] });
       setEditEvent(null);
     },
     onError: (e: any) => toast.error(e.message),
