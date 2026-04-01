@@ -10,7 +10,6 @@ const typeLabels: Record<string, string> = {
   one_time: "Una tantum",
   progressive: "Progressiva",
   streak: "Streak",
-  category: "Per categoria",
 };
 
 const rewardIcons: Record<string, React.ReactNode> = {
