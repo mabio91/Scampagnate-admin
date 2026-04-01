@@ -2,10 +2,13 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
+import Underline from "@tiptap/extension-underline";
 import { Button } from "@/components/ui/button";
 import {
   Bold,
   Italic,
+  Underline as UnderlineIcon,
+  Strikethrough,
   Heading1,
   Heading2,
   Heading3,
