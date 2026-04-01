@@ -33,6 +33,7 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
   const editor = useEditor({
     extensions: [
       StarterKit,
+      Underline,
       Image.configure({ inline: false, allowBase64: true }),
       Link.configure({ openOnClick: false }),
     ],
