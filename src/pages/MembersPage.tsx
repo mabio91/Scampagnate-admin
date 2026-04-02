@@ -92,6 +92,45 @@ export default function MembersPage() {
     },
   });
 
+  // Fetch founding member limit from platform_settings
+  const { data: foundingLimitSetting } = useQuery({
+    queryKey: ["founding-limit-setting"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("platform_settings")
+        .select("*")
+        .eq("key", "founding_member_limit")
+        .maybeSingle();
+      return data;
+    },
+  });
+
+  const foundingLimit = parseInt(foundingLimitSetting?.value || "150");
+
+  const saveFoundingLimitMutation = useMutation({
+    mutationFn: async (newLimit: string) => {
+      if (foundingLimitSetting) {
+        const { error } = await supabase
+          .from("platform_settings")
+          .update({ value: newLimit, updated_at: new Date().toISOString() })
+          .eq("id", foundingLimitSetting.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("platform_settings")
+          .insert({ key: "founding_member_limit", label: "Limite Founding Member", description: "Numero massimo di founding member ammessi", value: newLimit });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["founding-limit-setting"] });
+      queryClient.invalidateQueries({ queryKey: ["platform-settings"] });
+      setEditingFoundingLimit(false);
+      toast.success("Limite founding member aggiornato");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   const savePriceMutation = useMutation({
     mutationFn: async (newPrice: string) => {
       if (membershipPriceSetting) {
