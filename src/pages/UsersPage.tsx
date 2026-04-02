@@ -47,8 +47,14 @@ export default function UsersPage() {
       const { data: roles } = await supabase.from("user_roles").select("user_id, role");
       let authUsers: { id: string; email: string; last_sign_in_at: string | null; created_at: string }[] = [];
       try {
-        const res = await supabase.functions.invoke("list-users");
-        if (res.data && !res.data.error) authUsers = res.data;
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData?.session?.access_token;
+        if (token) {
+          const res = await supabase.functions.invoke("list-users", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (res.data && !res.data.error) authUsers = res.data;
+        }
       } catch {}
       const authMap = new Map(authUsers.map((u) => [u.id, u]));
       return (profiles || []).map((p) => ({
