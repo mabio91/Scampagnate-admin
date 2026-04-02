@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,13 @@ export default function EquipmentTemplatesPage() {
   const [newItemMandatory, setNewItemMandatory] = useState(false);
   const [newItemNotes, setNewItemNotes] = useState("");
   const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
+  const editFormRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (editingItemIndex !== null && editFormRef.current) {
+      editFormRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [editingItemIndex]);
 
   const { data: templates, isLoading } = useQuery({
     queryKey: ["equipment-templates"],
@@ -270,8 +277,16 @@ export default function EquipmentTemplatesPage() {
                     </div>
                   )}
 
-                  <Card>
+                  <Card ref={editFormRef} className={editingItemIndex !== null ? "border-primary ring-2 ring-primary/20" : ""}>
                     <CardContent className="pt-4 space-y-3">
+                      {editingItemIndex !== null && (
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-medium text-primary">Editing: {items[editingItemIndex]?.name}</p>
+                          <Button variant="ghost" size="sm" onClick={() => { setEditingItemIndex(null); setNewItemName(""); setNewItemMandatory(false); setNewItemNotes(""); }}>
+                            Cancel
+                          </Button>
+                        </div>
+                      )}
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
                           <Label className="text-xs">Item Name</Label>
@@ -287,7 +302,7 @@ export default function EquipmentTemplatesPage() {
                           <Switch checked={newItemMandatory} onCheckedChange={setNewItemMandatory} />
                           <Label className="text-xs">Mandatory</Label>
                         </div>
-                        <Button variant="outline" size="sm" onClick={addItem} disabled={!newItemName.trim()}>
+                        <Button variant={editingItemIndex !== null ? "default" : "outline"} size="sm" onClick={addItem} disabled={!newItemName.trim()}>
                           {editingItemIndex !== null ? <><Check className="mr-1 h-3 w-3" /> Save Item</> : <><Plus className="mr-1 h-3 w-3" /> Add Item</>}
                         </Button>
                       </div>
