@@ -333,8 +333,42 @@ export default function MembersPage() {
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-amber-500">{foundingCount} <span className="text-sm font-normal text-muted-foreground">/ 150</span></div>
-            <p className="text-sm text-muted-foreground">{t("members.foundingMembers")}</p>
+            {editingFoundingLimit ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  value={foundingLimitValue}
+                  onChange={(e) => setFoundingLimitValue(e.target.value)}
+                  className="h-9"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") saveFoundingLimitMutation.mutate(foundingLimitValue);
+                    if (e.key === "Escape") setEditingFoundingLimit(false);
+                  }}
+                />
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                  onClick={() => saveFoundingLimitMutation.mutate(foundingLimitValue)}
+                  disabled={saveFoundingLimitMutation.isPending}
+                >
+                  <Save className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <div
+                className="flex items-center gap-2 cursor-pointer group"
+                onClick={() => {
+                  setFoundingLimitValue(foundingLimitSetting?.value || "150");
+                  setEditingFoundingLimit(true);
+                }}
+              >
+                <div className="text-2xl font-bold text-amber-500">{foundingCount} <span className="text-sm font-normal text-muted-foreground">/ {foundingLimit}</span></div>
+                <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            )}
+            <p className="text-sm text-muted-foreground mt-1">{t("members.foundingMembers")}</p>
           </CardContent>
         </Card>
         <Card>
