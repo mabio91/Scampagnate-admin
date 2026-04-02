@@ -54,7 +54,7 @@ export default function UsersPage() {
       return (profiles || []).map((p) => ({
         ...p,
         roles: (roles || []).filter((r) => r.user_id === p.id).map((r) => r.role),
-        email: authMap.get(p.id)?.email || "—",
+        email: authMap.get(p.id)?.email || p.email || "—",
         last_sign_in_at: authMap.get(p.id)?.last_sign_in_at || null,
       }));
     },
