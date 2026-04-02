@@ -37,6 +37,13 @@ export default function EquipmentTemplatesPage() {
   const [newItemMandatory, setNewItemMandatory] = useState(false);
   const [newItemNotes, setNewItemNotes] = useState("");
   const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
+  const editFormRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (editingItemIndex !== null && editFormRef.current) {
+      editFormRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [editingItemIndex]);
 
   const { data: templates, isLoading } = useQuery({
     queryKey: ["equipment-templates"],
