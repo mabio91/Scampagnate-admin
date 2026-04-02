@@ -121,10 +121,20 @@ export default function OrganizersPage() {
 
   const removeOrgRole = useMutation({
     mutationFn: async (userId: string) => {
-      const { error } = await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", "organizer" as any);
-      if (error) throw error;
+      const org = organizers.find(o => o.id === userId);
+      const rolesToRemove = (org?.roles || []).filter(r => r === "organizer" || r === "admin");
+      for (const role of rolesToRemove) {
+        const { error } = await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", role as any);
+        if (error) throw error;
+      }
+      // Add "user" role if not already present
+      const hasUserRole = org?.roles.includes("user");
+      if (!hasUserRole) {
+        const { error } = await supabase.from("user_roles").insert({ user_id: userId, role: "user" as any });
+        if (error) throw error;
+      }
     },
-    onSuccess: () => { toast.success("Organizer role removed"); queryClient.invalidateQueries({ queryKey: ["admin-organizers"] }); setConfirmAction(null); },
+    onSuccess: () => { toast.success("Role changed to user"); queryClient.invalidateQueries({ queryKey: ["admin-organizers"] }); setConfirmAction(null); },
     onError: (e: any) => toast.error(e.message),
   });
 
