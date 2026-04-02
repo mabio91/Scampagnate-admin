@@ -37,6 +37,8 @@ export default function MembersPage() {
   const [showRenewalDialog, setShowRenewalDialog] = useState(false);
   const [editingPrice, setEditingPrice] = useState(false);
   const [priceValue, setPriceValue] = useState("");
+  const [editingFoundingLimit, setEditingFoundingLimit] = useState(false);
+  const [foundingLimitValue, setFoundingLimitValue] = useState("");
   const queryClient = useQueryClient();
 
   const currentYear = new Date().getFullYear();
