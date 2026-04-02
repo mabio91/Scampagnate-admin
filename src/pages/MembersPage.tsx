@@ -37,6 +37,8 @@ export default function MembersPage() {
   const [showRenewalDialog, setShowRenewalDialog] = useState(false);
   const [editingPrice, setEditingPrice] = useState(false);
   const [priceValue, setPriceValue] = useState("");
+  const [editingFoundingLimit, setEditingFoundingLimit] = useState(false);
+  const [foundingLimitValue, setFoundingLimitValue] = useState("");
   const queryClient = useQueryClient();
 
   const currentYear = new Date().getFullYear();
@@ -88,6 +90,45 @@ export default function MembersPage() {
         .maybeSingle();
       return data;
     },
+  });
+
+  // Fetch founding member limit from platform_settings
+  const { data: foundingLimitSetting } = useQuery({
+    queryKey: ["founding-limit-setting"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("platform_settings")
+        .select("*")
+        .eq("key", "founding_member_limit")
+        .maybeSingle();
+      return data;
+    },
+  });
+
+  const foundingLimit = parseInt(foundingLimitSetting?.value || "150");
+
+  const saveFoundingLimitMutation = useMutation({
+    mutationFn: async (newLimit: string) => {
+      if (foundingLimitSetting) {
+        const { error } = await supabase
+          .from("platform_settings")
+          .update({ value: newLimit, updated_at: new Date().toISOString() })
+          .eq("id", foundingLimitSetting.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("platform_settings")
+          .insert({ key: "founding_member_limit", label: "Limite Founding Member", description: "Numero massimo di founding member ammessi", value: newLimit });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["founding-limit-setting"] });
+      queryClient.invalidateQueries({ queryKey: ["platform-settings"] });
+      setEditingFoundingLimit(false);
+      toast.success("Limite founding member aggiornato");
+    },
+    onError: (e: any) => toast.error(e.message),
   });
 
   const savePriceMutation = useMutation({
@@ -292,8 +333,42 @@ export default function MembersPage() {
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-amber-500">{foundingCount} <span className="text-sm font-normal text-muted-foreground">/ 150</span></div>
-            <p className="text-sm text-muted-foreground">{t("members.foundingMembers")}</p>
+            {editingFoundingLimit ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  value={foundingLimitValue}
+                  onChange={(e) => setFoundingLimitValue(e.target.value)}
+                  className="h-9"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") saveFoundingLimitMutation.mutate(foundingLimitValue);
+                    if (e.key === "Escape") setEditingFoundingLimit(false);
+                  }}
+                />
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                  onClick={() => saveFoundingLimitMutation.mutate(foundingLimitValue)}
+                  disabled={saveFoundingLimitMutation.isPending}
+                >
+                  <Save className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <div
+                className="flex items-center gap-2 cursor-pointer group"
+                onClick={() => {
+                  setFoundingLimitValue(foundingLimitSetting?.value || "150");
+                  setEditingFoundingLimit(true);
+                }}
+              >
+                <div className="text-2xl font-bold text-amber-500">{foundingCount} <span className="text-sm font-normal text-muted-foreground">/ {foundingLimit}</span></div>
+                <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            )}
+            <p className="text-sm text-muted-foreground mt-1">{t("members.foundingMembers")}</p>
           </CardContent>
         </Card>
         <Card>
