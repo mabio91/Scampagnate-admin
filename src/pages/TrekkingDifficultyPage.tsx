@@ -38,7 +38,9 @@ export default function TrekkingDifficultyPage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      for (const [id, changes] of Object.entries(edited)) {
+      const entries = Object.entries(edited);
+      if (entries.length === 0) return;
+      for (const [id, changes] of entries) {
         const { error } = await supabase
           .from("trekking_difficulty_levels")
           .update({ ...changes, updated_at: new Date().toISOString() })
@@ -46,12 +48,12 @@ export default function TrekkingDifficultyPage() {
         if (error) throw error;
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["trekking-difficulty-levels"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["trekking-difficulty-levels"] });
       setEdited({});
       toast.success("Livelli di difficoltà salvati");
     },
-    onError: () => toast.error("Errore nel salvataggio"),
+    onError: (e: any) => toast.error(`Errore nel salvataggio: ${e.message}`),
   });
 
   const getVal = (level: DifficultyLevel, field: keyof DifficultyLevel) =>
