@@ -23,7 +23,7 @@ export function useTrekkingDifficultyLevels() {
       if (error) throw error;
       return data as TrekkingDifficultyLevel[];
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 30 * 1000,
   });
 }
 
