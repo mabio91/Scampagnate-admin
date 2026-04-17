@@ -190,7 +190,7 @@ export default function IconPicker({ value, onChange, placeholder = "Scegli icon
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
-              placeholder="Cerca icona..."
+              placeholder="Cerca icona o incolla emoji..."
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -200,6 +200,17 @@ export default function IconPicker({ value, onChange, placeholder = "Scegli icon
               autoFocus
             />
           </div>
+          {search.trim().length > 0 && (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="w-full mt-2 text-xs h-7"
+              onClick={() => handleSelect(search.trim())}
+            >
+              Usa come testo libero / emoji: "{search.trim()}"
+            </Button>
+          )}
         </div>
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="w-full">

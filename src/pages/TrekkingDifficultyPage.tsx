@@ -8,6 +8,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Save, Mountain, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import IconPicker from "@/components/IconPicker";
+import DynamicIcon from "@/components/DynamicIcon";
 
 interface DifficultyLevel {
   id: string;
@@ -96,7 +98,9 @@ export default function TrekkingDifficultyPage() {
             <Card key={level.id} className="border-l-4" style={{ borderLeftColor: getVal(level, "color_primary") as string }}>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <span className="text-xl">{getVal(level, "icon")}</span>
+                  <span className="text-xl">
+                    <DynamicIcon value={getVal(level, "icon") as string} />
+                  </span>
                   <span>Livello {level.level_number}</span>
                   <span className="text-muted-foreground">—</span>
                   <span>{getVal(level, "label")}</span>
@@ -109,7 +113,7 @@ export default function TrekkingDifficultyPage() {
                       border: `1px solid ${getVal(level, "color_border")}`,
                     }}
                   >
-                    <span>{getVal(level, "icon")}</span>
+                    <span><DynamicIcon value={getVal(level, "icon") as string} size={14} /></span>
                     {getVal(level, "label")}
                   </span>
                 </CardTitle>
@@ -124,10 +128,10 @@ export default function TrekkingDifficultyPage() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Icona (emoji)</Label>
-                    <Input
+                    <Label className="text-xs">Icona (emoji o libreria)</Label>
+                    <IconPicker
                       value={getVal(level, "icon") as string}
-                      onChange={(e) => setField(level.id, "icon", e.target.value)}
+                      onChange={(val) => setField(level.id, "icon", val)}
                     />
                   </div>
                   <div className="space-y-1.5">
