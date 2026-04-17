@@ -101,8 +101,9 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
   );
 
   return (
-    <div className="border rounded-md border-input bg-background">
-      <div className="flex flex-wrap items-center gap-0.5 border-b border-input p-1">
+    <div className="border rounded-md border-input bg-background flex flex-col" style={{ minHeight: 360 }}>
+      {/* Sticky toolbar — always visible at the top */}
+      <div className="flex flex-wrap items-center gap-0.5 border-b border-input p-1 sticky top-0 z-10 bg-background rounded-t-md">
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBold().run()}
           isActive={editor.isActive("bold")}
@@ -183,10 +184,13 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
         </ToolbarButton>
       </div>
 
-      <EditorContent
-        editor={editor}
-        className="prose dark:prose-invert max-w-none p-4 min-h-[300px] focus:outline-none [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[280px]"
-      />
+      {/* Scrollable content area — page never scrolls, only this box does */}
+      <div className="flex-1 overflow-y-auto" style={{ maxHeight: 420 }}>
+        <EditorContent
+          editor={editor}
+          className="prose dark:prose-invert max-w-none p-4 focus:outline-none [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[300px]"
+        />
+      </div>
 
       <input
         ref={fileInputRef}
