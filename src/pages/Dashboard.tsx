@@ -369,33 +369,47 @@ export default function Dashboard() {
   // ── PRIMARY KPIs ──
 
   const { data: totalUsers = 0, isLoading: l1 } = useQuery({
-    queryKey: ["kpi-total-users"],
+    queryKey: ["kpi-total-users", filters],
     queryFn: async () => {
-      const { count } = await supabase.from("profiles").select("*", { count: "exact", head: true });
+      let q = supabase.from("profiles").select("*", { count: "exact", head: true });
+      if (filters.dateFrom) q = q.gte("created_at", format(filters.dateFrom, "yyyy-MM-dd'T'HH:mm:ss"));
+      if (filters.dateTo) q = q.lte("created_at", format(filters.dateTo, "yyyy-MM-dd'T'23:59:59"));
+      if (filters.membershipYear) q = q.eq("membership_year", Number(filters.membershipYear));
+      const { count } = await q;
       return count || 0;
     },
   });
 
   const { data: activeMembers = 0, isLoading: l2 } = useQuery({
-    queryKey: ["kpi-active-members"],
+    queryKey: ["kpi-active-members", filters],
     queryFn: async () => {
-      const { count } = await supabase
+      let q = supabase
         .from("profiles")
         .select("*", { count: "exact", head: true })
-        .eq("membership_status", "Active")
-        .eq("membership_year", currentYear);
+        .eq("membership_status", "Active");
+      if (filters.membershipYear) q = q.eq("membership_year", Number(filters.membershipYear));
+      else q = q.eq("membership_year", currentYear);
+      if (filters.dateFrom) q = q.gte("created_at", format(filters.dateFrom, "yyyy-MM-dd'T'HH:mm:ss"));
+      if (filters.dateTo) q = q.lte("created_at", format(filters.dateTo, "yyyy-MM-dd'T'23:59:59"));
+      const { count } = await q;
       return count || 0;
     },
   });
 
   const { data: usersAttended = 0, isLoading: l3 } = useQuery({
-    queryKey: ["kpi-users-attended"],
+    queryKey: ["kpi-users-attended", filters],
     queryFn: async () => {
-      const { data } = await supabase
+      let q = supabase
         .from("event_registrations")
-        .select("user_id, events!inner(date)")
-        .eq("checked_in", true)
-        .gte("events.date", yearStart);
+        .select("user_id, events!inner(date, category_id, organizer_id, status)")
+        .eq("checked_in", true);
+      if (filters.dateFrom) q = q.gte("events.date", format(filters.dateFrom, "yyyy-MM-dd"));
+      else q = q.gte("events.date", yearStart);
+      if (filters.dateTo) q = q.lte("events.date", format(filters.dateTo, "yyyy-MM-dd"));
+      if (filters.categoryId) q = q.eq("events.category_id", filters.categoryId);
+      if (filters.organizerId) q = q.eq("events.organizer_id", filters.organizerId);
+      if (filters.eventStatus) q = q.eq("events.status", filters.eventStatus as any);
+      const { data } = await q;
       if (!data) return 0;
       const uniqueUsers = new Set(data.map((r: any) => r.user_id));
       return uniqueUsers.size;
@@ -403,106 +417,158 @@ export default function Dashboard() {
   });
 
   const { data: eventsThisYear = 0, isLoading: l4 } = useQuery({
-    queryKey: ["kpi-events-year"],
+    queryKey: ["kpi-events-year", filters],
     queryFn: async () => {
-      const { count } = await supabase
+      let q = supabase
         .from("events")
-        .select("*", { count: "exact", head: true })
-        .gte("date", yearStart);
+        .select("*", { count: "exact", head: true });
+      if (filters.dateFrom) q = q.gte("date", format(filters.dateFrom, "yyyy-MM-dd"));
+      else q = q.gte("date", yearStart);
+      if (filters.dateTo) q = q.lte("date", format(filters.dateTo, "yyyy-MM-dd"));
+      if (filters.categoryId) q = q.eq("category_id", filters.categoryId);
+      if (filters.organizerId) q = q.eq("organizer_id", filters.organizerId);
+      if (filters.eventStatus) q = q.eq("status", filters.eventStatus as any);
+      const { count } = await q;
       return count || 0;
     },
   });
 
   const { data: participationRate = "0%", isLoading: l5 } = useQuery({
-    queryKey: ["kpi-participation-rate", totalUsers],
+    queryKey: ["kpi-participation-rate", totalUsers, filters],
     queryFn: async () => {
-      const { data } = await supabase
+      let q = supabase
         .from("event_registrations")
-        .select("user_id")
+        .select("user_id, events!inner(date, category_id, organizer_id, status)")
         .in("status", ["registered", "paid", "attended"]);
+      if (filters.dateFrom) q = q.gte("events.date", format(filters.dateFrom, "yyyy-MM-dd"));
+      if (filters.dateTo) q = q.lte("events.date", format(filters.dateTo, "yyyy-MM-dd"));
+      if (filters.categoryId) q = q.eq("events.category_id", filters.categoryId);
+      if (filters.organizerId) q = q.eq("events.organizer_id", filters.organizerId);
+      if (filters.eventStatus) q = q.eq("events.status", filters.eventStatus as any);
+      const { data } = await q;
       if (!data || totalUsers === 0) return "0%";
-      const uniqueUsers = new Set(data.map((r) => r.user_id));
+      const uniqueUsers = new Set(data.map((r: any) => r.user_id));
       return `${Math.round((uniqueUsers.size / totalUsers) * 100)}%`;
     },
     enabled: totalUsers > 0,
   });
 
   const { data: attendanceRate = "0%", isLoading: l6 } = useQuery({
-    queryKey: ["kpi-attendance-rate"],
+    queryKey: ["kpi-attendance-rate", filters],
     queryFn: async () => {
-      const { count: totalRegs } = await supabase
+      let qTotal = supabase
         .from("event_registrations")
-        .select("*", { count: "exact", head: true })
+        .select("id, events!inner(date, category_id, organizer_id, status)")
         .in("status", ["registered", "paid", "attended"]);
-      const { count: checkedIn } = await supabase
+      let qChecked = supabase
         .from("event_registrations")
-        .select("*", { count: "exact", head: true })
+        .select("id, events!inner(date, category_id, organizer_id, status)")
         .eq("checked_in", true);
-      if (!totalRegs || totalRegs === 0) return "0%";
-      return `${Math.round(((checkedIn || 0) / totalRegs) * 100)}%`;
+        
+      [qTotal, qChecked].forEach((q: any) => {
+        if (filters.dateFrom) q = q.gte("events.date", format(filters.dateFrom, "yyyy-MM-dd"));
+        if (filters.dateTo) q = q.lte("events.date", format(filters.dateTo, "yyyy-MM-dd"));
+        if (filters.categoryId) q = q.eq("events.category_id", filters.categoryId);
+        if (filters.organizerId) q = q.eq("events.organizer_id", filters.organizerId);
+        if (filters.eventStatus) q = q.eq("events.status", filters.eventStatus as any);
+      });
+
+      const [{ data: totalRegs }, { data: checkedIn }] = await Promise.all([qTotal, qChecked]);
+      if (!totalRegs || totalRegs.length === 0) return "0%";
+      return `${Math.round(((checkedIn?.length || 0) / totalRegs.length) * 100)}%`;
     },
   });
 
   // ── SECONDARY KPIs ──
 
   const { data: avgFillRate = "0%" } = useQuery({
-    queryKey: ["kpi-fill-rate"],
+    queryKey: ["kpi-fill-rate", filters],
     queryFn: async () => {
-      const { data: events } = await supabase
+      let q = supabase
         .from("events")
         .select("spots_taken, spots_total")
         .gt("spots_total", 0);
+      if (filters.dateFrom) q = q.gte("date", format(filters.dateFrom, "yyyy-MM-dd"));
+      if (filters.dateTo) q = q.lte("date", format(filters.dateTo, "yyyy-MM-dd"));
+      if (filters.categoryId) q = q.eq("category_id", filters.categoryId);
+      if (filters.organizerId) q = q.eq("organizer_id", filters.organizerId);
+      if (filters.eventStatus) q = q.eq("status", filters.eventStatus as any);
+
+      const { data: events } = await q;
       if (!events || events.length === 0) return "0%";
-      const avgRate = events.reduce((sum, e) => sum + (e.spots_taken / e.spots_total), 0) / events.length;
+      const avgRate = events.reduce((sum: number, e: any) => sum + (e.spots_taken / e.spots_total), 0) / events.length;
       return `${Math.round(avgRate * 100)}%`;
     },
   });
 
   const { data: totalWaitlist = 0 } = useQuery({
-    queryKey: ["kpi-waitlist"],
+    queryKey: ["kpi-waitlist", filters],
     queryFn: async () => {
-      const { count } = await supabase
+      let q = supabase
         .from("event_registrations")
-        .select("*", { count: "exact", head: true })
+        .select("id, events!inner(date, category_id, organizer_id, status)")
         .eq("status", "waitlist");
-      return count || 0;
+      if (filters.dateFrom) q = q.gte("events.date", format(filters.dateFrom, "yyyy-MM-dd"));
+      if (filters.dateTo) q = q.lte("events.date", format(filters.dateTo, "yyyy-MM-dd"));
+      if (filters.categoryId) q = q.eq("events.category_id", filters.categoryId);
+      if (filters.organizerId) q = q.eq("events.organizer_id", filters.organizerId);
+      if (filters.eventStatus) q = q.eq("events.status", filters.eventStatus as any);
+      const { data } = await q;
+      return data?.length || 0;
     },
   });
 
   const { data: repeatParticipants = 0 } = useQuery({
-    queryKey: ["kpi-repeat"],
+    queryKey: ["kpi-repeat", filters],
     queryFn: async () => {
-      const { data } = await supabase
+      let q = supabase
         .from("event_registrations")
-        .select("user_id")
+        .select("user_id, events!inner(date, category_id, organizer_id, status)")
         .eq("checked_in", true);
+      if (filters.dateFrom) q = q.gte("events.date", format(filters.dateFrom, "yyyy-MM-dd"));
+      if (filters.dateTo) q = q.lte("events.date", format(filters.dateTo, "yyyy-MM-dd"));
+      if (filters.categoryId) q = q.eq("events.category_id", filters.categoryId);
+      if (filters.organizerId) q = q.eq("events.organizer_id", filters.organizerId);
+      if (filters.eventStatus) q = q.eq("events.status", filters.eventStatus as any);
+      const { data } = await q;
       if (!data) return 0;
       const counts: Record<string, number> = {};
-      data.forEach((r) => { counts[r.user_id] = (counts[r.user_id] || 0) + 1; });
+      data.forEach((r: any) => { counts[r.user_id] = (counts[r.user_id] || 0) + 1; });
       return Object.values(counts).filter((c) => c > 3).length;
     },
   });
 
   const { data: newUsersMonth = 0 } = useQuery({
-    queryKey: ["kpi-new-users-month"],
+    queryKey: ["kpi-new-users-month", filters],
     queryFn: async () => {
-      const monthStart = format(startOfMonth(new Date()), "yyyy-MM-dd");
-      const { count } = await supabase
+      let q = supabase
         .from("profiles")
-        .select("*", { count: "exact", head: true })
-        .gte("created_at", monthStart);
+        .select("*", { count: "exact", head: true });
+      if (filters.dateFrom) q = q.gte("created_at", format(filters.dateFrom, "yyyy-MM-dd'T'HH:mm:ss"));
+      else q = q.gte("created_at", format(startOfMonth(new Date()), "yyyy-MM-dd"));
+      if (filters.dateTo) q = q.lte("created_at", format(filters.dateTo, "yyyy-MM-dd'T'23:59:59"));
+      if (filters.membershipYear) q = q.eq("membership_year", Number(filters.membershipYear));
+
+      const { count } = await q;
       return count || 0;
     },
   });
 
   const { data: topCategory = "N/A" } = useQuery({
-    queryKey: ["kpi-top-category"],
+    queryKey: ["kpi-top-category", filters],
     queryFn: async () => {
-      const { data: events } = await supabase.from("events").select("category_id");
+      let q = supabase.from("events").select("category_id");
+      if (filters.dateFrom) q = q.gte("date", format(filters.dateFrom, "yyyy-MM-dd"));
+      if (filters.dateTo) q = q.lte("date", format(filters.dateTo, "yyyy-MM-dd"));
+      if (filters.categoryId) q = q.eq("category_id", filters.categoryId);
+      if (filters.organizerId) q = q.eq("organizer_id", filters.organizerId);
+      if (filters.eventStatus) q = q.eq("status", filters.eventStatus as any);
+
+      const { data: events } = await q;
       const { data: cats } = await supabase.from("event_categories").select("id, name");
       if (!events || !cats || events.length === 0) return "N/A";
       const counts: Record<string, number> = {};
-      events.forEach((e) => { if (e.category_id) counts[e.category_id] = (counts[e.category_id] || 0) + 1; });
+      events.forEach((e: any) => { if (e.category_id) counts[e.category_id] = (counts[e.category_id] || 0) + 1; });
       const topId = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0];
       return cats.find((c) => c.id === topId)?.name || "N/A";
     },
@@ -511,9 +577,12 @@ export default function Dashboard() {
   // ── EXISTING CHART DATA ──
 
   const { data: openIssues = 0 } = useQuery({
-    queryKey: ["stats-issues"],
+    queryKey: ["stats-issues", filters],
     queryFn: async () => {
-      const { count } = await supabase.from("issues").select("*", { count: "exact", head: true }).in("status", ["open", "in_progress"]);
+      let q = supabase.from("issues").select("*", { count: "exact", head: true }).in("status", ["open", "in_progress"]);
+      if (filters.dateFrom) q = q.gte("created_at", format(filters.dateFrom, "yyyy-MM-dd'T'HH:mm:ss"));
+      if (filters.dateTo) q = q.lte("created_at", format(filters.dateTo, "yyyy-MM-dd'T'23:59:59"));
+      const { count } = await q;
       return count || 0;
     },
   });
@@ -527,24 +596,41 @@ export default function Dashboard() {
   });
 
   const { data: categoryData = [] } = useQuery({
-    queryKey: ["stats-categories"],
+    queryKey: ["stats-categories", filters],
     queryFn: async () => {
+      let q = supabase.from("events").select("category_id");
+      if (filters.dateFrom) q = q.gte("date", format(filters.dateFrom, "yyyy-MM-dd"));
+      if (filters.dateTo) q = q.lte("date", format(filters.dateTo, "yyyy-MM-dd"));
+      if (filters.categoryId) q = q.eq("category_id", filters.categoryId);
+      if (filters.organizerId) q = q.eq("organizer_id", filters.organizerId);
+      if (filters.eventStatus) q = q.eq("status", filters.eventStatus as any);
+
+      const { data: events } = await q;
       const { data: categories } = await supabase.from("event_categories").select("id, name");
-      const { data: events } = await supabase.from("events").select("category_id");
       if (!categories) return [];
       return categories.map((cat) => ({
         id: cat.id,
         name: cat.name,
-        value: events?.filter((e) => e.category_id === cat.id).length || 0,
+        value: events?.filter((e: any) => e.category_id === cat.id).length || 0,
       })).filter((c) => c.value > 0);
     },
   });
 
   const { data: eventsByMonth = [] } = useQuery({
-    queryKey: ["stats-events-month"],
+    queryKey: ["stats-events-month", filters],
     queryFn: async () => {
-      const { data: events } = await supabase.from("events").select("date, id");
-      const { data: regs } = await supabase.from("event_registrations").select("created_at");
+      let eq = supabase.from("events").select("date, id");
+      if (filters.categoryId) eq = eq.eq("category_id", filters.categoryId);
+      if (filters.organizerId) eq = eq.eq("organizer_id", filters.organizerId);
+      if (filters.eventStatus) eq = eq.eq("status", filters.eventStatus as any);
+      const { data: events } = await eq;
+
+      let rq = supabase.from("event_registrations").select("created_at, events!inner(category_id, organizer_id, status)");
+      if (filters.categoryId) rq = rq.eq("events.category_id", filters.categoryId);
+      if (filters.organizerId) rq = rq.eq("events.organizer_id", filters.organizerId);
+      if (filters.eventStatus) rq = rq.eq("events.status", filters.eventStatus as any) as any;
+      const { data: regs } = await rq;
+
       const months: { month: string; events: number; registrations: number; dateFrom: string; dateTo: string }[] = [];
       for (let i = 6; i >= 0; i--) {
         const d = subMonths(new Date(), i);
@@ -553,8 +639,8 @@ export default function Dashboard() {
         const end = format(startOfMonth(subMonths(d, -1)), "yyyy-MM-dd");
         months.push({
           month: label,
-          events: events?.filter((e) => e.date >= start && e.date < end).length || 0,
-          registrations: regs?.filter((r) => r.created_at >= start && r.created_at < end).length || 0,
+          events: events?.filter((e: any) => e.date >= start && e.date < end).length || 0,
+          registrations: regs?.filter((r: any) => r.created_at >= start && r.created_at < end).length || 0,
           dateFrom: start,
           dateTo: end,
         });
@@ -564,17 +650,21 @@ export default function Dashboard() {
   });
 
   const { data: issuesTrend = [] } = useQuery({
-    queryKey: ["stats-issues-trend"],
+    queryKey: ["stats-issues-trend", filters],
     queryFn: async () => {
-      const { data: issues } = await supabase.from("issues").select("created_at, status, resolved_at");
+      let q = supabase.from("issues").select("created_at, status, resolved_at");
+      if (filters.dateFrom) q = q.gte("created_at", format(filters.dateFrom, "yyyy-MM-dd'T'HH:mm:ss"));
+      if (filters.dateTo) q = q.lte("created_at", format(filters.dateTo, "yyyy-MM-dd'T'23:59:59"));
+      
+      const { data: issues } = await q;
       const weeks: { week: string; opened: number; resolved: number; dateFrom: string; dateTo: string }[] = [];
       for (let i = 5; i >= 0; i--) {
         const start = new Date(); start.setDate(start.getDate() - (i + 1) * 7);
         const end = new Date(); end.setDate(end.getDate() - i * 7);
         weeks.push({
           week: `W${6 - i}`,
-          opened: issues?.filter((is) => new Date(is.created_at) >= start && new Date(is.created_at) < end).length || 0,
-          resolved: issues?.filter((is) => is.resolved_at && new Date(is.resolved_at) >= start && new Date(is.resolved_at) < end).length || 0,
+          opened: issues?.filter((is: any) => new Date(is.created_at) >= start && new Date(is.created_at) < end).length || 0,
+          resolved: issues?.filter((is: any) => is.resolved_at && new Date(is.resolved_at) >= start && new Date(is.resolved_at) < end).length || 0,
           dateFrom: start.toISOString(),
           dateTo: end.toISOString(),
         });
