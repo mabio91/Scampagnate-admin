@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Mail, Eye, Send, Pencil, Check, Smartphone, Monitor, RefreshCw, Shield, ShieldCheck, ShieldAlert, Settings2, Plus, Trash2, Copy, Users, AlertCircle } from "lucide-react";
@@ -53,6 +53,33 @@ function replaceVariables(html: string, vars: Record<string, string>) {
     }
   }
   return result;
+}
+
+async function getFunctionHeaders() {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+
+  return token ? { Authorization: `Bearer ${token}` } : undefined;
+}
+
+async function getFunctionErrorMessage(error: any) {
+  if (!error) return "Richiesta non riuscita";
+
+  if (typeof error.message === "string" && !error.message.includes("non-2xx")) {
+    return error.message;
+  }
+
+  if (error.context) {
+    try {
+      const payload = await error.context.json();
+      if (typeof payload?.error === "string") return payload.error;
+      if (typeof payload?.message === "string") return payload.message;
+    } catch {
+      // Fall back to the generic message below if the response body can't be parsed.
+    }
+  }
+
+  return error.message || "Richiesta non riuscita";
 }
 
 function EmailPreview({ template, viewport }: { template: EmailTemplate; viewport: "desktop" | "mobile" }) {
@@ -108,7 +135,10 @@ export default function EmailTemplatesPage() {
     queryKey: ["resend-domain-status"],
     queryFn: async () => {
       try {
-        const { data, error } = await supabase.functions.invoke("resend-domain-status");
+        const headers = await getFunctionHeaders();
+        const { data, error } = await supabase.functions.invoke("resend-domain-status", {
+          headers,
+        });
         if (error) throw error;
         return data;
       } catch (e) {
@@ -211,7 +241,9 @@ export default function EmailTemplatesPage() {
     if (!selectedBroadcastTemplateId || filteredRecipients.length === 0) return;
     setIsSendingBroadcast(true);
     try {
+      const headers = await getFunctionHeaders();
       const { data, error } = await supabase.functions.invoke("send-broadcast-email", {
+        headers,
         body: { 
           templateId: selectedBroadcastTemplateId, 
           userIds: filteredRecipients.map(r => r.id) 
@@ -221,7 +253,7 @@ export default function EmailTemplatesPage() {
       toast.success(`Broadcast inviato con successo a ${filteredRecipients.length} utenti`);
       setIsBroadcastModalOpen(false);
     } catch (e: any) {
-      toast.error(e.message || "Errore nell'invio del broadcast");
+      toast.error(await getFunctionErrorMessage(e));
     } finally {
       setIsSendingBroadcast(false);
     }
@@ -316,17 +348,30 @@ export default function EmailTemplatesPage() {
   });
 
   const handleSendTest = async () => {
-    if (!testEmail || !testTemplateId) return;
+    const templateId = testTemplateId || selectedBroadcastTemplateId;
+    if (!testEmail || !templateId) return;
+
     setSendingTest(true);
     try {
+      const headers = await getFunctionHeaders();
+      const selectedUser = users?.find((user) => user.email === testEmail);
       const { error } = await supabase.functions.invoke("send-welcome-email", {
-        body: { templateId: testTemplateId, recipientEmail: testEmail, isTest: true },
+        headers,
+        body: {
+          templateId,
+          recipientEmail: testEmail,
+          email: testEmail,
+          userId: selectedUser?.id,
+          firstName: selectedUser?.first_name || "",
+          lastName: selectedUser?.last_name || "",
+          isTest: true,
+        },
       });
       if (error) throw error;
       toast.success(`Email di test inviata a ${testEmail}`);
       setTestEmailDialog(false);
     } catch (e: any) {
-      toast.error(e.message || "Errore nell'invio dell'email di test");
+      toast.error(await getFunctionErrorMessage(e));
     } finally {
       setSendingTest(false);
     }
@@ -367,7 +412,7 @@ export default function EmailTemplatesPage() {
           <Button variant="outline" className="gap-2" onClick={() => setIsBroadcastModalOpen(true)}>
             <Send className="h-4 w-4" /> Invia Broadcast
           </Button>
-          <Button onClick={() => {
+        <Button onClick={() => {
           setIsCreating(true);
           setEditingTemplate({
             id: "",
@@ -387,6 +432,7 @@ export default function EmailTemplatesPage() {
         }}>
           <Plus className="h-4 w-4 mr-1" /> Nuovo Template
         </Button>
+      </div>
       </div>
 
       {/* Deliverability Settings Card */}
@@ -552,6 +598,9 @@ export default function EmailTemplatesPage() {
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{isCreating ? "Nuovo Template" : "Modifica Template"}</DialogTitle>
+            <DialogDescription>
+              Configura contenuto, mittente e impostazioni del template email.
+            </DialogDescription>
           </DialogHeader>
           {editingTemplate && (
             <div className="space-y-4">
@@ -649,6 +698,9 @@ export default function EmailTemplatesPage() {
                 </Button>
               </div>
             </DialogTitle>
+            <DialogDescription>
+              Anteprima del template email nel layout desktop o mobile.
+            </DialogDescription>
           </DialogHeader>
           {previewTemplate && <EmailPreview template={previewTemplate} viewport={previewViewport} />}
         </DialogContent>
@@ -659,6 +711,9 @@ export default function EmailTemplatesPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Invia email di test</DialogTitle>
+            <DialogDescription>
+              Scegli un destinatario o inserisci manualmente un indirizzo email per il test.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -715,6 +770,9 @@ export default function EmailTemplatesPage() {
               <Send className="h-5 w-5 text-primary" />
               Invia Broadcast Email
             </DialogTitle>
+            <DialogDescription>
+              Seleziona un template, filtra i destinatari e conferma l'invio della campagna email.
+            </DialogDescription>
           </DialogHeader>
 
           {/* Stepper */}
