@@ -164,11 +164,14 @@ const buildMeasure = (num: string, unit: string): string | null => {
 };
 
 export default function EventsPage() {
+  type SortField = "date" | "organizer";
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useLanguage();
   const [search, setSearch] = useState(searchParams.get("search") || "");
+  const [sortField, setSortField] = useState<SortField>("date");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const dashboardFilter = searchParams.get("filter");
   const [editEvent, setEditEvent] = useState<(Record<string, any> & { isNew?: boolean }) | null>(null);
   const [localMeetingPoints, setLocalMeetingPoints] = useState<LocalMeetingPoint[]>([]);
@@ -455,6 +458,38 @@ export default function EventsPage() {
   const getCategoryName = (id: string | null) => categories.find(c => c.id === id)?.name || "—";
 
   /* ══════ RENDER ══════ */
+  const sortedEvents = [...filtered].sort((a, b) => {
+    if (sortField === "organizer") {
+      const organizerA = (a.organizer_name || "").toLocaleLowerCase();
+      const organizerB = (b.organizer_name || "").toLocaleLowerCase();
+      const organizerComparison = organizerA.localeCompare(organizerB);
+      if (organizerComparison !== 0) return sortDirection === "asc" ? organizerComparison : -organizerComparison;
+
+      const dateComparison = a.date.localeCompare(b.date);
+      return sortDirection === "asc" ? dateComparison : -dateComparison;
+    }
+
+    const dateComparison = a.date.localeCompare(b.date);
+    if (dateComparison !== 0) return sortDirection === "asc" ? dateComparison : -dateComparison;
+
+    const organizerComparison = (a.organizer_name || "").localeCompare(b.organizer_name || "");
+    return sortDirection === "asc" ? organizerComparison : -organizerComparison;
+  });
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(current => current === "asc" ? "desc" : "asc");
+      return;
+    }
+    setSortField(field);
+    setSortDirection(field === "date" ? "desc" : "asc");
+  };
+  const renderSortIcon = (field: SortField) => {
+    if (sortField !== field) return <ArrowDown className="h-3.5 w-3.5 opacity-40" />;
+    return sortDirection === "asc"
+      ? <ArrowUp className="h-3.5 w-3.5" />
+      : <ArrowDown className="h-3.5 w-3.5" />;
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -496,9 +531,31 @@ export default function EventsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>{t("events.event")}</TableHead>
-                  <TableHead>{t("events.organizer")}</TableHead>
+                  <TableHead>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="-ml-3 h-8 gap-1 px-3 font-medium"
+                      onClick={() => toggleSort("organizer")}
+                    >
+                      {t("events.organizer")}
+                      {renderSortIcon("organizer")}
+                    </Button>
+                  </TableHead>
                   <TableHead>{t("events.category")}</TableHead>
-                  <TableHead>{t("common.date")}</TableHead>
+                  <TableHead>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="-ml-3 h-8 gap-1 px-3 font-medium"
+                      onClick={() => toggleSort("date")}
+                    >
+                      {t("common.date")}
+                      {renderSortIcon("date")}
+                    </Button>
+                  </TableHead>
                   <TableHead>{t("events.spots")}</TableHead>
                   <TableHead>{t("common.status")}</TableHead>
                   <TableHead>{t("events.visibility")}</TableHead>
@@ -506,7 +563,7 @@ export default function EventsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map(event => (
+                {sortedEvents.map(event => (
                   <TableRow key={event.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/events/${event.id}`)}>
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-1.5">
@@ -538,7 +595,7 @@ export default function EventsPage() {
                     </TableCell>
                   </TableRow>
                 ))}
-                {filtered.length === 0 && (
+                {sortedEvents.length === 0 && (
                   <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">{t("events.noEventsFound")}</TableCell></TableRow>
                 )}
               </TableBody>
