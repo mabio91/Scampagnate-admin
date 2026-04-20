@@ -365,6 +365,7 @@ export type Database = {
           sender_name: string | null
           subject: string
           template_key: string
+          type: string | null
           updated_at: string | null
         }
         Insert: {
@@ -380,6 +381,7 @@ export type Database = {
           sender_name?: string | null
           subject?: string
           template_key: string
+          type?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -395,6 +397,7 @@ export type Database = {
           sender_name?: string | null
           subject?: string
           template_key?: string
+          type?: string | null
           updated_at?: string | null
         }
         Relationships: []

@@ -12,10 +12,16 @@ function replaceVariables(text: string, vars: Record<string, string>): string {
     result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), value);
   }
 
-  const userName = vars.user_name || vars.full_name || vars.first_name || "";
-  result = result.replace(/\{\{user_name\}\}/g, userName);
-  result = result.replace(/\{\{first_name\}\}/g, vars.first_name || "");
-  result = result.replace(/Ciao\s*,/g, "Ciao,");
+  if (result.includes("{{first_name}}")) {
+    const firstName = vars.first_name || "";
+    result = firstName ? result.replace(/\{\{first_name\}\}/g, firstName) : result.replace(/\{\{first_name\}\}/g, "");
+  }
+
+  if (result.includes("{{user_name}}")) {
+    const userName = vars.user_name || vars.full_name || vars.first_name || "";
+    result = result.replace(/\{\{user_name\}\}/g, userName);
+  }
+
   return result;
 }
 
@@ -38,25 +44,29 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-async function getEventSuggestionsHtml(supabaseAdmin: ReturnType<typeof createClient>) {
+async function getSuggestedEventsHtml(supabaseAdmin: ReturnType<typeof createClient>) {
   const today = new Date().toISOString().slice(0, 10);
   const { data } = await supabaseAdmin
     .from("events")
     .select("title, date, location")
-    .in("status", ["available", "published"])
     .gte("date", today)
+    .in("status", ["available", "published"])
     .order("date", { ascending: true })
     .limit(3);
 
   if (!data?.length) {
-    return "<p>Scopri le prossime attività in programma su Scampagnate.</p>";
+    return "<p>Scopri i prossimi eventi in programma su Scampagnate.</p>";
   }
 
-  const items = data
-    .map((event) => `<li><strong>${event.title}</strong> - ${event.date}${event.location ? `, ${event.location}` : ""}</li>`)
-    .join("");
+  const items = data.map((event) => {
+    const formattedDate = new Date(event.date).toLocaleDateString("it-IT", {
+      day: "2-digit",
+      month: "short",
+    });
+    return `<li><strong>${event.title}</strong> - ${formattedDate}${event.location ? `, ${event.location}` : ""}</li>`;
+  }).join("");
 
-  return `<p>Ecco alcuni suggerimenti per te:</p><ul>${items}</ul>`;
+  return `<ul>${items}</ul>`;
 }
 
 function buildEmailHtml(template: any, vars: Record<string, string>): string {
@@ -115,20 +125,20 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
     if (!resendApiKey) throw new Error("RESEND_API_KEY not configured");
 
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) throw new Error("Not authenticated");
+    if (!authHeader?.startsWith("Bearer ")) {
+      throw new Error("Not authenticated");
+    }
 
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
     const callerClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
-    const {
-      data: { user: caller },
-    } = await callerClient.auth.getUser();
 
+    const { data: { user: caller } } = await callerClient.auth.getUser();
     if (!caller) throw new Error("Not authenticated");
 
     const { data: roleCheck } = await supabaseAdmin
@@ -141,7 +151,7 @@ serve(async (req) => {
 
     const { templateId, userIds } = await req.json();
     if (!templateId || !Array.isArray(userIds) || userIds.length === 0) {
-      throw new Error("templateId and a non-empty userIds array are required");
+      throw new Error("templateId and userIds array are required");
     }
 
     const { data: template, error: templateError } = await supabaseAdmin
@@ -151,98 +161,102 @@ serve(async (req) => {
       .single();
 
     if (templateError || !template) throw new Error("Template not found");
-    if (template.type !== "broadcast") throw new Error("Selected template is not a Broadcast Email template");
+    if (template.type !== "broadcast") throw new Error("Only broadcast templates can be sent in bulk");
 
-    const { data: profiles, error: profilesError } = await supabaseAdmin
+    const { data: profiles, error: profileError } = await supabaseAdmin
       .from("profiles")
       .select("id, first_name, last_name, email")
       .in("id", userIds);
 
-    if (profilesError || !profiles) throw new Error("Error fetching users");
+    if (profileError || !profiles) throw new Error("Error fetching users");
 
-    const eventSuggestionsHtml = await getEventSuggestionsHtml(supabaseAdmin);
+    const eventSuggestions = await getSuggestedEventsHtml(supabaseAdmin);
     const batchSize = 10;
     const results: Array<{ id: string; status: string; error?: string }> = [];
 
-    for (let index = 0; index < profiles.length; index += batchSize) {
-      const batch = profiles.slice(index, index + batchSize);
-      const batchResults = await Promise.all(
-        batch.map(async (profile: any) => {
-          if (!profile.email) {
-            return { id: profile.id, status: "skipped", error: "missing_email" };
-          }
+    for (let i = 0; i < profiles.length; i += batchSize) {
+      const batch = profiles.slice(i, i + batchSize);
 
-          const vars = {
-            first_name: profile.first_name || "",
-            full_name: [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "",
-            user_name: [profile.first_name, profile.last_name].filter(Boolean).join(" ") || profile.first_name || "",
-            email: profile.email,
-            cta_url: template.cta_url || "/events",
-            event_suggestions: eventSuggestionsHtml,
-          };
+      const batchResults = await Promise.all(batch.map(async (profile: any) => {
+        if (!profile.email) {
+          return { id: profile.id, status: "skipped", error: "missing_email" };
+        }
 
-          const htmlBody = buildEmailHtml(template, vars);
-          const subject = replaceVariables(template.subject, vars);
-          const fromAddress = `${template.sender_name || "Scampagnate"} <noreply@scampagnate.com>`;
+        const vars = {
+          first_name: profile.first_name || "",
+          full_name: [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "",
+          user_name: [profile.first_name, profile.last_name].filter(Boolean).join(" ") || profile.first_name || "",
+          email: profile.email,
+          cta_url: template.cta_url || "/events",
+          event_suggestions: eventSuggestions,
+        };
 
-          const resendPayload: Record<string, unknown> = {
-            from: fromAddress,
-            to: [profile.email],
-            subject,
-            html: htmlBody,
-            text: stripHtml(replaceVariables(template.body_html, vars)),
-          };
+        const htmlBody = buildEmailHtml(template, vars);
+        const subject = replaceVariables(template.subject, vars);
+        const resendPayload: Record<string, unknown> = {
+          from: `${template.sender_name || "Scampagnate"} <noreply@scampagnate.com>`,
+          to: [profile.email],
+          subject,
+          html: htmlBody,
+          text: stripHtml(replaceVariables(template.body_html, vars)),
+        };
 
-          if (template.reply_to) {
-            resendPayload.reply_to = template.reply_to;
-          }
+        if (template.reply_to) {
+          resendPayload.reply_to = template.reply_to;
+        }
 
-          try {
-            const resendResponse = await fetch("https://api.resend.com/emails", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${resendApiKey}`,
-              },
-              body: JSON.stringify(resendPayload),
-            });
+        try {
+          const resendResponse = await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${resendApiKey}`,
+            },
+            body: JSON.stringify(resendPayload),
+          });
 
-            const resendResult = await resendResponse.json();
-            const status = resendResponse.ok ? "sent" : "failed";
+          const resendResult = await resendResponse.json();
+          const status = resendResponse.ok ? "sent" : "failed";
 
-            await supabaseAdmin.from("email_send_log").insert({
-              user_id: profile.id,
-              email_type: "broadcast",
-              template_id: template.id,
-              recipient_email: profile.email,
-              status,
-              provider_response: JSON.stringify(resendResult),
-              sent_at: status === "sent" ? new Date().toISOString() : null,
-            });
+          await supabaseAdmin.from("email_send_log").insert({
+            user_id: profile.id,
+            email_type: "broadcast",
+            template_id: template.id,
+            recipient_email: profile.email,
+            status,
+            provider_response: JSON.stringify(resendResult),
+            sent_at: status === "sent" ? new Date().toISOString() : null,
+          });
 
-            if (!resendResponse.ok) {
-              return { id: profile.id, status, error: resendResult?.message || "provider_error" };
-            }
+          return resendResponse.ok
+            ? { id: profile.id, status }
+            : { id: profile.id, status, error: resendResult?.message || "Failed to send email" };
+        } catch (error: any) {
+          await supabaseAdmin.from("email_send_log").insert({
+            user_id: profile.id,
+            email_type: "broadcast",
+            template_id: template.id,
+            recipient_email: profile.email,
+            status: "failed",
+            provider_response: JSON.stringify({ error: error.message }),
+            sent_at: null,
+          });
 
-            return { id: profile.id, status };
-          } catch (error: any) {
-            console.error(`Failed to send to ${profile.email}:`, error);
-            return { id: profile.id, status: "failed", error: error.message };
-          }
-        }),
-      );
+          return { id: profile.id, status: "failed", error: error.message };
+        }
+      }));
 
       results.push(...batchResults);
     }
 
     const summary = {
-      total: results.length,
+      total: profiles.length,
       sent: results.filter((result) => result.status === "sent").length,
       failed: results.filter((result) => result.status === "failed").length,
       skipped: results.filter((result) => result.status === "skipped").length,
     };
 
-    return new Response(JSON.stringify({ success: true, summary, results }), {
+    return new Response(JSON.stringify({ success: true, results, summary }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {
