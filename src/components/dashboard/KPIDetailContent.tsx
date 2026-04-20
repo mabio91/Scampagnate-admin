@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format, differenceInDays, differenceInHours, subMonths, startOfMonth } from "date-fns";
 import { Ruler, TrendingUp, Calendar, Star, Users, CreditCard, ClipboardList, FolderOpen, User, Medal, Trophy, BarChart3, CheckCircle2, XCircle, Wrench, Landmark } from "lucide-react";
 import type { DashboardFilterValues } from "./DashboardFilters";
+import { formatMembershipId } from "@/lib/membership";
 
 export type KPIType =
   | "total-users"
@@ -320,7 +321,7 @@ function ActiveMembersDetail({ filters }: { filters: DashboardFilterValues }) {
                     <TableRow key={m.id}>
                       <TableCell className="font-medium whitespace-nowrap">{m.first_name} {m.last_name}</TableCell>
                       <TableCell className="text-xs">{m.email || "—"}</TableCell>
-                      <TableCell className="font-mono text-xs">{m.membership_id}</TableCell>
+                      <TableCell className="font-mono text-xs">{formatMembershipId(m.membership_id)}</TableCell>
                       <TableCell>{m.membership_year || "—"}</TableCell>
                       <TableCell>{statusBadge(m.membership_status || "Inactive")}</TableCell>
                       <TableCell>{statusBadge(m.account_status || "Active")}</TableCell>

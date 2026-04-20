@@ -11,6 +11,7 @@ import { UserGamificationSection } from "@/components/gamification/UserGamificat
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { formatMembershipId } from "@/lib/membership";
 
 export default function UserDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -167,7 +168,7 @@ export default function UserDetailPage() {
                   </Badge>
                 </div>
                 {user.membership_id && (
-                  <InfoField label={t("users.membershipId")} value={String(user.membership_id)} mono />
+                  <InfoField label={t("users.membershipId")} value={formatMembershipId(user.membership_id)} mono />
                 )}
               </div>
               {user.is_founding_member && (

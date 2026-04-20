@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { formatMembershipId } from "@/lib/membership";
 
 interface SearchResult {
   id: string;
@@ -119,7 +120,7 @@ export function GlobalSearch() {
           allResults.push({
             id: `member-${p.id}`,
             label: name,
-            subtitle: `#${p.membership_id}`,
+            subtitle: `#${formatMembershipId(p.membership_id)}`,
             category: "member",
             route: `/members`,
           });

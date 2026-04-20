@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { formatMembershipId } from "@/lib/membership";
 
 type Profile = Tables<"profiles">;
 
@@ -453,7 +454,7 @@ export default function MembersPage() {
                 {filtered.map((member) => (
                   <TableRow key={member.id}>
                     <TableCell className="font-mono">
-                      {member.membership_id ? member.membership_id.toString().padStart(4, "0") : "—"}
+                      {formatMembershipId(member.membership_id)}
                     </TableCell>
                     <TableCell className="font-medium">
                       {member.first_name} {member.last_name}
