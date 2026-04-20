@@ -11,6 +11,11 @@ function replaceVariables(text: string, vars: Record<string, string>): string {
   for (const [key, value] of Object.entries(vars)) {
     result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), value);
   }
+
+  const userName = vars.user_name || vars.full_name || vars.first_name || "";
+  result = result.replace(/\{\{user_name\}\}/g, userName);
+  result = result.replace(/\{\{first_name\}\}/g, vars.first_name || "");
+  result = result.replace(/Ciao\s*,/g, "Ciao,");
   return result;
 }
 
@@ -33,6 +38,27 @@ function stripHtml(html: string): string {
     .trim();
 }
 
+async function getEventSuggestionsHtml(supabaseAdmin: ReturnType<typeof createClient>) {
+  const today = new Date().toISOString().slice(0, 10);
+  const { data } = await supabaseAdmin
+    .from("events")
+    .select("title, date, location")
+    .in("status", ["available", "published"])
+    .gte("date", today)
+    .order("date", { ascending: true })
+    .limit(3);
+
+  if (!data?.length) {
+    return "<p>Scopri le prossime attività in programma su Scampagnate.</p>";
+  }
+
+  const items = data
+    .map((event) => `<li><strong>${event.title}</strong> - ${event.date}${event.location ? `, ${event.location}` : ""}</li>`)
+    .join("");
+
+  return `<p>Ecco alcuni suggerimenti per te:</p><ul>${items}</ul>`;
+}
+
 function buildEmailHtml(template: any, vars: Record<string, string>): string {
   const bodyHtml = replaceVariables(template.body_html, vars);
   const ctaUrl = vars.cta_url || template.cta_url || "/events";
@@ -50,13 +76,11 @@ function buildEmailHtml(template: any, vars: Record<string, string>): string {
   <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color:#f5f3ef;padding:24px 0;">
     <tr><td align="center">
       <table width="600" cellpadding="0" cellspacing="0" role="presentation" style="background-color:#ffffff;border-radius:10px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);max-width:100%;">
-        <!-- Header -->
         <tr>
           <td style="background-color:#1a3d2b;padding:28px 24px;text-align:center;">
             <h1 style="color:#f0ebe0;margin:0;font-size:22px;font-weight:700;font-family:Arial,Helvetica,sans-serif;">${template.sender_name || "Scampagnate"}</h1>
           </td>
         </tr>
-        <!-- Body -->
         <tr>
           <td style="padding:32px 28px;color:#1a3d2b;font-size:15px;line-height:1.7;font-family:Arial,Helvetica,sans-serif;">
             ${bodyHtml}
@@ -68,7 +92,6 @@ function buildEmailHtml(template: any, vars: Record<string, string>): string {
             </table>` : ""}
           </td>
         </tr>
-        <!-- Footer -->
         <tr>
           <td style="background-color:#f5f3ef;padding:20px 24px;text-align:center;font-size:12px;color:#6b7a6e;border-top:1px solid #e5e0d5;font-family:Arial,Helvetica,sans-serif;">
             <p style="margin:0 0 8px 0;">Ricevi questa email per comunicazioni istituzionali di Scampagnate.</p>
@@ -90,104 +113,138 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
-    const { templateId, userIds } = await req.json();
-
-    if (!templateId || !userIds || !Array.isArray(userIds)) {
-      throw new Error("templateId and userIds array are required");
-    }
-
     if (!resendApiKey) throw new Error("RESEND_API_KEY not configured");
 
-    // Fetch the template
-    const { data: template, error: tError } = await supabaseAdmin
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) throw new Error("Not authenticated");
+
+    const callerClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const {
+      data: { user: caller },
+    } = await callerClient.auth.getUser();
+
+    if (!caller) throw new Error("Not authenticated");
+
+    const { data: roleCheck } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", caller.id)
+      .eq("role", "admin");
+
+    if (!roleCheck?.length) throw new Error("Not authorized");
+
+    const { templateId, userIds } = await req.json();
+    if (!templateId || !Array.isArray(userIds) || userIds.length === 0) {
+      throw new Error("templateId and a non-empty userIds array are required");
+    }
+
+    const { data: template, error: templateError } = await supabaseAdmin
       .from("email_templates")
       .select("*")
       .eq("id", templateId)
       .single();
 
-    if (tError || !template) throw new Error("Template not found");
+    if (templateError || !template) throw new Error("Template not found");
+    if (template.type !== "broadcast") throw new Error("Selected template is not a Broadcast Email template");
 
-    // Fetch user details
-    const { data: profiles, error: pError } = await supabaseAdmin
+    const { data: profiles, error: profilesError } = await supabaseAdmin
       .from("profiles")
       .select("id, first_name, last_name, email")
       .in("id", userIds);
 
-    if (pError || !profiles) throw new Error("Error fetching users");
+    if (profilesError || !profiles) throw new Error("Error fetching users");
 
-    const batchSize = 10; // Process in small batches
-    const results = [];
+    const eventSuggestionsHtml = await getEventSuggestionsHtml(supabaseAdmin);
+    const batchSize = 10;
+    const results: Array<{ id: string; status: string; error?: string }> = [];
 
-    for (let i = 0; i < profiles.length; i += batchSize) {
-      const batch = profiles.slice(i, i + batchSize);
-      
-      const batchPromises = batch.map(async (profile) => {
-        if (!profile.email) return { id: profile.id, status: "no_email" };
+    for (let index = 0; index < profiles.length; index += batchSize) {
+      const batch = profiles.slice(index, index + batchSize);
+      const batchResults = await Promise.all(
+        batch.map(async (profile: any) => {
+          if (!profile.email) {
+            return { id: profile.id, status: "skipped", error: "missing_email" };
+          }
 
-        const vars = {
-          first_name: profile.first_name || "",
-          full_name: [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "",
-          email: profile.email,
-          cta_url: template.cta_url || "/events",
-        };
+          const vars = {
+            first_name: profile.first_name || "",
+            full_name: [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "",
+            user_name: [profile.first_name, profile.last_name].filter(Boolean).join(" ") || profile.first_name || "",
+            email: profile.email,
+            cta_url: template.cta_url || "/events",
+            event_suggestions: eventSuggestionsHtml,
+          };
 
-        const htmlBody = buildEmailHtml(template, vars);
-        const subject = replaceVariables(template.subject, vars);
-        const fromAddress = `${template.sender_name || "Scampagnate"} <noreply@scampagnate.com>`;
+          const htmlBody = buildEmailHtml(template, vars);
+          const subject = replaceVariables(template.subject, vars);
+          const fromAddress = `${template.sender_name || "Scampagnate"} <noreply@scampagnate.com>`;
 
-        const resendPayload: any = {
-          from: fromAddress,
-          to: [profile.email],
-          subject,
-          html: htmlBody,
-          text: stripHtml(replaceVariables(template.body_html, vars)),
-        };
-        if (template.reply_to) {
-          resendPayload.reply_to = template.reply_to;
-        }
+          const resendPayload: Record<string, unknown> = {
+            from: fromAddress,
+            to: [profile.email],
+            subject,
+            html: htmlBody,
+            text: stripHtml(replaceVariables(template.body_html, vars)),
+          };
 
-        try {
-          const resendResponse = await fetch("https://api.resend.com/emails", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${resendApiKey}`,
-            },
-            body: JSON.stringify(resendPayload),
-          });
+          if (template.reply_to) {
+            resendPayload.reply_to = template.reply_to;
+          }
 
-          const resendResult = await resendResponse.json();
-          const status = resendResponse.ok ? "sent" : "failed";
+          try {
+            const resendResponse = await fetch("https://api.resend.com/emails", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${resendApiKey}`,
+              },
+              body: JSON.stringify(resendPayload),
+            });
 
-          // Log the send
-          await supabaseAdmin.from("email_send_log").insert({
-            user_id: profile.id,
-            email_type: "broadcast",
-            template_id: template.id,
-            recipient_email: profile.email,
-            status,
-            provider_response: JSON.stringify(resendResult),
-            sent_at: status === "sent" ? new Date().toISOString() : null,
-          });
+            const resendResult = await resendResponse.json();
+            const status = resendResponse.ok ? "sent" : "failed";
 
-          return { id: profile.id, status };
-        } catch (err) {
-          console.error(`Failed to send to ${profile.email}:`, err);
-          return { id: profile.id, status: "error", error: err.message };
-        }
-      });
+            await supabaseAdmin.from("email_send_log").insert({
+              user_id: profile.id,
+              email_type: "broadcast",
+              template_id: template.id,
+              recipient_email: profile.email,
+              status,
+              provider_response: JSON.stringify(resendResult),
+              sent_at: status === "sent" ? new Date().toISOString() : null,
+            });
 
-      const batchResults = await Promise.all(batchPromises);
+            if (!resendResponse.ok) {
+              return { id: profile.id, status, error: resendResult?.message || "provider_error" };
+            }
+
+            return { id: profile.id, status };
+          } catch (error: any) {
+            console.error(`Failed to send to ${profile.email}:`, error);
+            return { id: profile.id, status: "failed", error: error.message };
+          }
+        }),
+      );
+
       results.push(...batchResults);
     }
 
-    return new Response(JSON.stringify({ success: true, results }), {
+    const summary = {
+      total: results.length,
+      sent: results.filter((result) => result.status === "sent").length,
+      failed: results.filter((result) => result.status === "failed").length,
+      skipped: results.filter((result) => result.status === "skipped").length,
+    };
+
+    return new Response(JSON.stringify({ success: true, summary, results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-
   } catch (error: any) {
     console.error("Error sending broadcast email:", error);
     return new Response(JSON.stringify({ error: error.message }), {

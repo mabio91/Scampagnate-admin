@@ -11,11 +11,33 @@ function replaceVariables(text: string, vars: Record<string, string>): string {
   for (const [key, value] of Object.entries(vars)) {
     result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), value);
   }
+  result = result.replace(/\{\{user_name\}\}/g, vars.user_name || vars.full_name || vars.first_name || "");
   // Fallback for missing first_name
   result = result.replace(/\{\{first_name\}\}/g, "");
   result = result.replace(/Ciao\s*,/g, "Ciao,");
   result = result.replace(/Ciao\s*!/g, "Ciao!");
   return result;
+}
+
+async function getEventSuggestionsHtml(supabaseAdmin: ReturnType<typeof createClient>) {
+  const today = new Date().toISOString().slice(0, 10);
+  const { data } = await supabaseAdmin
+    .from("events")
+    .select("title, date, location")
+    .in("status", ["available", "published"])
+    .gte("date", today)
+    .order("date", { ascending: true })
+    .limit(3);
+
+  if (!data?.length) {
+    return "<p>Scopri le prossime attività in programma su Scampagnate.</p>";
+  }
+
+  const items = data
+    .map((event) => `<li><strong>${event.title}</strong> - ${event.date}${event.location ? `, ${event.location}` : ""}</li>`)
+    .join("");
+
+  return `<p>Ecco alcuni suggerimenti per te:</p><ul>${items}</ul>`;
 }
 
 function stripHtml(html: string): string {
@@ -161,11 +183,14 @@ serve(async (req) => {
       template = data;
     }
 
+    const eventSuggestionsHtml = await getEventSuggestionsHtml(supabaseAdmin);
     const vars: Record<string, string> = {
       first_name: firstName || "",
       full_name: [firstName, lastName].filter(Boolean).join(" ") || "",
+      user_name: [firstName, lastName].filter(Boolean).join(" ") || firstName || "",
       email: recipientEmail || "",
       cta_url: template.cta_url || "/events",
+      event_suggestions: eventSuggestionsHtml,
     };
 
     const htmlBody = buildEmailHtml(template, vars);

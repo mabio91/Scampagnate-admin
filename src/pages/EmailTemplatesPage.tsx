@@ -1,9 +1,10 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -35,6 +36,68 @@ interface EmailTemplate {
   updated_at: string;
 }
 
+type BroadcastRecipientMode = "all" | "filtered";
+type BroadcastRegistrationFilter = "all" | "active" | "inactive";
+type BroadcastMembershipFilter = "all" | "active" | "expired" | "none" | "inactive";
+type BroadcastBookingFilter = "all" | "upcoming" | "past" | "cancelled";
+type BroadcastLastActivityFilter = "any" | "30" | "90" | "180";
+
+interface BroadcastFilters {
+  recipientMode: BroadcastRecipientMode;
+  registrationStatus: BroadcastRegistrationFilter;
+  membershipStatus: BroadcastMembershipFilter;
+  minEventsJoined: number;
+  minEventsAttended: number;
+  bookingStatus: BroadcastBookingFilter;
+  interests: string[];
+  lastActivityWindow: BroadcastLastActivityFilter;
+  onlyNoShowUsers: boolean;
+  onlyFirstTimeUsers: boolean;
+}
+
+interface BroadcastProfile {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string | null;
+  account_status: string | null;
+  membership_status: string | null;
+  interests: string[] | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface BroadcastUserStats {
+  joined: number;
+  attended: number;
+  noShows: number;
+  hasUpcoming: boolean;
+  hasPast: boolean;
+  hasCancelled: boolean;
+  lastActivityAt: string | null;
+}
+
+const DEFAULT_BROADCAST_FILTERS: BroadcastFilters = {
+  recipientMode: "all",
+  registrationStatus: "all",
+  membershipStatus: "all",
+  minEventsJoined: 0,
+  minEventsAttended: 0,
+  bookingStatus: "all",
+  interests: [],
+  lastActivityWindow: "any",
+  onlyNoShowUsers: false,
+  onlyFirstTimeUsers: false,
+};
+
+const SAMPLE_EVENT_SUGGESTIONS = `
+  <ul>
+    <li>Trekking sul lago domenica prossima</li>
+    <li>Workshop fotografia outdoor a maggio</li>
+    <li>Esperienza enogastronomica tra le colline</li>
+  </ul>
+`;
+
 function replaceVariables(html: string, vars: Record<string, string>) {
   let result = html;
   for (const [key, value] of Object.entries(vars)) {
@@ -52,6 +115,12 @@ function replaceVariables(html: string, vars: Record<string, string>) {
       result = result.replace(/\{\{first_name\}\}/g, "");
     }
   }
+
+  if (result.includes("{{user_name}}")) {
+    const userName = vars.user_name || vars.full_name || vars.first_name || "";
+    result = result.replace(/\{\{user_name\}\}/g, userName);
+  }
+
   return result;
 }
 
@@ -83,7 +152,14 @@ async function getFunctionErrorMessage(error: any) {
 }
 
 function EmailPreview({ template, viewport }: { template: EmailTemplate; viewport: "desktop" | "mobile" }) {
-  const sampleVars = { first_name: "Marco", full_name: "Marco Rossi", email: "marco@example.com", cta_url: template.cta_url || "/events" };
+  const sampleVars = {
+    first_name: "Marco",
+    full_name: "Marco Rossi",
+    user_name: "Marco Rossi",
+    email: "marco@example.com",
+    cta_url: template.cta_url || "/events",
+    event_suggestions: SAMPLE_EVENT_SUGGESTIONS,
+  };
   const bodyHtml = replaceVariables(template.body_html, sampleVars);
   const width = viewport === "mobile" ? "375px" : "600px";
 
@@ -108,8 +184,8 @@ function EmailPreview({ template, viewport }: { template: EmailTemplate; viewpor
         </div>
         {/* Email footer */}
         <div className="bg-muted/30 p-4 text-center text-xs text-muted-foreground border-t space-y-1">
-          <p>Hai ricevuto questa email perché hai creato un account su Scampagnate.</p>
-          <p>© {new Date().getFullYear()} Scampagnate. Tutti i diritti riservati.</p>
+          <p>Hai ricevuto questa email perchÃ© hai creato un account su Scampagnate.</p>
+          <p>Â© {new Date().getFullYear()} Scampagnate. Tutti i diritti riservati.</p>
         </div>
       </div>
     </div>
@@ -131,6 +207,7 @@ export default function EmailTemplatesPage() {
 
   // --- Domain Verification State ---
   const [refreshingDomain, setRefreshingDomain] = useState(false);
+  const [verifyingDomain, setVerifyingDomain] = useState(false);
   const { data: domainStatus, refetch: refetchDomain } = useQuery({
     queryKey: ["resend-domain-status"],
     queryFn: async () => {
@@ -156,57 +233,92 @@ export default function EmailTemplatesPage() {
     toast.success("Stato dominio aggiornato");
   };
 
+  const handleVerifyDomain = async () => {
+    setVerifyingDomain(true);
+    try {
+      const headers = await getFunctionHeaders();
+      const { data, error } = await supabase.functions.invoke("resend-domain-status", {
+        headers,
+        body: { action: "verify" },
+      });
+      if (error) throw error;
+      await refetchDomain();
+      toast.success(data?.message || "Verifica dominio avviata");
+    } catch (e: any) {
+      toast.error(await getFunctionErrorMessage(e));
+    } finally {
+      setVerifyingDomain(false);
+    }
+  };
+
   // --- Broadcast Logic States ---
   const [broadcastStep, setBroadcastStep] = useState<"template" | "filter" | "confirm" | "sending">("template");
   const [selectedBroadcastTemplateId, setSelectedBroadcastTemplateId] = useState<string>("");
-  const [broadcastFilters, setBroadcastFilters] = useState({
-    registrationStatus: "All",
-    membershipStatus: "All",
-    minEventsJoined: 0,
-    minEventsAttended: 0,
-    bookingStatus: "All", // Upcoming, Past, Cancelled
-    interests: [] as string[],
-  });
+  const [broadcastFilters, setBroadcastFilters] = useState<BroadcastFilters>(DEFAULT_BROADCAST_FILTERS);
   const [isBroadcastModalOpen, setIsBroadcastModalOpen] = useState(false);
 
   // Fetch all user profiles for filtering
-  const { data: allProfiles = [] } = useQuery({
+  const { data: allProfiles = [] } = useQuery<BroadcastProfile[]>({
     queryKey: ["all-profiles-for-broadcast"],
     enabled: isBroadcastModalOpen,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, first_name, last_name, email, account_status, membership_status, interests, created_at");
+        .select("id, first_name, last_name, email, account_status, membership_status, interests, created_at, updated_at")
+        .order("created_at", { ascending: false });
       if (error) throw error;
-      return data;
+      return (data || []) as BroadcastProfile[];
     },
   });
 
   // Fetch registration stats for all users
-  const { data: userRegStats = {} } = useQuery({
+  const { data: userRegStats = {} } = useQuery<Record<string, BroadcastUserStats>>({
     queryKey: ["user-reg-stats-for-broadcast"],
     enabled: isBroadcastModalOpen,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("event_registrations")
-        .select("user_id, status, checked_in, events(date, status)");
+        .select("user_id, status, checked_in, created_at, events(date, status)");
       if (error) throw error;
 
-      const stats: Record<string, { joined: number; attended: number; hasUpcoming: boolean; hasCancelled: boolean }> = {};
-      const now = new Date().toISOString();
+      const stats: Record<string, BroadcastUserStats> = {};
+      const today = new Date().toISOString().slice(0, 10);
 
       data?.forEach((reg: any) => {
         if (!stats[reg.user_id]) {
-          stats[reg.user_id] = { joined: 0, attended: 0, hasUpcoming: false, hasCancelled: false };
+          stats[reg.user_id] = {
+            joined: 0,
+            attended: 0,
+            noShows: 0,
+            hasUpcoming: false,
+            hasPast: false,
+            hasCancelled: false,
+            lastActivityAt: null,
+          };
         }
-        
+
         const s = stats[reg.user_id];
-        if (reg.status === "paid" || reg.status === "registered") {
+        const eventDate = reg.events?.date || null;
+        const registrationDate = reg.created_at || null;
+
+        if (registrationDate && (!s.lastActivityAt || registrationDate > s.lastActivityAt)) {
+          s.lastActivityAt = registrationDate;
+        }
+
+        if (["paid", "registered", "attended", "no_show"].includes(reg.status)) {
           s.joined++;
-          if (reg.events?.date && reg.events.date > now) s.hasUpcoming = true;
         }
         if (reg.checked_in || reg.status === "attended") {
           s.attended++;
+        }
+        if (reg.status === "no_show") {
+          s.noShows++;
+        }
+        if (eventDate && eventDate >= today && ["registered", "paid", "waitlist", "pending_approval", "pending_payment"].includes(reg.status)) {
+          s.hasUpcoming = true;
+        }
+        if (eventDate && eventDate < today && ["registered", "paid", "attended", "no_show"].includes(reg.status)) {
+          s.hasPast = true;
         }
         if (reg.status === "cancelled") {
           s.hasCancelled = true;
@@ -216,29 +328,61 @@ export default function EmailTemplatesPage() {
     },
   });
 
-  const filteredRecipients = allProfiles.filter((p) => {
-    const stats = userRegStats[p.id] || { joined: 0, attended: 0, hasUpcoming: false, hasCancelled: false };
+  const allInterests = Array.from(
+    new Set(allProfiles.flatMap((profile) => profile.interests || [])),
+  ).sort((a, b) => a.localeCompare(b, "it"));
 
-    if (broadcastFilters.registrationStatus !== "All" && p.account_status !== broadcastFilters.registrationStatus) return false;
-    if (broadcastFilters.membershipStatus !== "All" && p.membership_status !== broadcastFilters.membershipStatus) return false;
+  const emailableProfiles = allProfiles.filter((profile) => Boolean(profile.email));
+
+  const filteredRecipients = emailableProfiles.filter((profile) => {
+    const stats = userRegStats[profile.id] || {
+      joined: 0,
+      attended: 0,
+      noShows: 0,
+      hasUpcoming: false,
+      hasPast: false,
+      hasCancelled: false,
+      lastActivityAt: profile.updated_at || profile.created_at || null,
+    };
+
+    if (broadcastFilters.registrationStatus === "active" && profile.account_status !== "Active") return false;
+    if (broadcastFilters.registrationStatus === "inactive" && profile.account_status === "Active") return false;
+
+    if (broadcastFilters.membershipStatus === "active" && profile.membership_status !== "Active") return false;
+    if (broadcastFilters.membershipStatus === "expired" && profile.membership_status !== "Expired") return false;
+    if (broadcastFilters.membershipStatus === "none" && !!profile.membership_status && profile.membership_status !== "Inactive") return false;
+    if (broadcastFilters.membershipStatus === "inactive" && profile.membership_status === "Active") return false;
+
     if (stats.joined < broadcastFilters.minEventsJoined) return false;
     if (stats.attended < broadcastFilters.minEventsAttended) return false;
 
-    if (broadcastFilters.bookingStatus === "Upcoming" && !stats.hasUpcoming) return false;
-    if (broadcastFilters.bookingStatus === "Cancelled" && !stats.hasCancelled) return false;
-    // ... add more filter logic as needed
+    if (broadcastFilters.bookingStatus === "upcoming" && !stats.hasUpcoming) return false;
+    if (broadcastFilters.bookingStatus === "past" && !stats.hasPast) return false;
+    if (broadcastFilters.bookingStatus === "cancelled" && !stats.hasCancelled) return false;
 
     if (broadcastFilters.interests.length > 0) {
-      const userInterests = p.interests || [];
-      if (!broadcastFilters.interests.some(interest => userInterests.includes(interest))) return false;
+      const userInterests = profile.interests || [];
+      if (!broadcastFilters.interests.some((interest) => userInterests.includes(interest))) return false;
+    }
+
+    if (broadcastFilters.onlyNoShowUsers && stats.noShows === 0) return false;
+    if (broadcastFilters.onlyFirstTimeUsers && stats.joined > 1) return false;
+
+    if (broadcastFilters.lastActivityWindow !== "any") {
+      const lastActivityAt = stats.lastActivityAt || profile.updated_at || profile.created_at;
+      const threshold = new Date();
+      threshold.setDate(threshold.getDate() - Number(broadcastFilters.lastActivityWindow));
+      if (!lastActivityAt || new Date(lastActivityAt) < threshold) return false;
     }
 
     return true;
   });
 
+  const finalRecipients = broadcastFilters.recipientMode === "all" ? emailableProfiles : filteredRecipients;
+
   const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
   const handleSendBroadcast = async () => {
-    if (!selectedBroadcastTemplateId || filteredRecipients.length === 0) return;
+    if (!selectedBroadcastTemplateId || finalRecipients.length === 0) return;
     setIsSendingBroadcast(true);
     try {
       const headers = await getFunctionHeaders();
@@ -246,12 +390,20 @@ export default function EmailTemplatesPage() {
         headers,
         body: { 
           templateId: selectedBroadcastTemplateId, 
-          userIds: filteredRecipients.map(r => r.id) 
+          userIds: finalRecipients.map((recipient) => recipient.id),
         },
       });
       if (error) throw error;
-      toast.success(`Broadcast inviato con successo a ${filteredRecipients.length} utenti`);
+      const summary = data?.summary;
+      if (summary) {
+        toast.success(`Broadcast inviato: ${summary.sent}/${summary.total} email consegnate, ${summary.failed} fallite, ${summary.skipped} saltate.`);
+      } else {
+        toast.success(`Broadcast inviato con successo a ${finalRecipients.length} utenti`);
+      }
       setIsBroadcastModalOpen(false);
+      setBroadcastStep("template");
+      setBroadcastFilters(DEFAULT_BROADCAST_FILTERS);
+      setSelectedBroadcastTemplateId("");
     } catch (e: any) {
       toast.error(await getFunctionErrorMessage(e));
     } finally {
@@ -426,6 +578,7 @@ export default function EmailTemplatesPage() {
             sender_name: "Scampagnate",
             reply_to: "",
             is_active: false,
+            type: "transactional",
             created_at: "",
             updated_at: "",
           });
@@ -455,7 +608,7 @@ export default function EmailTemplatesPage() {
             </div>
             <div className="space-y-1">
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Reply-to</span>
-              <p className="text-sm font-semibold text-foreground">{activeTemplate?.reply_to || "—"}</p>
+              <p className="text-sm font-semibold text-foreground">{activeTemplate?.reply_to || "â€”"}</p>
             </div>
             <div className="space-y-1">
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Template attivo</span>
@@ -498,7 +651,7 @@ export default function EmailTemplatesPage() {
             <div className="flex items-center gap-3 flex-wrap">
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider mr-2">DNS Records:</span>
               <Badge variant="outline" className={domainStatus?.records?.some((r: any) => r.type === "TXT" && r.status === "verified") ? "text-success border-success bg-success/10" : "text-muted-foreground border-muted"}>
-                <Shield className="h-3 w-3 mr-1" /> SPF: {domainStatus?.records?.find((r: any) => r.type === "TXT" && r.name.includes("_spf"))?.status || "—"}
+                <Shield className="h-3 w-3 mr-1" /> SPF: {domainStatus?.records?.find((r: any) => r.type === "TXT" && r.name.includes("_spf"))?.status || "â€”"}
               </Badge>
               <Badge variant="outline" className={domainStatus?.records?.some((r: any) => r.type === "CNAME" && r.status === "verified") ? "text-success border-success bg-success/10" : "text-muted-foreground border-muted"}>
                 <Shield className="h-3 w-3 mr-1" /> DKIM: {domainStatus?.records?.some((r: any) => r.type === "CNAME" && r.status === "verified") ? "Verificato" : "In attesa"}
@@ -510,6 +663,16 @@ export default function EmailTemplatesPage() {
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="sm" className="h-8 gap-1.5" onClick={handleRefreshDomain} disabled={refreshingDomain}>
                 <RefreshCw className={`h-3 w-3 ${refreshingDomain ? "animate-spin" : ""}`} /> Aggiorna stato
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1.5"
+                onClick={handleVerifyDomain}
+                disabled={verifyingDomain || domainStatus?.status === "verified"}
+              >
+                <ShieldCheck className={`h-3 w-3 ${verifyingDomain ? "animate-pulse" : ""}`} />
+                {domainStatus?.status === "verified" ? "Dominio verificato" : "Verifica dominio"}
               </Button>
               <span className="text-xs text-muted-foreground">
                 Gestisci su <a href="https://resend.com/domains" target="_blank" rel="noopener noreferrer" className="underline text-primary hover:text-primary/80">resend.com</a>
@@ -577,15 +740,15 @@ export default function EmailTemplatesPage() {
                 </div>
                 <div>
                   <span className="text-muted-foreground">Mittente:</span>
-                  <p className="font-medium">{tpl.sender_name || "—"}</p>
+                  <p className="font-medium">{tpl.sender_name || "â€”"}</p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">CTA:</span>
-                  <p className="font-medium">{tpl.cta_label || "—"}</p>
+                  <p className="font-medium">{tpl.cta_label || "â€”"}</p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Reply-to:</span>
-                  <p className="font-medium">{tpl.reply_to || "—"}</p>
+                  <p className="font-medium">{tpl.reply_to || "â€”"}</p>
                 </div>
               </div>
             </CardContent>
@@ -639,7 +802,7 @@ export default function EmailTemplatesPage() {
               </div>
               <div className="space-y-2">
                 <Label>Corpo email</Label>
-                <p className="text-xs text-muted-foreground">Variabili disponibili: {"{{first_name}}"}, {"{{full_name}}"}, {"{{email}}"}, {"{{cta_url}}"}</p>
+                <p className="text-xs text-muted-foreground">Variabili disponibili: {"{{first_name}}"}, {"{{full_name}}"}, {"{{user_name}}"}, {"{{email}}"}, {"{{event_suggestions}}"}, {"{{cta_url}}"}</p>
                 <RichTextEditor content={editingTemplate.body_html} onChange={(html) => setEditingTemplate({ ...editingTemplate, body_html: html })} />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -750,7 +913,7 @@ export default function EmailTemplatesPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Elimina template</AlertDialogTitle>
             <AlertDialogDescription>
-              Sei sicuro di voler eliminare il template "{deleteConfirm?.name}"? Questa azione non può essere annullata.
+              Sei sicuro di voler eliminare il template "{deleteConfirm?.name}"? Questa azione non puÃ² essere annullata.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -763,7 +926,14 @@ export default function EmailTemplatesPage() {
       </AlertDialog>
 
       {/* Broadcast Modal */}
-      <Dialog open={isBroadcastModalOpen} onOpenChange={(o) => { if (!o) { setIsBroadcastModalOpen(false); setBroadcastStep("template"); } }}>
+      <Dialog open={isBroadcastModalOpen} onOpenChange={(o) => {
+        if (!o) {
+          setIsBroadcastModalOpen(false);
+          setBroadcastStep("template");
+          setBroadcastFilters(DEFAULT_BROADCAST_FILTERS);
+          setSelectedBroadcastTemplateId("");
+        }
+      }}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -779,11 +949,11 @@ export default function EmailTemplatesPage() {
           <div className="flex items-center justify-between mb-8 px-4">
             {[
               { id: "template", label: "Template" },
-              { id: "filter", label: "Filtri Destinatari" },
-              { id: "confirm", label: "Anteprima & Conferma" },
+              { id: "filter", label: "Filtri utenti" },
+              { id: "confirm", label: "Conferma invio" },
             ].map((s, idx) => (
               <div key={s.id} className="flex items-center flex-1 last:flex-none">
-                <div className="flex flex-col items-center gap-2 relative">
+                <div className="flex flex-col items-center gap-2">
                   <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
                     broadcastStep === s.id ? "bg-primary text-white shadow-md ring-2 ring-primary/20" : 
                     idx < ["template", "filter", "confirm"].indexOf(broadcastStep) ? "bg-success text-white" : "bg-muted text-muted-foreground"
@@ -805,13 +975,13 @@ export default function EmailTemplatesPage() {
             {broadcastStep === "template" && (
               <div className="space-y-6">
                 <div>
-                  <Label className="text-lg font-bold mb-4 block">1. Seleziona il template per l'invio</Label>
+                  <Label className="text-lg font-bold mb-4 block">Seleziona il template broadcast</Label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {templates?.filter(t => t.type === "broadcast").map((t) => (
-                      <Card 
-                        key={t.id} 
-                        className={`cursor-pointer transition-all hover:shadow-md ${selectedBroadcastTemplateId === t.id ? "ring-2 ring-primary border-primary bg-primary/5" : "border-muted"}`}
-                        onClick={() => setSelectedBroadcastTemplateId(t.id)}
+                    {templates?.filter((template) => template.type === "broadcast").map((template) => (
+                      <Card
+                        key={template.id}
+                        className={`cursor-pointer transition-all hover:shadow-md ${selectedBroadcastTemplateId === template.id ? "ring-2 ring-primary border-primary bg-primary/5" : "border-muted"}`}
+                        onClick={() => setSelectedBroadcastTemplateId(template.id)}
                       >
                         <CardContent className="p-4 flex items-center justify-between">
                           <div className="flex items-center gap-3">
@@ -819,25 +989,50 @@ export default function EmailTemplatesPage() {
                               <Mail className="h-4 w-4 text-muted-foreground" />
                             </div>
                             <div>
-                              <p className="font-semibold text-sm">{t.name}</p>
-                              <p className="text-xs text-muted-foreground truncate max-w-[200px]">{t.subject}</p>
+                              <p className="font-semibold text-sm">{template.name}</p>
+                              <p className="text-xs text-muted-foreground truncate max-w-[220px]">{template.subject}</p>
                             </div>
                           </div>
-                          {selectedBroadcastTemplateId === t.id && <Check className="h-4 w-4 text-primary" />}
+                          {selectedBroadcastTemplateId === template.id && <Check className="h-4 w-4 text-primary" />}
                         </CardContent>
                       </Card>
                     ))}
-                    {templates?.filter(t => t.type === "broadcast").length === 0 && (
+                    {templates?.filter((template) => template.type === "broadcast").length === 0 && (
                       <div className="col-span-2 py-8 text-center bg-muted/30 rounded-lg border border-dashed">
-                        <p className="text-sm text-muted-foreground">Nessun template di tipo "Broadcast" trovato.</p>
-                        <p className="text-xs text-muted-foreground mt-1">Crea o modifica un template impostando il tipo su "Broadcast".</p>
+                        <p className="text-sm text-muted-foreground">Nessun template di tipo Broadcast trovato.</p>
+                        <p className="text-xs text-muted-foreground mt-1">Crea un template con tipo "Broadcast" per inviare email massive.</p>
                       </div>
                     )}
                   </div>
                 </div>
-                <div className="flex justify-end">
+
+                <div className="flex justify-between">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsCreating(true);
+                      setEditingTemplate({
+                        id: "",
+                        template_key: `broadcast_email_${Date.now()}`,
+                        name: "Broadcast Email",
+                        subject: "",
+                        preview_text: "",
+                        body_html: "<p>Ciao {{first_name}},</p><p>{{event_suggestions}}</p>",
+                        cta_label: "",
+                        cta_url: "",
+                        sender_name: "Scampagnate",
+                        reply_to: "",
+                        is_active: false,
+                        type: "broadcast",
+                        created_at: "",
+                        updated_at: "",
+                      });
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-2" /> Nuovo template Broadcast
+                  </Button>
                   <Button onClick={() => setBroadcastStep("filter")} disabled={!selectedBroadcastTemplateId}>
-                    Continua ai filtri <Pencil className="ml-2 h-4 w-4" />
+                    Filtri utenti <Pencil className="ml-2 h-4 w-4" />
                   </Button>
                 </div>
               </div>
@@ -845,118 +1040,228 @@ export default function EmailTemplatesPage() {
 
             {broadcastStep === "filter" && (
               <div className="space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {/* Filter Section 1: Membership & Status */}
-                  <div className="space-y-6">
-                    <div className="space-y-4">
-                      <Label className="text-sm font-bold uppercase tracking-widest text-primary/70">Stato & Membership</Label>
-                      <div className="space-y-2">
-                        <Label className="text-xs">Stato Account</Label>
-                        <Select value={broadcastFilters.registrationStatus} onValueChange={(v) => setBroadcastFilters({...broadcastFilters, registrationStatus: v})}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="All">Tutti gli stati</SelectItem>
-                            <SelectItem value="Active">Solo Attivi</SelectItem>
-                            <SelectItem value="Suspended">Solo Sospesi</SelectItem>
-                          </SelectContent>
-                        </Select>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <Card className={broadcastFilters.recipientMode === "all" ? "border-primary ring-2 ring-primary/10" : ""}>
+                    <CardContent className="p-5 space-y-3">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="font-semibold">Invia a tutti</p>
+                          <p className="text-sm text-muted-foreground">Invia il template a tutti gli utenti con email disponibile.</p>
+                        </div>
+                        <Button
+                          variant={broadcastFilters.recipientMode === "all" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setBroadcastFilters({ ...broadcastFilters, recipientMode: "all" })}
+                        >
+                          Seleziona
+                        </Button>
                       </div>
-                      <div className="space-y-2">
-                        <Label className="text-xs">Stato Membership</Label>
-                        <Select value={broadcastFilters.membershipStatus} onValueChange={(v) => setBroadcastFilters({...broadcastFilters, membershipStatus: v})}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="All">Tutti (Soci e non)</SelectItem>
-                            <SelectItem value="Active">Solo Soci Attivi</SelectItem>
-                            <SelectItem value="Expired">Solo Membership Scadute</SelectItem>
-                            <SelectItem value="None">Solo Non Soci</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
+                      <p className="text-xs text-muted-foreground">Totale indirizzi disponibili: {emailableProfiles.length}</p>
+                    </CardContent>
+                  </Card>
 
-                    <div className="space-y-4 pt-2">
-                      <Label className="text-sm font-bold uppercase tracking-widest text-primary/70">Interessi</Label>
-                      <div className="flex flex-wrap gap-2">
-                        {["Trekking", "Cultura", "Enogastronomia", "Workshop", "Famiglie"].map((interest) => (
-                          <Badge 
-                            key={interest}
-                            variant={broadcastFilters.interests.includes(interest) ? "default" : "outline"}
-                            className="cursor-pointer px-3 py-1"
-                            onClick={() => {
-                              const news = broadcastFilters.interests.includes(interest) 
-                                ? broadcastFilters.interests.filter(i => i !== interest)
-                                : [...broadcastFilters.interests, interest];
-                              setBroadcastFilters({...broadcastFilters, interests: news});
-                            }}
-                          >
-                            {interest}
-                          </Badge>
-                        ))}
+                  <Card className={broadcastFilters.recipientMode === "filtered" ? "border-primary ring-2 ring-primary/10" : ""}>
+                    <CardContent className="p-5 space-y-3">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="font-semibold">Invia a utenti selezionati</p>
+                          <p className="text-sm text-muted-foreground">Applica i filtri obbligatori e consigliati per definire un sottoinsieme mirato.</p>
+                        </div>
+                        <Button
+                          variant={broadcastFilters.recipientMode === "filtered" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setBroadcastFilters({ ...broadcastFilters, recipientMode: "filtered" })}
+                        >
+                          Seleziona
+                        </Button>
                       </div>
-                    </div>
-                  </div>
-
-                  {/* Filter Section 2: Activity & Participation */}
-                  <div className="space-y-6">
-                    <div className="space-y-4">
-                      <Label className="text-sm font-bold uppercase tracking-widest text-primary/70">Attività & Partecipazione</Label>
-                      <div className="space-y-2">
-                        <Label className="text-xs">Eventi a cui si è unito (Minimo: {broadcastFilters.minEventsJoined})</Label>
-                        <Input 
-                          type="number" 
-                          min={0} 
-                          value={broadcastFilters.minEventsJoined} 
-                          onChange={(e) => setBroadcastFilters({...broadcastFilters, minEventsJoined: parseInt(e.target.value) || 0})} 
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-xs">Eventi effettivamente partecipati (Minimo: {broadcastFilters.minEventsAttended})</Label>
-                        <Input 
-                          type="number" 
-                          min={0} 
-                          value={broadcastFilters.minEventsAttended} 
-                          onChange={(e) => setBroadcastFilters({...broadcastFilters, minEventsAttended: parseInt(e.target.value) || 0})} 
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-xs">Stato Prenotazioni</Label>
-                        <Select value={broadcastFilters.bookingStatus} onValueChange={(v) => setBroadcastFilters({...broadcastFilters, bookingStatus: v})}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="All">Tutti</SelectItem>
-                            <SelectItem value="Upcoming">Ha eventi in programma</SelectItem>
-                            <SelectItem value="Cancelled">Ha cancellato recentemente</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </div>
+                      <p className="text-xs text-muted-foreground">Numero destinatari con filtri correnti: {filteredRecipients.length}</p>
+                    </CardContent>
+                  </Card>
                 </div>
 
-                <Separator />
+                <div className={`space-y-8 ${broadcastFilters.recipientMode === "all" ? "opacity-60" : ""}`}>
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                    <div className="space-y-6">
+                      <div className="space-y-4">
+                        <Label className="text-sm font-bold uppercase tracking-widest text-primary/70">Filtri utenti</Label>
+                        <div className="space-y-2">
+                          <Label className="text-xs">Stato registrazione</Label>
+                          <Select
+                            value={broadcastFilters.registrationStatus}
+                            onValueChange={(value: BroadcastRegistrationFilter) => setBroadcastFilters({ ...broadcastFilters, registrationStatus: value })}
+                            disabled={broadcastFilters.recipientMode === "all"}
+                          >
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">Tutti</SelectItem>
+                              <SelectItem value="active">Solo attivi</SelectItem>
+                              <SelectItem value="inactive">Solo inattivi</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
 
-                <div className="bg-primary/5 p-4 rounded-lg flex items-center justify-between border border-primary/10">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-primary p-2 rounded-md">
-                      <Users className="h-5 w-5 text-white" />
+                        <div className="space-y-2">
+                          <Label className="text-xs">Stato membership</Label>
+                          <Select
+                            value={broadcastFilters.membershipStatus}
+                            onValueChange={(value: BroadcastMembershipFilter) => setBroadcastFilters({ ...broadcastFilters, membershipStatus: value })}
+                            disabled={broadcastFilters.recipientMode === "all"}
+                          >
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">Tutti</SelectItem>
+                              <SelectItem value="active">Solo membership attive</SelectItem>
+                              <SelectItem value="expired">Solo membership scadute</SelectItem>
+                              <SelectItem value="inactive">Inattive o non presenti</SelectItem>
+                              <SelectItem value="none">Solo non soci</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-xs">Ultima attività</Label>
+                          <Select
+                            value={broadcastFilters.lastActivityWindow}
+                            onValueChange={(value: BroadcastLastActivityFilter) => setBroadcastFilters({ ...broadcastFilters, lastActivityWindow: value })}
+                            disabled={broadcastFilters.recipientMode === "all"}
+                          >
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="any">Qualsiasi data</SelectItem>
+                              <SelectItem value="30">Ultimi 30 giorni</SelectItem>
+                              <SelectItem value="90">Ultimi 90 giorni</SelectItem>
+                              <SelectItem value="180">Ultimi 180 giorni</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <Label className="text-sm font-bold uppercase tracking-widest text-primary/70">Partecipazione eventi</Label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-xs">Numero eventi prenotati</Label>
+                            <Input
+                              type="number"
+                              min={0}
+                              value={broadcastFilters.minEventsJoined}
+                              disabled={broadcastFilters.recipientMode === "all"}
+                              onChange={(e) => setBroadcastFilters({ ...broadcastFilters, minEventsJoined: parseInt(e.target.value, 10) || 0 })}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs">Numero eventi partecipati</Label>
+                            <Input
+                              type="number"
+                              min={0}
+                              value={broadcastFilters.minEventsAttended}
+                              disabled={broadcastFilters.recipientMode === "all"}
+                              onChange={(e) => setBroadcastFilters({ ...broadcastFilters, minEventsAttended: parseInt(e.target.value, 10) || 0 })}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-xs">Stato prenotazioni</Label>
+                          <Select
+                            value={broadcastFilters.bookingStatus}
+                            onValueChange={(value: BroadcastBookingFilter) => setBroadcastFilters({ ...broadcastFilters, bookingStatus: value })}
+                            disabled={broadcastFilters.recipientMode === "all"}
+                          >
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">Tutte</SelectItem>
+                              <SelectItem value="upcoming">Eventi futuri</SelectItem>
+                              <SelectItem value="past">Eventi passati</SelectItem>
+                              <SelectItem value="cancelled">Eventi cancellati</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold text-primary">Destinatari selezionati</p>
-                      <p className="text-xs text-muted-foreground">Basato sui filtri impostati</p>
+
+                    <div className="space-y-6">
+                      <div className="space-y-4">
+                        <Label className="text-sm font-bold uppercase tracking-widest text-primary/70">Filtri consigliati</Label>
+                        <div className="space-y-3 rounded-lg border bg-muted/20 p-4">
+                          <div className="flex items-center space-x-3">
+                            <Checkbox
+                              checked={broadcastFilters.onlyNoShowUsers}
+                              disabled={broadcastFilters.recipientMode === "all"}
+                              onCheckedChange={(checked) => setBroadcastFilters({ ...broadcastFilters, onlyNoShowUsers: Boolean(checked) })}
+                            />
+                            <Label className="text-sm font-medium">Solo utenti con almeno un no-show</Label>
+                          </div>
+                          <div className="flex items-center space-x-3">
+                            <Checkbox
+                              checked={broadcastFilters.onlyFirstTimeUsers}
+                              disabled={broadcastFilters.recipientMode === "all"}
+                              onCheckedChange={(checked) => setBroadcastFilters({ ...broadcastFilters, onlyFirstTimeUsers: Boolean(checked) })}
+                            />
+                            <Label className="text-sm font-medium">Solo utenti alla prima esperienza</Label>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <Label className="text-sm font-bold uppercase tracking-widest text-primary/70">Interessi</Label>
+                        <div className="flex flex-wrap gap-2">
+                          {allInterests.length === 0 && (
+                            <p className="text-sm text-muted-foreground">Nessun interesse disponibile.</p>
+                          )}
+                          {allInterests.map((interest) => (
+                            <Badge
+                              key={interest}
+                              variant={broadcastFilters.interests.includes(interest) ? "default" : "outline"}
+                              className={`cursor-pointer px-3 py-1 ${broadcastFilters.recipientMode === "all" ? "pointer-events-none" : ""}`}
+                              onClick={() => {
+                                if (broadcastFilters.recipientMode === "all") return;
+                                const nextInterests = broadcastFilters.interests.includes(interest)
+                                  ? broadcastFilters.interests.filter((item) => item !== interest)
+                                  : [...broadcastFilters.interests, interest];
+                                setBroadcastFilters({ ...broadcastFilters, interests: nextInterests });
+                              }}
+                            >
+                              {interest}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+
+                      <Card className="bg-primary/5 border-primary/10">
+                        <CardContent className="p-5 flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-3">
+                            <div className="bg-primary p-2 rounded-md">
+                              <Users className="h-5 w-5 text-white" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-primary">
+                                {broadcastFilters.recipientMode === "all" ? "Invia a tutti" : "Invia a utenti selezionati"}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {broadcastFilters.recipientMode === "all" ? "Tutti gli utenti con un indirizzo email valido." : "Numero destinatari basato sui filtri impostati."}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-2xl font-black text-primary">{finalRecipients.length}</p>
+                            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Numero destinatari</p>
+                          </div>
+                        </CardContent>
+                      </Card>
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-black text-primary">{filteredRecipients.length}</p>
-                    <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Utenti totali</p>
                   </div>
                 </div>
 
                 <div className="flex justify-between pt-4">
                   <Button variant="outline" onClick={() => setBroadcastStep("template")}>Indietro</Button>
-                  <Button onClick={() => setBroadcastStep("confirm")} disabled={filteredRecipients.length === 0}>
-                    Continua alla conferma <Check className="ml-2 h-4 w-4" />
-                  </Button>
+                  <div className="flex gap-3">
+                    <Button variant="ghost" onClick={() => setBroadcastFilters(DEFAULT_BROADCAST_FILTERS)}>Reset filtri</Button>
+                    <Button onClick={() => setBroadcastStep("confirm")} disabled={finalRecipients.length === 0}>
+                      Conferma invio <Check className="ml-2 h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}
@@ -964,32 +1269,35 @@ export default function EmailTemplatesPage() {
             {broadcastStep === "confirm" && (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  {/* Summary card */}
                   <div className="space-y-4">
-                    <Label className="text-lg font-bold">Riepilogo Invio</Label>
+                    <Label className="text-lg font-bold">Riepilogo invio</Label>
                     <Card className="bg-muted/30">
                       <CardContent className="p-6 space-y-4">
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Template:</span>
-                          <span className="font-bold">{templates?.find(t => t.id === selectedBroadcastTemplateId)?.name}</span>
+                          <span className="font-bold">{templates?.find((template) => template.id === selectedBroadcastTemplateId)?.name}</span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Oggetto:</span>
-                          <span className="font-bold text-right ml-4">{templates?.find(t => t.id === selectedBroadcastTemplateId)?.subject}</span>
+                          <span className="font-bold text-right ml-4">{templates?.find((template) => template.id === selectedBroadcastTemplateId)?.subject}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Modalità:</span>
+                          <span className="font-bold">{broadcastFilters.recipientMode === "all" ? "Invia a tutti" : "Invia a utenti selezionati"}</span>
                         </div>
                         <div className="flex justify-between text-sm border-t pt-4">
-                          <span className="text-muted-foreground">Destinatari:</span>
-                          <span className="text-lg font-black text-primary">{filteredRecipients.length} utenti</span>
+                          <span className="text-muted-foreground">Numero destinatari:</span>
+                          <span className="text-lg font-black text-primary">{finalRecipients.length}</span>
                         </div>
                         <div className="bg-amber-50 border border-amber-200 p-3 rounded text-amber-800 text-xs flex gap-2">
                           <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                          <p>Questa email verrà inviata immediatamente a tutti gli utenti selezionati. Assicurati che il contenuto sia corretto tramite l'anteprima a destra.</p>
+                          <p>Stai per inviare questa email a {finalRecipients.length} utenti. Controlla l'anteprima e usa un test prima della conferma finale.</p>
                         </div>
                       </CardContent>
                     </Card>
 
                     <div className="space-y-2">
-                      <Label>Invia un test rapido</Label>
+                      <Label>Invia test</Label>
                       <div className="flex gap-2">
                         <Input placeholder="email@test.it" value={testEmail} onChange={(e) => setTestEmail(e.target.value)} className="bg-white" />
                         <Button variant="outline" size="sm" onClick={handleSendTest} disabled={sendingTest || !testEmail}>
@@ -997,16 +1305,29 @@ export default function EmailTemplatesPage() {
                         </Button>
                       </div>
                     </div>
+
+                    <div className="rounded-lg border p-4 space-y-2">
+                      <p className="text-sm font-semibold">Destinatari campione</p>
+                      <div className="space-y-1 text-sm text-muted-foreground">
+                        {finalRecipients.slice(0, 5).map((recipient) => (
+                          <p key={recipient.id}>
+                            {recipient.first_name} {recipient.last_name} ({recipient.email})
+                          </p>
+                        ))}
+                        {finalRecipients.length > 5 && (
+                          <p>+ altri {finalRecipients.length - 5} destinatari</p>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Mini Preview */}
                   <div className="space-y-4 lg:border-l lg:pl-8">
-                    <Label className="text-lg font-bold">Anteprima Contenuto</Label>
+                    <Label className="text-lg font-bold">Anteprima</Label>
                     <div className="scale-[0.85] origin-top border rounded-lg shadow-sm">
-                      {templates?.find(t => t.id === selectedBroadcastTemplateId) && (
-                        <EmailPreview 
-                          template={templates.find(t => t.id === selectedBroadcastTemplateId)!} 
-                          viewport="desktop" 
+                      {templates?.find((template) => template.id === selectedBroadcastTemplateId) && (
+                        <EmailPreview
+                          template={templates.find((template) => template.id === selectedBroadcastTemplateId)!}
+                          viewport="desktop"
                         />
                       )}
                     </div>
@@ -1014,13 +1335,17 @@ export default function EmailTemplatesPage() {
                 </div>
 
                 <div className="flex justify-between items-center pt-8 border-t">
-                  <Button variant="outline" onClick={() => setBroadcastStep("filter")} disabled={isSendingBroadcast}>Modifica Filtri</Button>
+                  <Button variant="outline" onClick={() => setBroadcastStep("filter")} disabled={isSendingBroadcast}>
+                    Modifica filtri
+                  </Button>
                   <div className="flex gap-3">
-                    <Button variant="ghost" onClick={() => setIsBroadcastModalOpen(false)} disabled={isSendingBroadcast}>Annulla</Button>
-                    <Button 
+                    <Button variant="ghost" onClick={() => setIsBroadcastModalOpen(false)} disabled={isSendingBroadcast}>
+                      Annulla
+                    </Button>
+                    <Button
                       className="bg-primary text-white hover:bg-primary/90 px-8 h-12 text-md font-bold shadow-lg"
                       onClick={handleSendBroadcast}
-                      disabled={isSendingBroadcast}
+                      disabled={isSendingBroadcast || finalRecipients.length === 0}
                     >
                       {isSendingBroadcast ? (
                         <>
@@ -1030,7 +1355,7 @@ export default function EmailTemplatesPage() {
                       ) : (
                         <>
                           <Send className="h-5 w-5 mr-2" />
-                          CONFERMA E INVIA ORA
+                          Conferma invio
                         </>
                       )}
                     </Button>
@@ -1044,3 +1369,4 @@ export default function EmailTemplatesPage() {
     </div>
   );
 }
+
