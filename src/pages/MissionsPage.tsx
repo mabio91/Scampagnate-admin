@@ -16,6 +16,7 @@ import {
   createEmptyReward,
   deserializeMissionForm,
   emptyMissionForm,
+  normalizeCategoryIds,
   type MissionBuilderForm,
   type MissionEnriched,
 } from "@/components/missions/missionBuilder";
@@ -85,6 +86,7 @@ export default function MissionsPage() {
       }
 
       const missions: MissionEnriched[] = (missionsRes.data || []).map((mission: any) => {
+        const campaign = campaignRows.find((item) => item.id === mission.campaign_id) || null;
         const progressRows = progressByMission.get(mission.id) || [];
         const startedUsers = new Set(progressRows.map((row: any) => row.user_id)).size;
         const completedRows = progressRows.filter((row: any) => row.is_completed);
@@ -97,6 +99,7 @@ export default function MissionsPage() {
 
         return {
           ...mission,
+          campaign,
           conditions: conditionsByMission.get(mission.id) || [],
           rewards: rewardsByMission.get(mission.id) || [],
           prerequisites: prerequisitesByMission.get(mission.id) || [],
@@ -179,16 +182,41 @@ export default function MissionsPage() {
             .insert({
               name: mission.campaign_tag.trim(),
               slug,
-              description: "",
-              icon: mission.icon,
+              description: mission.campaign_description.trim() || "",
+              icon: mission.campaign_icon || mission.icon,
+              banner_url: mission.campaign_banner_url.trim() || null,
+              color: mission.campaign_color.trim() || null,
               starts_at: mission.starts_at ? new Date(mission.starts_at).toISOString() : null,
               ends_at: mission.ends_at ? new Date(mission.ends_at).toISOString() : null,
+              reward_multiplier: mission.campaign_reward_multiplier || 1,
+              is_active: mission.campaign_is_active,
             })
             .select("*")
             .single();
           if (campaignError) throw campaignError;
           campaignId = (insertedCampaign as any).id;
         }
+      }
+
+      if (campaignId) {
+        const slug = slugify(mission.campaign_tag || mission.title);
+        const { error: campaignUpdateError } = await supabase
+          .from("mission_campaigns" as any)
+          .update({
+            name: mission.campaign_tag.trim() || mission.title.trim(),
+            slug,
+            description: mission.campaign_description.trim() || "",
+            icon: mission.campaign_icon || mission.icon,
+            banner_url: mission.campaign_banner_url.trim() || null,
+            color: mission.campaign_color.trim() || null,
+            starts_at: mission.starts_at ? new Date(mission.starts_at).toISOString() : null,
+            ends_at: mission.ends_at ? new Date(mission.ends_at).toISOString() : null,
+            reward_multiplier: mission.campaign_reward_multiplier || 1,
+            is_active: mission.campaign_is_active,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", campaignId);
+        if (campaignUpdateError) throw campaignUpdateError;
       }
 
       const preparedRewards = [];
@@ -229,6 +257,9 @@ export default function MissionsPage() {
         internal_name: mission.internal_name.trim() || null,
         description: mission.description.trim(),
         icon: mission.icon,
+        icon_color: mission.icon_color.trim() || null,
+        icon_background: mission.icon_background.trim() || null,
+        banner_url: mission.banner_url.trim() || null,
         type: mission.type,
         status: mode === "draft" ? "draft" : mission.status,
         visibility: mission.visibility,
@@ -405,24 +436,28 @@ export default function MissionsPage() {
   });
 
   const handleEdit = (mission: MissionEnriched) => {
-    setForm(
-      deserializeMissionForm(mission, {
-        conditions: mission.conditions,
-        rewards: mission.rewards,
-        prerequisites: mission.prerequisites,
-      }),
-    );
+    const deserialized = deserializeMissionForm(mission, {
+      conditions: mission.conditions,
+      rewards: mission.rewards,
+      prerequisites: mission.prerequisites,
+    });
+    setForm({
+      ...deserialized,
+      conditions: deserialized.conditions.map((condition) => normalizeCategoryIds(condition, missionLookup)),
+    });
     setDialog(true);
   };
 
   const handleDuplicate = (mission: MissionEnriched) => {
-    const nextForm = cloneMissionForm(
-      deserializeMissionForm(mission, {
-        conditions: mission.conditions,
-        rewards: mission.rewards,
-        prerequisites: mission.prerequisites,
-      }),
-    );
+    const deserialized = deserializeMissionForm(mission, {
+      conditions: mission.conditions,
+      rewards: mission.rewards,
+      prerequisites: mission.prerequisites,
+    });
+    const nextForm = cloneMissionForm({
+      ...deserialized,
+      conditions: deserialized.conditions.map((condition) => normalizeCategoryIds(condition, missionLookup)),
+    });
     setForm(nextForm);
     setDialog(true);
   };

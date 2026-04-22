@@ -134,6 +134,9 @@ export interface MissionPrerequisiteForm {
 export interface MissionBuilderForm {
   id?: string;
   icon: string;
+  icon_color: string;
+  icon_background: string;
+  banner_url: string;
   title: string;
   internal_name: string;
   description: string;
@@ -150,6 +153,12 @@ export interface MissionBuilderForm {
   mission_group: string;
   campaign_tag: string;
   campaign_id: string;
+  campaign_description: string;
+  campaign_icon: string;
+  campaign_color: string;
+  campaign_banner_url: string;
+  campaign_reward_multiplier: number;
+  campaign_is_active: boolean;
   timezone: string;
   conditions_logic: ConditionLogic;
   conditions: MissionConditionForm[];
@@ -167,6 +176,9 @@ export type MissionEnriched = {
   internal_name: string | null;
   description: string;
   icon: string;
+  icon_color: string | null;
+  icon_background: string | null;
+  banner_url: string | null;
   status: MissionStatus;
   visibility: MissionVisibility;
   type: MissionType;
@@ -176,6 +188,7 @@ export type MissionEnriched = {
   featured: boolean;
   repeatable: boolean;
   conditions_logic: ConditionLogic;
+  campaign?: any;
   conditions: any[];
   rewards: any[];
   prerequisites: any[];
@@ -277,6 +290,15 @@ export const TOOLTIP_TEXT: Record<string, string> = {
   repeatable: "Permette più completamenti.",
   max_completions: "Limita quante volte un utente può completarla.",
   campaign: "Raggruppa missioni per eventi o stagioni.",
+  icon_color: "Colore opzionale dell'icona missione.",
+  icon_background: "Sfondo opzionale dell'icona missione.",
+  banner_url: "Banner opzionale per missioni speciali o campagne.",
+  campaign_description: "Descrizione della campagna o stagione associata.",
+  campaign_icon: "Icona dedicata alla campagna, separata dall'icona della missione.",
+  campaign_color: "Colore tema della campagna per card e badge.",
+  campaign_banner_url: "Banner visuale della campagna o collezione speciale.",
+  campaign_reward_multiplier: "Moltiplicatore opzionale delle ricompense per campagne speciali.",
+  campaign_is_active: "Permette di attivare o sospendere una campagna senza rimuoverla.",
   target_action: "Definisce cosa viene tracciato (es. partecipazione evento).",
   event_filters: "Permette di limitare gli eventi validi (categoria, difficoltà, ecc.).",
   user_filters: "Limita a quali utenti si applica la missione.",
@@ -397,6 +419,9 @@ export const createEmptyPrerequisite = (): MissionPrerequisiteForm => ({
 
 export const emptyMissionForm: MissionBuilderForm = {
   icon: "lucide:Target",
+  icon_color: "",
+  icon_background: "",
+  banner_url: "",
   title: "",
   internal_name: "",
   description: "",
@@ -413,6 +438,12 @@ export const emptyMissionForm: MissionBuilderForm = {
   mission_group: "",
   campaign_tag: "",
   campaign_id: "",
+  campaign_description: "",
+  campaign_icon: "lucide:Sparkles",
+  campaign_color: "",
+  campaign_banner_url: "",
+  campaign_reward_multiplier: 1,
+  campaign_is_active: true,
   timezone: "Europe/Rome",
   conditions_logic: "all",
   conditions: [createEmptyCondition()],
@@ -516,6 +547,9 @@ export function deserializeMissionForm(
   return {
     id: mission.id,
     icon: mission.icon || "lucide:Target",
+    icon_color: mission.icon_color || "",
+    icon_background: mission.icon_background || "",
+    banner_url: mission.banner_url || "",
     title: mission.title || "",
     internal_name: mission.internal_name || "",
     description: mission.description || "",
@@ -532,6 +566,12 @@ export function deserializeMissionForm(
     mission_group: mission.mission_group || "",
     campaign_tag: mission.campaign_tag || "",
     campaign_id: mission.campaign_id || "",
+    campaign_description: mission.campaign?.description || "",
+    campaign_icon: mission.campaign?.icon || mission.icon || "lucide:Sparkles",
+    campaign_color: mission.campaign?.color || "",
+    campaign_banner_url: mission.campaign?.banner_url || "",
+    campaign_reward_multiplier: Number(mission.campaign?.reward_multiplier ?? 1),
+    campaign_is_active: mission.campaign?.is_active ?? true,
     timezone: mission.timezone || "Europe/Rome",
     conditions_logic: mission.conditions_logic || "all",
     conditions,
@@ -560,5 +600,30 @@ export function cloneMissionForm(form: MissionBuilderForm): MissionBuilderForm {
     conditions: form.conditions.map((condition) => ({ ...condition, id: uuid() })),
     rewards: form.rewards.map((reward) => ({ ...reward, id: uuid() })),
     prerequisites: form.prerequisites.map((prerequisite) => ({ ...prerequisite, id: uuid() })),
+  };
+}
+
+export function normalizeCategoryIds(
+  condition: MissionConditionForm,
+  categoryLookup: Record<string, string>,
+): MissionConditionForm {
+  if (condition.event_filters.category_ids.length > 0) return condition;
+
+  const legacyNames = Array.isArray((condition.event_filters as any).category_names)
+    ? ((condition.event_filters as any).category_names as string[])
+    : [];
+
+  if (legacyNames.length === 0) return condition;
+
+  const normalizedIds = Object.entries(categoryLookup)
+    .filter(([, name]) => legacyNames.includes(name))
+    .map(([id]) => id);
+
+  return {
+    ...condition,
+    event_filters: {
+      ...condition.event_filters,
+      category_ids: normalizedIds,
+    },
   };
 }

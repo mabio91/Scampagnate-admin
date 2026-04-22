@@ -81,6 +81,12 @@ export default function MissionFormDialog({
   campaigns,
 }: Props) {
   const validationErrors: string[] = [];
+  if (form.starts_at && form.ends_at && new Date(form.ends_at) <= new Date(form.starts_at)) {
+    validationErrors.push("La data di fine deve essere successiva alla data di inizio.");
+  }
+  if (form.campaign_reward_multiplier <= 0) {
+    validationErrors.push("Il moltiplicatore della campagna deve essere maggiore di zero.");
+  }
   if (!form.title.trim()) validationErrors.push("Il titolo è obbligatorio.");
   if (!form.description.trim()) validationErrors.push("La descrizione è obbligatoria.");
   if (form.conditions.length === 0) validationErrors.push("Aggiungi almeno una condizione.");
@@ -135,8 +141,6 @@ export default function MissionFormDialog({
     next[index] = { ...next[index], ...patch };
     setForm({ ...form, prerequisites: next });
   };
-
-  const mainCondition = form.conditions[0];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -255,6 +259,67 @@ export default function MissionFormDialog({
               </Card>
             </div>
 
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Aspetto missione</CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <TipLabel label="Colore icona" tipKey="icon_color" />
+                    <Input value={form.icon_color} onChange={(e) => setForm({ ...form, icon_color: e.target.value })} placeholder="#16a34a" />
+                  </div>
+                  <div className="space-y-2">
+                    <TipLabel label="Sfondo icona" tipKey="icon_background" />
+                    <Input value={form.icon_background} onChange={(e) => setForm({ ...form, icon_background: e.target.value })} placeholder="#dcfce7" />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <TipLabel label="Banner missione" tipKey="banner_url" />
+                    <Input value={form.banner_url} onChange={(e) => setForm({ ...form, banner_url: e.target.value })} placeholder="https://..." />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Tema campagna</CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <TipLabel label="Icona campagna" tipKey="campaign_icon" />
+                    <IconPicker value={form.campaign_icon} onChange={(campaign_icon) => setForm({ ...form, campaign_icon })} />
+                  </div>
+                  <div className="space-y-2">
+                    <TipLabel label="Colore campagna" tipKey="campaign_color" />
+                    <Input value={form.campaign_color} onChange={(e) => setForm({ ...form, campaign_color: e.target.value })} placeholder="#0f766e" />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <TipLabel label="Descrizione campagna" tipKey="campaign_description" />
+                    <Textarea
+                      value={form.campaign_description}
+                      onChange={(e) => setForm({ ...form, campaign_description: e.target.value })}
+                      placeholder="Descrizione opzionale della campagna o stagione."
+                      rows={3}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <TipLabel label="Banner campagna" tipKey="campaign_banner_url" />
+                    <Input value={form.campaign_banner_url} onChange={(e) => setForm({ ...form, campaign_banner_url: e.target.value })} placeholder="https://..." />
+                  </div>
+                  <div className="space-y-2">
+                    <TipLabel label="Moltiplicatore reward" tipKey="campaign_reward_multiplier" />
+                    <Input
+                      type="number"
+                      min={0.1}
+                      step={0.1}
+                      value={form.campaign_reward_multiplier}
+                      onChange={(e) => setForm({ ...form, campaign_reward_multiplier: Number(e.target.value) || 1 })}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Scheduling & priorità</CardTitle>
@@ -309,7 +374,7 @@ export default function MissionFormDialog({
               </CardContent>
             </Card>
 
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <div className="flex items-center justify-between rounded-lg border p-4">
                 <div>
                   <TipLabel label="Missione in evidenza" tipKey="featured" />
@@ -333,6 +398,13 @@ export default function MissionFormDialog({
                   checked={form.manual_completion_enabled}
                   onCheckedChange={(manual_completion_enabled) => setForm({ ...form, manual_completion_enabled })}
                 />
+              </div>
+              <div className="flex items-center justify-between rounded-lg border p-4">
+                <div>
+                  <TipLabel label="Campagna attiva" tipKey="campaign_is_active" />
+                  <p className="text-xs text-muted-foreground">Puoi sospendere la campagna senza eliminare le missioni collegate.</p>
+                </div>
+                <Switch checked={form.campaign_is_active} onCheckedChange={(campaign_is_active) => setForm({ ...form, campaign_is_active })} />
               </div>
             </div>
           </TabsContent>
@@ -488,6 +560,25 @@ export default function MissionFormDialog({
                         <div className="grid grid-cols-2 gap-2">
                           <Input type="number" min={0} value={condition.event_filters.price_min ?? ""} onChange={(e) => updateConditionSection(index, "event_filters", { price_min: e.target.value ? Number(e.target.value) : null })} placeholder="Prezzo min" />
                           <Input type="number" min={0} value={condition.event_filters.price_max ?? ""} onChange={(e) => updateConditionSection(index, "event_filters", { price_max: e.target.value ? Number(e.target.value) : null })} placeholder="Prezzo max" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Input
+                            value={condition.event_filters.event_type}
+                            onChange={(e) => updateConditionSection(index, "event_filters", { event_type: e.target.value })}
+                            placeholder="Tipo evento"
+                          />
+                          <Input
+                            value={condition.event_filters.event_tags.join(", ")}
+                            onChange={(e) =>
+                              updateConditionSection(index, "event_filters", {
+                                event_tags: e.target.value
+                                  .split(",")
+                                  .map((item) => item.trim())
+                                  .filter(Boolean),
+                              })
+                            }
+                            placeholder="Tag evento separati da virgola"
+                          />
                         </div>
                         <div className="space-y-2">
                           <Label className="text-xs">Organizzatori</Label>
@@ -911,8 +1002,14 @@ export default function MissionFormDialog({
             <Card className="border-primary/20 bg-gradient-to-br from-background via-background to-primary/5">
               <CardHeader>
                 <CardTitle className="flex items-center gap-3 text-xl">
-                  <div className="rounded-2xl border border-primary/20 bg-primary/10 p-3">
-                    <DynamicIcon value={form.icon} size={24} />
+                  <div
+                    className="rounded-2xl border border-primary/20 p-3"
+                    style={{
+                      background: form.icon_background || undefined,
+                      color: form.icon_color || undefined,
+                    }}
+                  >
+                    <DynamicIcon value={form.icon} size={24} className={form.icon_color ? "text-current" : ""} />
                   </div>
                   <div>
                     <div>{form.title || "Titolo missione"}</div>
@@ -927,6 +1024,11 @@ export default function MissionFormDialog({
               </CardHeader>
               <CardContent className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
                 <div className="space-y-4">
+                  {form.banner_url && (
+                    <div className="overflow-hidden rounded-lg border">
+                      <img src={form.banner_url} alt="Mission banner preview" className="h-32 w-full object-cover" />
+                    </div>
+                  )}
                   <p className="text-sm text-muted-foreground">{form.description || "Descrizione missione in anteprima."}</p>
                   <div className="rounded-lg border p-4">
                     <div className="mb-2 text-sm font-medium">Come si completa</div>
@@ -963,6 +1065,22 @@ export default function MissionFormDialog({
                       <div>{form.campaign_tag || "Nessuna campagna"}</div>
                     </div>
                   </div>
+                  {(form.campaign_tag || form.campaign_description || form.campaign_banner_url) && (
+                    <div className="rounded-lg border p-4">
+                      <div className="mb-3 flex items-center gap-2 text-sm font-medium">
+                        <DynamicIcon value={form.campaign_icon || "lucide:Sparkles"} size={16} />
+                        <span>Campaign preview</span>
+                      </div>
+                      {form.campaign_banner_url && (
+                        <img src={form.campaign_banner_url} alt="Campaign banner preview" className="mb-3 h-24 w-full rounded-md object-cover" />
+                      )}
+                      <div className="space-y-1 text-sm text-muted-foreground">
+                        <div>{form.campaign_tag || "Campagna senza nome"}</div>
+                        <div>{form.campaign_description || "Nessuna descrizione campagna"}</div>
+                        <div>Reward multiplier: {form.campaign_reward_multiplier}x</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

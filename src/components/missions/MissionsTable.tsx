@@ -55,13 +55,22 @@ export default function MissionsTable({ missions, onEdit, onDelete, onDuplicate,
                   <TableCell>
                     <div className="flex items-start gap-3">
                       <div className="mt-0.5 rounded-xl border border-border bg-muted/30 p-2">
-                        <DynamicIcon value={mission.icon || "lucide:Target"} size={18} />
+                        <div
+                          className="rounded-lg p-1"
+                          style={{
+                            background: mission.icon_background || undefined,
+                            color: mission.icon_color || undefined,
+                          }}
+                        >
+                          <DynamicIcon value={mission.icon || "lucide:Target"} size={18} className={mission.icon_color ? "text-current" : ""} />
+                        </div>
                       </div>
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <p className="font-medium">{mission.title}</p>
                           {mission.featured && <Badge variant="outline">Featured</Badge>}
                           {mission.visibility === "secret" && <Badge variant="secondary">Secret</Badge>}
+                          {(mission as any).campaign?.name && <Badge variant="secondary">{(mission as any).campaign.name}</Badge>}
                         </div>
                         <p className="max-w-[260px] truncate text-xs text-muted-foreground">{mission.description}</p>
                         {mission.internal_name && <p className="text-[11px] text-muted-foreground">ID admin: {mission.internal_name}</p>}
