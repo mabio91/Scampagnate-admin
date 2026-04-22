@@ -24,6 +24,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { GoogleAddressInput } from "@/components/GoogleAddressInput";
 
 type Event = Tables<"events">;
 type EventWithCategory = Event & { event_categories: { name: string; icon: string } | null };
@@ -625,7 +626,14 @@ export default function EventsPage() {
                   <RichTextEditor content={editEvent.description || ""} onChange={(html) => setEditEvent({ ...editEvent, description: html })} />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div><Label>Luogo (coordinate/indirizzo)</Label><Input value={editEvent.location || ""} onChange={e => setEditEvent({ ...editEvent, location: e.target.value })} /></div>
+                  <div>
+                    <Label>Luogo (coordinate/indirizzo)</Label>
+                    <GoogleAddressInput
+                      value={editEvent.location || ""}
+                      onValueChange={(location) => setEditEvent({ ...editEvent, location })}
+                      onPlaceSelect={({ address }) => setEditEvent({ ...editEvent, location: address })}
+                    />
+                  </div>
                   <div><Label>Etichetta luogo</Label><Input value={editEvent.location_label || ""} onChange={e => setEditEvent({ ...editEvent, location_label: e.target.value })} placeholder="es. Rifugio Rosso" /></div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -1115,7 +1123,21 @@ export default function EventsPage() {
                       <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setLocalMeetingPoints(localMeetingPoints.filter((_, i) => i !== idx))}><X className="h-3.5 w-3.5" /></Button>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
-                      <Input className="h-8 text-sm" placeholder="Luogo" value={mp.location} onChange={e => { const arr = [...localMeetingPoints]; arr[idx] = { ...arr[idx], location: e.target.value }; setLocalMeetingPoints(arr); }} />
+                      <GoogleAddressInput
+                        className="h-8 text-sm"
+                        placeholder="Luogo"
+                        value={mp.location}
+                        onValueChange={(location) => {
+                          const arr = [...localMeetingPoints];
+                          arr[idx] = { ...arr[idx], location };
+                          setLocalMeetingPoints(arr);
+                        }}
+                        onPlaceSelect={({ address }) => {
+                          const arr = [...localMeetingPoints];
+                          arr[idx] = { ...arr[idx], location: address };
+                          setLocalMeetingPoints(arr);
+                        }}
+                      />
                       <Input type="time" className="h-8 text-sm" value={mp.time} onChange={e => { const arr = [...localMeetingPoints]; arr[idx] = { ...arr[idx], time: e.target.value }; setLocalMeetingPoints(arr); }} />
                       <Input className="h-8 text-sm" placeholder="Note" value={mp.notes} onChange={e => { const arr = [...localMeetingPoints]; arr[idx] = { ...arr[idx], notes: e.target.value }; setLocalMeetingPoints(arr); }} />
                     </div>
