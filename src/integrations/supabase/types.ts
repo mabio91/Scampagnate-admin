@@ -922,85 +922,407 @@ export type Database = {
       missions: {
         Row: {
           auto_generate_coupon: boolean
+          banner_url: string | null
           category: string | null
           category_filter: string[] | null
+          campaign_id: string | null
+          campaign_tag: string | null
+          conditions_logic: string
           created_at: string
+          definition_version: number
           description: string
+          ends_at: string | null
           expires_at: string | null
+          featured: boolean
           icon: string
+          icon_background: string | null
+          icon_color: string | null
           id: string
           is_active: boolean
+          is_archived: boolean
+          internal_name: string | null
+          legacy_config: Json
+          level: number | null
           max_completions_per_user: number | null
+          mission_group: string | null
           notify_on_progress: boolean
+          prerequisite_summary: Json
+          priority: number
           reset_on_failure: boolean
+          repeatable: boolean
           reward_badge_id: string | null
           reward_points: number
           reward_type: string
           reward_value: string | null
+          sort_order: number
           starts_at: string | null
+          status: string
           streak_count: number | null
           target_action: string
           target_value: number
+          timezone: string
           title: string
           type: string
           updated_at: string
+          visibility: string
         }
         Insert: {
           auto_generate_coupon?: boolean
+          banner_url?: string | null
           category?: string | null
           category_filter?: string[] | null
+          campaign_id?: string | null
+          campaign_tag?: string | null
+          conditions_logic?: string
           created_at?: string
+          definition_version?: number
           description?: string
+          ends_at?: string | null
           expires_at?: string | null
+          featured?: boolean
           icon?: string
+          icon_background?: string | null
+          icon_color?: string | null
           id?: string
           is_active?: boolean
+          is_archived?: boolean
+          internal_name?: string | null
+          legacy_config?: Json
+          level?: number | null
           max_completions_per_user?: number | null
+          mission_group?: string | null
           notify_on_progress?: boolean
+          prerequisite_summary?: Json
+          priority?: number
           reset_on_failure?: boolean
+          repeatable?: boolean
           reward_badge_id?: string | null
           reward_points?: number
           reward_type?: string
           reward_value?: string | null
+          sort_order?: number
           starts_at?: string | null
+          status?: string
           streak_count?: number | null
           target_action?: string
           target_value?: number
+          timezone?: string
           title: string
           type?: string
           updated_at?: string
+          visibility?: string
         }
         Update: {
           auto_generate_coupon?: boolean
+          banner_url?: string | null
           category?: string | null
           category_filter?: string[] | null
+          campaign_id?: string | null
+          campaign_tag?: string | null
+          conditions_logic?: string
           created_at?: string
+          definition_version?: number
           description?: string
+          ends_at?: string | null
           expires_at?: string | null
+          featured?: boolean
           icon?: string
+          icon_background?: string | null
+          icon_color?: string | null
           id?: string
           is_active?: boolean
+          is_archived?: boolean
+          internal_name?: string | null
+          legacy_config?: Json
+          level?: number | null
           max_completions_per_user?: number | null
+          mission_group?: string | null
           notify_on_progress?: boolean
+          prerequisite_summary?: Json
+          priority?: number
           reset_on_failure?: boolean
+          repeatable?: boolean
           reward_badge_id?: string | null
           reward_points?: number
           reward_type?: string
           reward_value?: string | null
+          sort_order?: number
           starts_at?: string | null
+          status?: string
           streak_count?: number | null
           target_action?: string
           target_value?: number
+          timezone?: string
           title?: string
           type?: string
           updated_at?: string
+          visibility?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "missions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "mission_campaigns"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "missions_reward_badge_id_fkey"
             columns: ["reward_badge_id"]
             isOneToOne: false
             referencedRelation: "badges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mission_campaigns: {
+        Row: {
+          banner_url: string | null
+          color: string | null
+          created_at: string
+          description: string
+          ends_at: string | null
+          icon: string
+          id: string
+          is_active: boolean
+          name: string
+          reward_multiplier: number
+          slug: string
+          starts_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          banner_url?: string | null
+          color?: string | null
+          created_at?: string
+          description?: string
+          ends_at?: string | null
+          icon?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          reward_multiplier?: number
+          slug: string
+          starts_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          banner_url?: string | null
+          color?: string | null
+          created_at?: string
+          description?: string
+          ends_at?: string | null
+          icon?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          reward_multiplier?: number
+          slug?: string
+          starts_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      mission_conditions: {
+        Row: {
+          allow_repeat_same_event: boolean
+          behavior_filters: Json
+          created_at: string
+          event_filters: Json
+          failure_condition: Json
+          goal_metric: string
+          goal_operator: string
+          goal_value: number
+          id: string
+          metadata: Json
+          mission_id: string
+          period_unit: string | null
+          period_value: number | null
+          push_notifications: boolean
+          reset_policy: string
+          sort_order: number
+          target_action: string
+          title: string
+          unique_by: string
+          updated_at: string
+          user_filters: Json
+        }
+        Insert: {
+          allow_repeat_same_event?: boolean
+          behavior_filters?: Json
+          created_at?: string
+          event_filters?: Json
+          failure_condition?: Json
+          goal_metric?: string
+          goal_operator?: string
+          goal_value?: number
+          id?: string
+          metadata?: Json
+          mission_id: string
+          period_unit?: string | null
+          period_value?: number | null
+          push_notifications?: boolean
+          reset_policy?: string
+          sort_order?: number
+          target_action?: string
+          title?: string
+          unique_by?: string
+          updated_at?: string
+          user_filters?: Json
+        }
+        Update: {
+          allow_repeat_same_event?: boolean
+          behavior_filters?: Json
+          created_at?: string
+          event_filters?: Json
+          failure_condition?: Json
+          goal_metric?: string
+          goal_operator?: string
+          goal_value?: number
+          id?: string
+          metadata?: Json
+          mission_id?: string
+          period_unit?: string | null
+          period_value?: number | null
+          push_notifications?: boolean
+          reset_policy?: string
+          sort_order?: number
+          target_action?: string
+          title?: string
+          unique_by?: string
+          updated_at?: string
+          user_filters?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mission_conditions_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mission_prerequisites: {
+        Row: {
+          auto_archive_previous: boolean
+          created_at: string
+          id: string
+          mission_id: string
+          prerequisite_mission_id: string
+          requirement_type: string
+          sort_order: number
+        }
+        Insert: {
+          auto_archive_previous?: boolean
+          created_at?: string
+          id?: string
+          mission_id: string
+          prerequisite_mission_id: string
+          requirement_type?: string
+          sort_order?: number
+        }
+        Update: {
+          auto_archive_previous?: boolean
+          created_at?: string
+          id?: string
+          mission_id?: string
+          prerequisite_mission_id?: string
+          requirement_type?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mission_prerequisites_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_prerequisites_prerequisite_mission_id_fkey"
+            columns: ["prerequisite_mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mission_rewards: {
+        Row: {
+          approval_required: boolean
+          badge_config: Json
+          badge_id: string | null
+          coupon_config: Json
+          created_at: string
+          id: string
+          metadata: Json
+          mission_id: string
+          physical_config: Json
+          points_value: number | null
+          reward_kind: string
+          sort_order: number
+          source_discount_code_id: string | null
+          title: string
+          updated_at: string
+          visible_on_profile: boolean
+        }
+        Insert: {
+          approval_required?: boolean
+          badge_config?: Json
+          badge_id?: string | null
+          coupon_config?: Json
+          created_at?: string
+          id?: string
+          metadata?: Json
+          mission_id: string
+          physical_config?: Json
+          points_value?: number | null
+          reward_kind?: string
+          sort_order?: number
+          source_discount_code_id?: string | null
+          title?: string
+          updated_at?: string
+          visible_on_profile?: boolean
+        }
+        Update: {
+          approval_required?: boolean
+          badge_config?: Json
+          badge_id?: string | null
+          coupon_config?: Json
+          created_at?: string
+          id?: string
+          metadata?: Json
+          mission_id?: string
+          physical_config?: Json
+          points_value?: number | null
+          reward_kind?: string
+          sort_order?: number
+          source_discount_code_id?: string | null
+          title?: string
+          updated_at?: string
+          visible_on_profile?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mission_rewards_badge_id_fkey"
+            columns: ["badge_id"]
+            isOneToOne: false
+            referencedRelation: "badges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_rewards_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_rewards_source_discount_code_id_fkey"
+            columns: ["source_discount_code_id"]
+            isOneToOne: false
+            referencedRelation: "discount_codes"
             referencedColumns: ["id"]
           },
         ]
@@ -1498,6 +1820,144 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "user_missions_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_mission_history: {
+        Row: {
+          admin_id: string | null
+          created_at: string
+          delta: number
+          details: Json
+          event_type: string
+          id: string
+          mission_id: string
+          progress_id: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          admin_id?: string | null
+          created_at?: string
+          delta?: number
+          details?: Json
+          event_type?: string
+          id?: string
+          mission_id: string
+          progress_id?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          admin_id?: string | null
+          created_at?: string
+          delta?: number
+          details?: Json
+          event_type?: string
+          id?: string
+          mission_id?: string
+          progress_id?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_mission_history_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_mission_history_progress_id_fkey"
+            columns: ["progress_id"]
+            isOneToOne: false
+            referencedRelation: "user_mission_progress"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_mission_progress: {
+        Row: {
+          completion_count: number
+          completed_at: string | null
+          created_at: string
+          current_value: number
+          cycle_ends_at: string | null
+          cycle_key: string
+          cycle_started_at: string | null
+          id: string
+          is_completed: boolean
+          is_expired: boolean
+          is_locked: boolean
+          last_progress_at: string | null
+          legacy_user_mission_id: string | null
+          mission_id: string
+          reward_details: Json | null
+          started_at: string
+          state: Json
+          target_value: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completion_count?: number
+          completed_at?: string | null
+          created_at?: string
+          current_value?: number
+          cycle_ends_at?: string | null
+          cycle_key?: string
+          cycle_started_at?: string | null
+          id?: string
+          is_completed?: boolean
+          is_expired?: boolean
+          is_locked?: boolean
+          last_progress_at?: string | null
+          legacy_user_mission_id?: string | null
+          mission_id: string
+          reward_details?: Json | null
+          started_at?: string
+          state?: Json
+          target_value?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completion_count?: number
+          completed_at?: string | null
+          created_at?: string
+          current_value?: number
+          cycle_ends_at?: string | null
+          cycle_key?: string
+          cycle_started_at?: string | null
+          id?: string
+          is_completed?: boolean
+          is_expired?: boolean
+          is_locked?: boolean
+          last_progress_at?: string | null
+          legacy_user_mission_id?: string | null
+          mission_id?: string
+          reward_details?: Json | null
+          started_at?: string
+          state?: Json
+          target_value?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_mission_progress_legacy_user_mission_id_fkey"
+            columns: ["legacy_user_mission_id"]
+            isOneToOne: false
+            referencedRelation: "user_missions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_mission_progress_mission_id_fkey"
             columns: ["mission_id"]
             isOneToOne: false
             referencedRelation: "missions"
