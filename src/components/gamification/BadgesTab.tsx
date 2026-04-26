@@ -36,6 +36,23 @@ const emptyBadge: BadgeForm = {
   required_events: 1,
 };
 
+const BADGE_CATEGORY_OPTIONS = [
+  {
+    value: "general",
+    label: "Generale",
+  },
+  {
+    value: "special",
+    label: "Speciale",
+  },
+] as const;
+
+const getBadgeCategoryLabel = (category: string | null | undefined) => {
+  if (category === "general") return "Generale";
+  if (category === "special") return "Speciale";
+  return category || "—";
+};
+
 export default function BadgesTab() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -206,13 +223,23 @@ export default function BadgesTab() {
                       <SelectValue placeholder="Generale" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="general">Generale</SelectItem>
-                      <SelectItem value="special">Speciale</SelectItem>
+                      {BADGE_CATEGORY_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                      ))}
                       {categories.map((c: any) => (
                         <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {form.category === "special"
+                      ? "Speciale: usalo per badge legati a eventi unici, iniziative dedicate o assegnazioni manuali."
+                      : form.category === "general"
+                      ? "Generale: usalo per badge di progressione o traguardi trasversali della piattaforma."
+                      : form.category
+                      ? `Categoria evento: usala quando il badge riguarda progressi nella categoria \"${form.category}\".`
+                      : "Scegli Generale per badge di progressione, Speciale per badge evento/manuali, oppure una categoria evento specifica."}
+                  </p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -278,7 +305,7 @@ export default function BadgesTab() {
                 </TableCell>
                 <TableCell>
                   {b.category ? (
-                    <Badge variant="secondary" className="text-xs">{b.category}</Badge>
+                    <Badge variant="secondary" className="text-xs">{getBadgeCategoryLabel(b.category)}</Badge>
                   ) : (
                     <span className="text-xs text-muted-foreground">—</span>
                   )}

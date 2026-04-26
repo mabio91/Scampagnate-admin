@@ -84,6 +84,7 @@ type AdditionalFields = {
 
 type LocalMeetingPoint = { _key: string; id?: string; name: string; location: string; time: string; notes: string; sort_order: number };
 type EquipmentItem = { name: string; is_mandatory: boolean; notes: string };
+type AttendanceBadgeEntry = { type: "attendance_badge"; badge_id: string };
 
 /* ══════ Constants ══════ */
 const CANCELLATION_POLICY_OPTIONS = [
@@ -164,6 +165,30 @@ const buildMeasure = (num: string, unit: string): string | null => {
   return `${num} ${unit}`;
 };
 
+const getAttendanceBadgeIdsFromEventBadges = (eventBadges: any): string[] => {
+  if (!Array.isArray(eventBadges)) return [];
+
+  return eventBadges
+    .filter((entry: any): entry is AttendanceBadgeEntry => (
+      entry &&
+      typeof entry === "object" &&
+      entry.type === "attendance_badge" &&
+      typeof entry.badge_id === "string"
+    ))
+    .map((entry) => entry.badge_id);
+};
+
+const replaceAttendanceBadgeIdsInEventBadges = (eventBadges: any, badgeIds: string[]) => {
+  const baseEntries = Array.isArray(eventBadges)
+    ? eventBadges.filter((entry: any) => !(entry && typeof entry === "object" && entry.type === "attendance_badge"))
+    : [];
+
+  return [
+    ...baseEntries,
+    ...badgeIds.map((badgeId) => ({ type: "attendance_badge" as const, badge_id: badgeId })),
+  ];
+};
+
 export default function EventsPage() {
   type SortField = "date" | "organizer";
   const [searchParams] = useSearchParams();
@@ -231,7 +256,7 @@ export default function EventsPage() {
   });
   const { data: badges = [] } = useQuery({
     queryKey: ["admin-badges-list"],
-    queryFn: async () => { const { data } = await supabase.from("badges").select("id, name, icon"); return data || []; },
+    queryFn: async () => { const { data } = await supabase.from("badges").select("id, name, icon, category, description"); return data || []; },
   });
   const { data: communityLevels = [] } = useQuery({
     queryKey: ["admin-community-levels"],
@@ -417,6 +442,28 @@ export default function EventsPage() {
           }));
           const { error } = await supabase.from("event_meeting_points").insert(rows);
           if (error) throw error;
+        }
+
+        const attendanceBadgeIds = getAttendanceBadgeIdsFromEventBadges(data.event_badges);
+        if (attendanceBadgeIds.length) {
+          const { data: attendedUsers, error: attendedUsersError } = await supabase
+            .from("event_registrations")
+            .select("user_id")
+            .eq("event_id", savedId)
+            .or("checked_in.eq.true,status.eq.attended");
+
+          if (attendedUsersError) throw attendedUsersError;
+
+          const awardRows = [...new Set((attendedUsers || []).map((row) => row.user_id))]
+            .flatMap((userId) => attendanceBadgeIds.map((badgeId) => ({ user_id: userId, badge_id: badgeId })));
+
+          if (awardRows.length) {
+            const { error: awardError } = await supabase.from("user_badges").upsert(awardRows, {
+              onConflict: "user_id,badge_id",
+              ignoreDuplicates: true,
+            });
+            if (awardError) throw awardError;
+          }
         }
       }
     },
@@ -971,6 +1018,64 @@ export default function EventsPage() {
               </section>
 
               {/* ═══ 6. OVERRIDE METEO ═══ */}
+              <Separator />
+              <section className="space-y-3">
+                <div className="flex items-center gap-2"><Award className="h-4 w-4 text-primary" /><h4 className="text-sm font-semibold">Badge assegnati alla partecipazione</h4></div>
+                <p className="text-[10px] text-muted-foreground">
+                  Seleziona uno o piu badge da assegnare automaticamente solo agli utenti segnati come presenti al check-in per questo evento.
+                </p>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {badges.map(badge => {
+                    const selectedIds = getAttendanceBadgeIdsFromEventBadges(editEvent.event_badges);
+                    const selected = selectedIds.includes(badge.id);
+
+                    return (
+                      <button
+                        key={badge.id}
+                        type="button"
+                        onClick={() => {
+                          const nextIds = selected
+                            ? selectedIds.filter((id) => id !== badge.id)
+                            : [...selectedIds, badge.id];
+
+                          setEditEvent({
+                            ...editEvent,
+                            event_badges: replaceAttendanceBadgeIdsInEventBadges(editEvent.event_badges, nextIds),
+                          });
+                        }}
+                        className={`rounded-lg border p-3 text-left transition-colors ${
+                          selected
+                            ? "border-primary bg-primary/10"
+                            : "border-border bg-card hover:border-primary/50"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium">{badge.icon} {badge.name}</p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {badge.category === "special"
+                                ? "Badge speciale: ideale per eventi unici, campagne o riconoscimenti manuali."
+                                : badge.category === "general"
+                                ? "Badge generale: traguardo riutilizzabile di piattaforma o progressione."
+                                : badge.category
+                                ? `Badge di categoria: ${badge.category}.`
+                                : "Nessuna categoria impostata."}
+                            </p>
+                            {badge.description && (
+                              <p className="mt-1 text-[10px] text-muted-foreground line-clamp-2">{badge.description}</p>
+                            )}
+                          </div>
+                          <Checkbox checked={selected} className="pointer-events-none mt-0.5" />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                {badges.length === 0 && (
+                  <p className="text-xs text-muted-foreground">Nessun badge disponibile.</p>
+                )}
+              </section>
+
               <Separator />
               <section className="space-y-3">
                 <div className="flex items-center gap-2"><CloudSun className="h-4 w-4 text-primary" /><h4 className="text-sm font-semibold">Override meteo</h4></div>
