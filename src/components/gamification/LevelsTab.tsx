@@ -76,15 +76,15 @@ export default function LevelsTab() {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <CardTitle className="text-base">Livelli Community</CardTitle>
-        <div className="flex gap-2">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
           <Dialog open={newLevelOpen} onOpenChange={(open) => {
             setNewLevelOpen(open);
             if (open) setNewLevel((p) => ({ ...p, level_number: (levels.length || 0) + 1 }));
           }}>
             <DialogTrigger asChild>
-              <Button size="sm" variant="outline" className="gap-2">
+              <Button size="sm" variant="outline" className="w-full gap-2 sm:w-auto">
                 <Plus className="h-4 w-4" /> Nuovo livello
               </Button>
             </DialogTrigger>
@@ -150,19 +150,19 @@ export default function LevelsTab() {
             size="sm"
             onClick={() => saveLevelsMutation.mutate()}
             disabled={Object.keys(editedLevels).length === 0 || saveLevelsMutation.isPending}
-            className="gap-2"
+            className="w-full gap-2 sm:w-auto"
           >
             <Save className="h-4 w-4" /> Salva
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="p-0">
-        <Table>
+      <CardContent className="overflow-x-auto p-0">
+        <Table className="min-w-[720px]">
           <TableHeader>
             <TableRow>
               <TableHead className="w-16">Livello</TableHead>
-              <TableHead>Nome</TableHead>
-              <TableHead className="w-20">Icona</TableHead>
+              <TableHead className="min-w-[220px]">Nome</TableHead>
+              <TableHead className="w-20 min-w-[220px]">Icona</TableHead>
               <TableHead className="w-28">Punti Min</TableHead>
               <TableHead className="w-28">Colore</TableHead>
               <TableHead className="w-12"></TableHead>
@@ -174,7 +174,7 @@ export default function LevelsTab() {
                 <TableCell className="font-bold">{lv.level_number}</TableCell>
                 <TableCell>
                   <Input
-                    className="h-8"
+                    className="h-8 min-w-[220px]"
                     value={editedLevels[lv.id]?.name !== undefined ? editedLevels[lv.id].name : lv.name}
                     onChange={(e) =>
                       setEditedLevels((prev) => ({
