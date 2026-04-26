@@ -184,6 +184,8 @@ export type MissionEnriched = {
   type: MissionType;
   starts_at: string | null;
   ends_at: string | null;
+  sort_order: number;
+  priority: number;
   updated_at: string;
   featured: boolean;
   repeatable: boolean;

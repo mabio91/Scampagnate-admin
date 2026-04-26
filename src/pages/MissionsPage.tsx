@@ -38,7 +38,7 @@ export default function MissionsPage() {
     queryKey: ["missions-v2"],
     queryFn: async () => {
       const [missionsRes, conditionsRes, rewardsRes, prerequisitesRes, campaignsRes, progressRes] = await Promise.all([
-        supabase.from("missions").select("*").order("priority", { ascending: false }).order("sort_order", { ascending: true }).order("updated_at", { ascending: false }),
+        supabase.from("missions").select("*").order("sort_order", { ascending: true }).order("updated_at", { ascending: false }),
         supabase.from("mission_conditions" as any).select("*").order("sort_order", { ascending: true }),
         supabase.from("mission_rewards" as any).select("*").order("sort_order", { ascending: true }),
         supabase.from("mission_prerequisites" as any).select("*").order("sort_order", { ascending: true }),
@@ -166,6 +166,45 @@ export default function MissionsPage() {
     () => Object.fromEntries(categories.map((category: any) => [category.id, category.name])),
     [categories],
   );
+
+  const reorderMutation = useMutation({
+    mutationFn: async (nextMissions: MissionEnriched[]) => {
+      await Promise.all(
+        nextMissions.map((mission, index) =>
+          supabase
+            .from("missions")
+            .update({ sort_order: index })
+            .eq("id", mission.id),
+        ),
+      );
+    },
+    onMutate: async (nextMissions) => {
+      await queryClient.cancelQueries({ queryKey: ["missions-v2"] });
+      const previous = queryClient.getQueryData(["missions-v2"]);
+
+      queryClient.setQueryData(["missions-v2"], (current: any) => ({
+        ...current,
+        missions: nextMissions.map((mission, index) => ({
+          ...mission,
+          sort_order: index,
+        })),
+      }));
+
+      return { previous };
+    },
+    onError: (error: any, _nextMissions, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["missions-v2"], context.previous);
+      }
+      toast.error(error.message || "Errore nel riordino delle missioni");
+    },
+    onSuccess: () => {
+      toast.success("Ordine missioni aggiornato");
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["missions-v2"] });
+    },
+  });
 
   const saveMutation = useMutation({
     mutationFn: async ({ mission, mode }: { mission: MissionBuilderForm; mode: "draft" | "publish" }) => {
@@ -458,6 +497,7 @@ export default function MissionsPage() {
       ...deserialized,
       conditions: deserialized.conditions.map((condition) => normalizeCategoryIds(condition, missionLookup)),
     });
+    nextForm.sort_order = missions.length;
     setForm(nextForm);
     setDialog(true);
   };
@@ -471,7 +511,13 @@ export default function MissionsPage() {
         </div>
         <div className="flex gap-2">
           <RefreshButton queryKeys={[["missions-v2"], ["event_categories"], ["badges-list"], ["discount-codes-for-missions"], ["organizers-for-missions"]]} />
-          <Button onClick={() => { setForm(emptyMissionForm); setDialog(true); }} className="gap-2">
+          <Button
+            onClick={() => {
+              setForm({ ...emptyMissionForm, sort_order: missions.length });
+              setDialog(true);
+            }}
+            className="gap-2"
+          >
             <Plus className="h-4 w-4" /> Nuova Missione
           </Button>
         </div>
@@ -487,6 +533,8 @@ export default function MissionsPage() {
             onDelete={setDeleteId}
             onDuplicate={handleDuplicate}
             onArchive={(mission) => archiveMutation.mutate(mission)}
+            onReorder={(nextMissions) => reorderMutation.mutate(nextMissions)}
+            isReordering={reorderMutation.isPending}
           />
         </CardContent>
       </Card>

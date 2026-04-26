@@ -1,7 +1,8 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Archive, Copy, Pencil, Target, Trash2 } from "lucide-react";
+import { Archive, Copy, GripVertical, Pencil, Target, Trash2 } from "lucide-react";
+import { useState } from "react";
 import DynamicIcon from "@/components/DynamicIcon";
 import type { MissionEnriched } from "./missionBuilder";
 import { actionLabel, rewardSummary, typeLabel } from "./missionBuilder";
@@ -19,14 +20,34 @@ interface Props {
   onDelete: (id: string) => void;
   onDuplicate: (mission: MissionEnriched) => void;
   onArchive: (mission: MissionEnriched) => void;
+  onReorder: (missions: MissionEnriched[]) => void;
+  isReordering?: boolean;
 }
 
-export default function MissionsTable({ missions, onEdit, onDelete, onDuplicate, onArchive }: Props) {
+const reorderMissions = (missions: MissionEnriched[], draggedId: string, targetId: string) => {
+  const sourceIndex = missions.findIndex((mission) => mission.id === draggedId);
+  const targetIndex = missions.findIndex((mission) => mission.id === targetId);
+
+  if (sourceIndex === -1 || targetIndex === -1 || sourceIndex === targetIndex) {
+    return missions;
+  }
+
+  const next = [...missions];
+  const [draggedMission] = next.splice(sourceIndex, 1);
+  next.splice(targetIndex, 0, draggedMission);
+  return next;
+};
+
+export default function MissionsTable({ missions, onEdit, onDelete, onDuplicate, onArchive, onReorder, isReordering = false }: Props) {
+  const [draggedMissionId, setDraggedMissionId] = useState<string | null>(null);
+  const [dragOverMissionId, setDragOverMissionId] = useState<string | null>(null);
+
   return (
     <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-12" />
             <TableHead>Missione</TableHead>
             <TableHead>Stato</TableHead>
             <TableHead>Tipo</TableHead>
@@ -42,7 +63,7 @@ export default function MissionsTable({ missions, onEdit, onDelete, onDuplicate,
         <TableBody>
           {missions.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={10} className="py-12 text-center text-muted-foreground">
+              <TableCell colSpan={11} className="py-12 text-center text-muted-foreground">
                 <Target className="mx-auto mb-2 h-8 w-8 opacity-50" />
                 Nessuna missione. Creane una per iniziare.
               </TableCell>
@@ -51,7 +72,54 @@ export default function MissionsTable({ missions, onEdit, onDelete, onDuplicate,
             missions.map((mission) => {
               const primaryCondition = mission.conditions[0];
               return (
-                <TableRow key={mission.id}>
+                <TableRow
+                  key={mission.id}
+                  className={dragOverMissionId === mission.id ? "bg-muted/70" : undefined}
+                  onDragOver={(event) => {
+                    if (!draggedMissionId || draggedMissionId === mission.id || isReordering) return;
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = "move";
+                    if (dragOverMissionId !== mission.id) {
+                      setDragOverMissionId(mission.id);
+                    }
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    if (!draggedMissionId || draggedMissionId === mission.id || isReordering) {
+                      setDraggedMissionId(null);
+                      setDragOverMissionId(null);
+                      return;
+                    }
+
+                    const reordered = reorderMissions(missions, draggedMissionId, mission.id);
+                    setDraggedMissionId(null);
+                    setDragOverMissionId(null);
+                    onReorder(reordered);
+                  }}
+                  onDragEnd={() => {
+                    setDraggedMissionId(null);
+                    setDragOverMissionId(null);
+                  }}
+                >
+                  <TableCell>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="cursor-grab active:cursor-grabbing"
+                      draggable={!isReordering}
+                      disabled={isReordering}
+                      aria-label={`Riordina ${mission.title}`}
+                      onDragStart={(event) => {
+                        setDraggedMissionId(mission.id);
+                        setDragOverMissionId(mission.id);
+                        event.dataTransfer.effectAllowed = "move";
+                        event.dataTransfer.setData("text/plain", mission.id);
+                      }}
+                    >
+                      <GripVertical className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-start gap-3">
                       <div className="mt-0.5 rounded-xl border border-border bg-muted/30 p-2">
