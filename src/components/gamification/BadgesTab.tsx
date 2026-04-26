@@ -176,7 +176,12 @@ export default function BadgesTab() {
               <Plus className="h-4 w-4" /> Nuovo badge
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent
+            className="max-w-md"
+            onOpenAutoFocus={(event) => {
+              if (editingId) event.preventDefault();
+            }}
+          >
             <DialogHeader>
               <DialogTitle>{editingId ? "Modifica Badge" : "Nuovo Badge"}</DialogTitle>
             </DialogHeader>

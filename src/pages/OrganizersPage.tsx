@@ -396,7 +396,7 @@ export default function OrganizersPage() {
 
       {/* Edit Dialog */}
       <Dialog open={!!editOrg} onOpenChange={(o) => !o && setEditOrg(null)}>
-        <DialogContent>
+        <DialogContent onOpenAutoFocus={(event) => event.preventDefault()}>
           <DialogHeader><DialogTitle>{t("organizers.editOrganizer")}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
