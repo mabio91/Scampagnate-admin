@@ -521,25 +521,6 @@ export default function MissionFormDialog({
                         <Badge variant="outline">{condition.event_filters.category_ids.length} categorie</Badge>
                       </div>
                       <div className="space-y-3">
-                        <div className="space-y-2">
-                          <Label className="text-xs">Categorie evento</Label>
-                          <div className="max-h-32 space-y-2 overflow-y-auto rounded-md border p-2">
-                            {categories.map((category: any) => (
-                              <label key={category.id} className="flex items-center gap-2 text-sm">
-                                <Checkbox
-                                  checked={condition.event_filters.category_ids.includes(category.id)}
-                                  onCheckedChange={(checked) => {
-                                    const next = checked
-                                      ? [...condition.event_filters.category_ids, category.id]
-                                      : condition.event_filters.category_ids.filter((item) => item !== category.id);
-                                    updateConditionSection(index, "event_filters", { category_ids: next });
-                                  }}
-                                />
-                                {category.name}
-                              </label>
-                            ))}
-                          </div>
-                        </div>
                         <div className="grid grid-cols-2 gap-2">
                           <div className="space-y-2">
                             <Label className="text-xs">Difficoltà minima</Label>
@@ -567,18 +548,25 @@ export default function MissionFormDialog({
                             onChange={(e) => updateConditionSection(index, "event_filters", { event_type: e.target.value })}
                             placeholder="Tipo evento"
                           />
-                          <Input
-                            value={condition.event_filters.event_tags.join(", ")}
-                            onChange={(e) =>
-                              updateConditionSection(index, "event_filters", {
-                                event_tags: e.target.value
-                                  .split(",")
-                                  .map((item) => item.trim())
-                                  .filter(Boolean),
-                              })
-                            }
-                            placeholder="Tag evento separati da virgola"
-                          />
+                          <div className="space-y-2">
+                            <Label className="text-xs">Categoria principale</Label>
+                            <div className="max-h-28 space-y-2 overflow-y-auto rounded-md border p-2">
+                              {categories.map((category: any) => (
+                                <label key={category.id} className="flex items-center gap-2 text-sm">
+                                  <Checkbox
+                                    checked={condition.event_filters.category_ids.includes(category.id)}
+                                    onCheckedChange={(checked) => {
+                                      const next = checked
+                                        ? [...condition.event_filters.category_ids, category.id]
+                                        : condition.event_filters.category_ids.filter((item) => item !== category.id);
+                                      updateConditionSection(index, "event_filters", { category_ids: next });
+                                    }}
+                                  />
+                                  {category.name}
+                                </label>
+                              ))}
+                            </div>
+                          </div>
                         </div>
                         <div className="space-y-2">
                           <Label className="text-xs">Organizzatori</Label>
