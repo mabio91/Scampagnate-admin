@@ -13,7 +13,7 @@ import { MANUAL_BADGE_OPTIONS, EventBadgePills, computeAutoBadgesForStorage } fr
 import { RichTextEditor } from "@/components/RichTextEditor";
 import RefreshButton from "@/components/RefreshButton";
 import { useTrekkingDifficultyLevels } from "@/hooks/useTrekkingDifficultyLevels";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -303,6 +303,13 @@ export default function EventsPage() {
     const af = getAF(editEvent);
     setEditEvent({ ...editEvent, additional_fields: { ...af, weather_override: { ...getWeather(editEvent), ...patch } } });
   };
+  const updateAttendanceBadgeIds = (badgeIds: string[]) => {
+    if (!editEvent) return;
+    setEditEvent({
+      ...editEvent,
+      event_badges: replaceAttendanceBadgeIdsInEventBadges(editEvent.event_badges, badgeIds),
+    });
+  };
 
   const getPricingRules = (evt: any): PricingRule[] => getAR(evt).pricing_rules || [];
   const addPricingRule = () => {
@@ -415,11 +422,19 @@ export default function EventsPage() {
       delete ar.required_badge_id;
       data.access_rules = ar;
 
+      const specialBadgeIds = new Set(badges.filter((badge) => badge.category === "special").map((badge) => badge.id));
+
       // Auto-compute event badges
       const foundingBadge = badges.find(b => b.name === "Founding Member");
       const autoBadges = computeAutoBadgesForStorage(data, foundingBadge?.id);
       const manualBadges = ((data.event_badges as any[]) || []).filter((b: any) => b !== "founding_event");
       data.event_badges = [...new Set([...autoBadges, ...manualBadges])];
+      data.event_badges = replaceAttendanceBadgeIdsInEventBadges(
+        data.event_badges,
+        badges.length
+          ? getAttendanceBadgeIdsFromEventBadges(data.event_badges).filter((badgeId) => specialBadgeIds.has(badgeId))
+          : getAttendanceBadgeIdsFromEventBadges(data.event_badges),
+      );
 
       let savedId = data.id;
       if (isNew) {
@@ -537,6 +552,7 @@ export default function EventsPage() {
       ? <ArrowUp className="h-3.5 w-3.5" />
       : <ArrowDown className="h-3.5 w-3.5" />;
   };
+  const specialBadges = badges.filter((badge) => badge.category === "special");
 
   return (
     <div className="space-y-6">
@@ -710,6 +726,66 @@ export default function EventsPage() {
                         {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
+                  </div>
+                </div>
+                <div className="space-y-2 rounded-lg border bg-card p-3">
+                  <div className="flex items-center gap-2">
+                    <Award className="h-4 w-4 text-primary" />
+                    <h5 className="text-sm font-semibold">Badge speciali evento</h5>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Seleziona badge speciali</Label>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button type="button" variant="outline" className="h-auto min-h-10 w-full justify-between whitespace-normal text-left font-normal">
+                          <span className="flex flex-wrap gap-1.5">
+                            {(() => {
+                              const selectedIds = getAttendanceBadgeIdsFromEventBadges(editEvent.event_badges);
+                              const selectedBadges = specialBadges.filter((badge) => selectedIds.includes(badge.id));
+
+                              if (!selectedBadges.length) {
+                                return <span className="text-muted-foreground">Nessun badge speciale selezionato</span>;
+                              }
+
+                              return selectedBadges.map((badge) => (
+                                <Badge key={badge.id} variant="secondary" className="gap-1">
+                                  <span>{badge.icon}</span>
+                                  {badge.name}
+                                </Badge>
+                              ));
+                            })()}
+                          </span>
+                          <Sparkles className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)] max-h-72 overflow-y-auto">
+                        {specialBadges.map((badge) => {
+                          const selectedIds = getAttendanceBadgeIdsFromEventBadges(editEvent.event_badges);
+                          const selected = selectedIds.includes(badge.id);
+
+                          return (
+                            <DropdownMenuCheckboxItem
+                              key={badge.id}
+                              checked={selected}
+                              onCheckedChange={(checked) => {
+                                const nextIds = checked
+                                  ? [...selectedIds, badge.id]
+                                  : selectedIds.filter((id) => id !== badge.id);
+                                updateAttendanceBadgeIds([...new Set(nextIds)]);
+                              }}
+                              onSelect={(event) => event.preventDefault()}
+                            >
+                              <span className="mr-2">{badge.icon}</span>
+                              <span className="truncate">{badge.name}</span>
+                            </DropdownMenuCheckboxItem>
+                          );
+                        })}
+                        {specialBadges.length === 0 && (
+                          <DropdownMenuItem disabled>Nessun badge speciale disponibile</DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <p className="text-[11px] text-muted-foreground">Questi badge verranno assegnati solo agli utenti segnati come presenti all’evento.</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -1018,64 +1094,6 @@ export default function EventsPage() {
               </section>
 
               {/* ═══ 6. OVERRIDE METEO ═══ */}
-              <Separator />
-              <section className="space-y-3">
-                <div className="flex items-center gap-2"><Award className="h-4 w-4 text-primary" /><h4 className="text-sm font-semibold">Badge assegnati alla partecipazione</h4></div>
-                <p className="text-[10px] text-muted-foreground">
-                  Seleziona uno o piu badge da assegnare automaticamente solo agli utenti segnati come presenti al check-in per questo evento.
-                </p>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {badges.map(badge => {
-                    const selectedIds = getAttendanceBadgeIdsFromEventBadges(editEvent.event_badges);
-                    const selected = selectedIds.includes(badge.id);
-
-                    return (
-                      <button
-                        key={badge.id}
-                        type="button"
-                        onClick={() => {
-                          const nextIds = selected
-                            ? selectedIds.filter((id) => id !== badge.id)
-                            : [...selectedIds, badge.id];
-
-                          setEditEvent({
-                            ...editEvent,
-                            event_badges: replaceAttendanceBadgeIdsInEventBadges(editEvent.event_badges, nextIds),
-                          });
-                        }}
-                        className={`rounded-lg border p-3 text-left transition-colors ${
-                          selected
-                            ? "border-primary bg-primary/10"
-                            : "border-border bg-card hover:border-primary/50"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium">{badge.icon} {badge.name}</p>
-                            <p className="text-[10px] text-muted-foreground">
-                              {badge.category === "special"
-                                ? "Badge speciale: ideale per eventi unici, campagne o riconoscimenti manuali."
-                                : badge.category === "general"
-                                ? "Badge generale: traguardo riutilizzabile di piattaforma o progressione."
-                                : badge.category
-                                ? `Badge di categoria: ${badge.category}.`
-                                : "Nessuna categoria impostata."}
-                            </p>
-                            {badge.description && (
-                              <p className="mt-1 text-[10px] text-muted-foreground line-clamp-2">{badge.description}</p>
-                            )}
-                          </div>
-                          <Checkbox checked={selected} className="pointer-events-none mt-0.5" />
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-                {badges.length === 0 && (
-                  <p className="text-xs text-muted-foreground">Nessun badge disponibile.</p>
-                )}
-              </section>
-
               <Separator />
               <section className="space-y-3">
                 <div className="flex items-center gap-2"><CloudSun className="h-4 w-4 text-primary" /><h4 className="text-sm font-semibold">Override meteo</h4></div>
