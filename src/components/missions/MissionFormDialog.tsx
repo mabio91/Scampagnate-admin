@@ -64,6 +64,7 @@ interface Props {
   organizers: any[];
   existingMissions: any[];
   campaigns: any[];
+  secondaryCategories: string[];
 }
 
 export default function MissionFormDialog({
@@ -79,6 +80,7 @@ export default function MissionFormDialog({
   organizers,
   existingMissions,
   campaigns,
+  secondaryCategories,
 }: Props) {
   const validationErrors: string[] = [];
   if (form.starts_at && form.ends_at && new Date(form.ends_at) <= new Date(form.starts_at)) {
@@ -518,7 +520,9 @@ export default function MissionFormDialog({
                     <div className="rounded-lg border p-3">
                       <div className="mb-3 flex items-center justify-between">
                         <TipLabel label="Filtri evento" tipKey="event_filters" />
-                        <Badge variant="outline">{condition.event_filters.category_ids.length} categorie</Badge>
+                        <Badge variant="outline">
+                          {condition.event_filters.category_ids.length + condition.event_filters.secondary_category_names.length} categorie
+                        </Badge>
                       </div>
                       <div className="space-y-3">
                         <div className="grid grid-cols-2 gap-2">
@@ -567,6 +571,34 @@ export default function MissionFormDialog({
                               ))}
                             </div>
                           </div>
+                        </div>
+                        <div className="space-y-2">
+                          <TipLabel label="Categoria secondaria" tipKey="secondary_category_filter" />
+                          <div className="max-h-28 space-y-2 overflow-y-auto rounded-md border p-2">
+                            {secondaryCategories.length === 0 && (
+                              <p className="text-xs text-muted-foreground">Tutte le categorie secondarie</p>
+                            )}
+                            {secondaryCategories.map((category) => (
+                              <label key={category} className="flex items-center gap-2 text-sm">
+                                <Checkbox
+                                  checked={condition.event_filters.secondary_category_names.includes(category)}
+                                  onCheckedChange={(checked) => {
+                                    const next = checked
+                                      ? [...condition.event_filters.secondary_category_names, category]
+                                      : condition.event_filters.secondary_category_names.filter((item) => item !== category);
+                                    updateConditionSection(index, "event_filters", { secondary_category_names: next });
+                                  }}
+                                />
+                                {category}
+                              </label>
+                            ))}
+                          </div>
+                          <p className="text-[11px] leading-relaxed text-muted-foreground">
+                            Usa questo filtro per creare missioni su tipologie specifiche di evento, ad esempio trekking notturni, cammini o degustazioni.
+                          </p>
+                          {condition.event_filters.secondary_category_names.length === 0 && (
+                            <p className="text-[11px] text-muted-foreground">Tutte le categorie secondarie</p>
+                          )}
                         </div>
                         <div className="space-y-2">
                           <Label className="text-xs">Organizzatori</Label>

@@ -131,6 +131,30 @@ export default function MissionsPage() {
     },
   });
 
+  const { data: secondaryCategories = [] } = useQuery({
+    queryKey: ["event-secondary-categories"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("events").select("additional_fields");
+      if (error) throw error;
+
+      const names = new Set<string>();
+      (data || []).forEach((event: any) => {
+        const additionalFields = event.additional_fields || {};
+        const main = additionalFields.fit_score_main_category;
+        if (typeof main === "string" && main.trim()) names.add(main.trim());
+
+        const secondary = additionalFields.fit_score_secondary_categories;
+        if (Array.isArray(secondary)) {
+          secondary.forEach((name) => {
+            if (typeof name === "string" && name.trim()) names.add(name.trim());
+          });
+        }
+      });
+
+      return [...names].sort((a, b) => a.localeCompare(b, "it"));
+    },
+  });
+
   const { data: badges = [] } = useQuery({
     queryKey: ["badges-list"],
     queryFn: async () => {
@@ -510,7 +534,7 @@ export default function MissionsPage() {
           <p className="text-muted-foreground">Motore missioni flessibile per onboarding, campagne, streak, combo e reward avanzati.</p>
         </div>
         <div className="flex gap-2">
-          <RefreshButton queryKeys={[["missions-v2"], ["event_categories"], ["badges-list"], ["discount-codes-for-missions"], ["organizers-for-missions"]]} />
+          <RefreshButton queryKeys={[["missions-v2"], ["event_categories"], ["event-secondary-categories"], ["badges-list"], ["discount-codes-for-missions"], ["organizers-for-missions"]]} />
           <Button
             onClick={() => {
               setForm({ ...emptyMissionForm, sort_order: missions.length });
@@ -552,6 +576,7 @@ export default function MissionsPage() {
         organizers={organizers}
         existingMissions={missions}
         campaigns={campaigns}
+        secondaryCategories={secondaryCategories}
       />
 
       <Dialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>

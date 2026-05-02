@@ -51,6 +51,7 @@ export interface MissionConditionForm {
   period_value: number | null;
   event_filters: {
     category_ids: string[];
+    secondary_category_names: string[];
     difficulty_min: string;
     organizer_ids: string[];
     event_tags: string[];
@@ -303,6 +304,7 @@ export const TOOLTIP_TEXT: Record<string, string> = {
   campaign_is_active: "Permette di attivare o sospendere una campagna senza rimuoverla.",
   target_action: "Definisce cosa viene tracciato (es. partecipazione evento).",
   event_filters: "Permette di limitare gli eventi validi (categoria, difficoltà, ecc.).",
+  secondary_category_filter: "Usa questo filtro per creare missioni su tipologie specifiche di evento, ad esempio trekking notturni, cammini o degustazioni.",
   user_filters: "Limita a quali utenti si applica la missione.",
   behavior_filters: "Permette di escludere comportamenti (no-show, cancellazioni).",
   goal: "Numero di azioni richieste.",
@@ -339,6 +341,7 @@ export const createEmptyCondition = (): MissionConditionForm => ({
   period_value: null,
   event_filters: {
     category_ids: [],
+    secondary_category_names: [],
     difficulty_min: "",
     organizer_ids: [],
     event_tags: [],
