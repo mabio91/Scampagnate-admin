@@ -138,8 +138,11 @@ export default function MissionsPage() {
       if (error) throw error;
 
       const names = new Set<string>();
-      (data || []).forEach((event: any) => {
-        const additionalFields = event.additional_fields || {};
+      (data || []).forEach((event: { additional_fields: unknown }) => {
+        const additionalFields = (event.additional_fields || {}) as {
+          fit_score_main_category?: unknown;
+          fit_score_secondary_categories?: unknown;
+        };
         const main = additionalFields.fit_score_main_category;
         if (typeof main === "string" && main.trim()) names.add(main.trim());
 
