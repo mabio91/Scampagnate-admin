@@ -6,13 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, MoreHorizontal, Trash2, Edit2, UserPlus, Download } from "lucide-react";
+import { Search, MoreHorizontal, Trash2, Edit2, UserPlus, Download, Info } from "lucide-react";
 import RefreshButton from "@/components/RefreshButton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -21,6 +22,33 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { exportToCsv } from "@/lib/exportUtils";
 
 type Profile = Tables<"profiles">;
+
+const membershipFieldTooltips = {
+  birth_place: "Comune o Stato estero di nascita, come riportato sul documento.",
+  province_of_birth: "Sigla della provincia di nascita. Usa EE per nascita all'estero.",
+  residential_address: "Indirizzo completo di residenza, inclusi via/piazza e numero civico.",
+  province_of_residence: "Sigla della provincia di residenza. Usa EE per residenza all'estero.",
+};
+
+function FieldLabel({ children, tooltip }: { children: string; tooltip?: string }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <Label>{children}</Label>
+      {tooltip && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button type="button" className="text-muted-foreground hover:text-foreground">
+              <Info className="h-3.5 w-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs text-xs">
+            <p>{tooltip}</p>
+          </TooltipContent>
+        </Tooltip>
+      )}
+    </div>
+  );
+}
 
 export default function UsersPage() {
   const { t } = useLanguage();
@@ -31,6 +59,12 @@ export default function UsersPage() {
   const [editUser, setEditUser] = useState<(Profile & { roles: string[] }) | null>(null);
   const [editForm, setEditForm] = useState({
     first_name: "", last_name: "", phone: "", bio: "",
+    birth_date: "",
+    birth_place: "",
+    province_of_birth: "",
+    residential_address: "",
+    city_of_residence: "",
+    province_of_residence: "",
     account_status: "Active" as Database["public"]["Enums"]["account_status"]
   });
   const [editRole, setEditRole] = useState("user");
@@ -82,6 +116,12 @@ export default function UsersPage() {
       const { error } = await supabase.from("profiles").update({
         first_name: editForm.first_name, last_name: editForm.last_name,
         phone: editForm.phone, bio: editForm.bio, account_status: editForm.account_status,
+        birth_date: editForm.birth_date || null,
+        birth_place: editForm.birth_place || null,
+        province_of_birth: editForm.province_of_birth || null,
+        residential_address: editForm.residential_address || null,
+        city_of_residence: editForm.city_of_residence || null,
+        province_of_residence: editForm.province_of_residence || null,
         updated_at: new Date().toISOString(),
       }).eq("id", editUser.id);
       if (error) throw error;
@@ -131,7 +171,19 @@ export default function UsersPage() {
 
   const openEdit = (user: Profile & { roles: string[] }) => {
     setEditUser(user);
-    setEditForm({ first_name: user.first_name, last_name: user.last_name, phone: user.phone, bio: user.bio || "", account_status: user.account_status || "Active" });
+    setEditForm({
+      first_name: user.first_name,
+      last_name: user.last_name,
+      phone: user.phone,
+      bio: user.bio || "",
+      birth_date: user.birth_date || "",
+      birth_place: user.birth_place || "",
+      province_of_birth: user.province_of_birth || "",
+      residential_address: user.residential_address || "",
+      city_of_residence: user.city_of_residence || "",
+      province_of_residence: user.province_of_residence || "",
+      account_status: user.account_status || "Active",
+    });
     setEditRole(user.roles.includes("admin") ? "admin" : user.roles.includes("organizer") ? "organizer" : "user");
   };
 
@@ -330,7 +382,7 @@ export default function UsersPage() {
 
       {/* Edit Dialog */}
       <Dialog open={!!editUser} onOpenChange={(o) => !o && setEditUser(null)}>
-        <DialogContent onOpenAutoFocus={(event) => event.preventDefault()}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl" onOpenAutoFocus={(event) => event.preventDefault()}>
           <DialogHeader><DialogTitle>Edit User</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -339,6 +391,54 @@ export default function UsersPage() {
             </div>
             <div><Label>Phone</Label><Input value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} /></div>
             <div><Label>Bio</Label><Input value={editForm.bio} onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })} /></div>
+            <div className="rounded-md border border-border p-4 space-y-4">
+              <h3 className="text-sm font-medium">Membership Data</h3>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <FieldLabel>Date of Birth</FieldLabel>
+                  <Input
+                    type="date"
+                    value={editForm.birth_date}
+                    onChange={(e) => setEditForm({ ...editForm, birth_date: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <FieldLabel tooltip={membershipFieldTooltips.birth_place}>Place of Birth</FieldLabel>
+                  <Input
+                    value={editForm.birth_place}
+                    onChange={(e) => setEditForm({ ...editForm, birth_place: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <FieldLabel tooltip={membershipFieldTooltips.province_of_birth}>Province of Birth</FieldLabel>
+                  <Input
+                    value={editForm.province_of_birth}
+                    onChange={(e) => setEditForm({ ...editForm, province_of_birth: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <FieldLabel>City of Residence</FieldLabel>
+                  <Input
+                    value={editForm.city_of_residence}
+                    onChange={(e) => setEditForm({ ...editForm, city_of_residence: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <FieldLabel tooltip={membershipFieldTooltips.residential_address}>Residential Address</FieldLabel>
+                  <Input
+                    value={editForm.residential_address}
+                    onChange={(e) => setEditForm({ ...editForm, residential_address: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <FieldLabel tooltip={membershipFieldTooltips.province_of_residence}>Province of Residence</FieldLabel>
+                  <Input
+                    value={editForm.province_of_residence}
+                    onChange={(e) => setEditForm({ ...editForm, province_of_residence: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
             <div>
               <Label>Role</Label>
               <Select value={editRole} onValueChange={setEditRole}>
