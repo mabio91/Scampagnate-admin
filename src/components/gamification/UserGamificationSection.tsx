@@ -41,12 +41,6 @@ export function UserGamificationSection({
   const [badgeDialog, setBadgeDialog] = useState<"assign" | "remove" | null>(null);
   const [selectedBadgeId, setSelectedBadgeId] = useState("");
 
-  const { currentLevel, nextLevel } = useUserLevel(totalPoints);
-
-  const progressToNext = nextLevel
-    ? ((totalPoints - (currentLevel?.min_points || 0)) / (nextLevel.min_points - (currentLevel?.min_points || 0))) * 100
-    : 100;
-
   // Points history
   const { data: pointsHistory = [] } = useQuery({
     queryKey: ["points-history", userId],
@@ -55,11 +49,21 @@ export function UserGamificationSection({
         .from("points_history")
         .select("*")
         .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(20);
+        .order("created_at", { ascending: false });
       return data || [];
     },
   });
+
+  const historyTotalPoints = pointsHistory.reduce(
+    (sum, point) => sum + (Number(point.value) || 0),
+    0
+  );
+  const effectiveTotalPoints = pointsHistory.length > 0 ? historyTotalPoints : totalPoints;
+  const { currentLevel, nextLevel } = useUserLevel(effectiveTotalPoints);
+
+  const progressToNext = nextLevel
+    ? ((effectiveTotalPoints - (currentLevel?.min_points || 0)) / (nextLevel.min_points - (currentLevel?.min_points || 0))) * 100
+    : 100;
 
   // User badges
   const { data: userBadges = [] } = useQuery({
@@ -214,14 +218,14 @@ export function UserGamificationSection({
               avatarUrl={avatarUrl}
               firstName={firstName}
               lastName={lastName}
-              totalPoints={totalPoints}
+              totalPoints={effectiveTotalPoints}
               size="lg"
             />
             <div>
               <p className="text-lg font-bold">
                 {currentLevel?.icon} {currentLevel?.name || "—"}
               </p>
-              <p className="text-2xl font-bold text-primary">{totalPoints.toLocaleString()} punti</p>
+              <p className="text-2xl font-bold text-primary">{effectiveTotalPoints.toLocaleString()} punti</p>
             </div>
             {nextLevel && (
               <div className="w-full space-y-1">
@@ -231,7 +235,7 @@ export function UserGamificationSection({
                 </div>
                 <Progress value={progressToNext} className="h-2" />
                 <p className="text-xs text-muted-foreground">
-                  {nextLevel.min_points - totalPoints} punti per il prossimo livello
+                  {nextLevel.min_points - effectiveTotalPoints} punti per il prossimo livello
                 </p>
               </div>
             )}
