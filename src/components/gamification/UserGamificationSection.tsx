@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { LevelBadgeAvatar, useUserLevel } from "./LevelBadgeAvatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useLanguage } from "@/i18n/LanguageContext";
+import DynamicIcon from "@/components/DynamicIcon";
 
 interface UserGamificationSectionProps {
   userId: string;
@@ -327,7 +328,7 @@ export function UserGamificationSection({
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {userBadges.map((ub: any) => (
                 <div key={ub.id} className="flex items-center gap-2 p-3 rounded-lg border bg-muted/30">
-                  <span className="text-2xl">{ub.badges?.icon || "🏅"}</span>
+                  <DynamicIcon value={ub.badges?.icon || "🏅"} size={28} className="shrink-0" />
                   <div className="min-w-0">
                     <p className="font-medium text-sm truncate">{ub.badges?.name}</p>
                     <p className="text-xs text-muted-foreground truncate">{ub.badges?.category || "—"}</p>
@@ -433,7 +434,10 @@ export function UserGamificationSection({
               <SelectContent>
                 {(badgeDialog === "assign" ? availableBadges : userBadges.map((ub: any) => ub.badges)).map((b: any) => (
                   <SelectItem key={b.id} value={b.id}>
-                    {b.icon} {b.name}
+                    <span className="inline-flex items-center gap-2">
+                      <DynamicIcon value={b.icon || "🏅"} size={16} />
+                      {b.name}
+                    </span>
                   </SelectItem>
                 ))}
               </SelectContent>
