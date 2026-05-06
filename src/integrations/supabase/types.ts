@@ -2057,6 +2057,10 @@ export type Database = {
         Args: { user_id_param: string }
         Returns: undefined
       }
+      admin_assign_badge: {
+        Args: { p_badge_id: string; p_user_id: string }
+        Returns: undefined
+      }
       add_user_points: {
         Args: {
           p_admin_id?: string

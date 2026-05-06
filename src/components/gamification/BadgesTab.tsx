@@ -137,9 +137,9 @@ export default function BadgesTab() {
   const assignBadgeMutation = useMutation({
     mutationFn: async () => {
       if (!assignBadgeId || !assignUserId) return;
-      const { error } = await supabase.from("user_badges").insert({
-        user_id: assignUserId,
-        badge_id: assignBadgeId,
+      const { error } = await supabase.rpc("admin_assign_badge", {
+        p_user_id: assignUserId,
+        p_badge_id: assignBadgeId,
       });
       if (error) {
         if (error.code === "23505") throw new Error("Questo utente ha già questo badge");
@@ -148,6 +148,8 @@ export default function BadgesTab() {
     },
     onSuccess: () => {
       toast.success("Badge assegnato manualmente");
+      queryClient.invalidateQueries({ queryKey: ["all-user-badges"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-members"] });
       setAssignOpen(false);
       setAssignBadgeId(null);
       setAssignUserId(null);
