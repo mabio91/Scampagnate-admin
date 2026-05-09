@@ -446,16 +446,58 @@ export default function EventsPage() {
         if (error) throw error;
       }
 
-      // Sync meeting points
+      // Sync meeting points while preserving existing IDs where possible.
+      // Registrations can reference meeting points, so removed points must be
+      // unlinked before deletion or Postgres will reject the delete.
       if (savedId) {
-        await supabase.from("event_meeting_points").delete().eq("event_id", savedId);
         const validMps = mps.filter(mp => mp.name.trim());
-        if (validMps.length) {
-          const rows = validMps.map((mp, idx) => ({
-            event_id: savedId, name: mp.name, location: mp.location, time: mp.time || "09:00",
-            notes: mp.notes || null, sort_order: idx,
-          }));
-          const { error } = await supabase.from("event_meeting_points").insert(rows);
+
+        const { data: existingMps, error: existingMpsError } = await supabase
+          .from("event_meeting_points")
+          .select("id")
+          .eq("event_id", savedId);
+        if (existingMpsError) throw existingMpsError;
+
+        const keptIds = new Set(validMps.map(mp => mp.id).filter(Boolean));
+        const removedIds = (existingMps || [])
+          .map(mp => mp.id)
+          .filter(id => !keptIds.has(id));
+
+        if (removedIds.length) {
+          const { error: unlinkError } = await supabase
+            .from("event_registrations")
+            .update({ meeting_point_id: null })
+            .eq("event_id", savedId)
+            .in("meeting_point_id", removedIds);
+          if (unlinkError) throw unlinkError;
+
+          const { error: deleteError } = await supabase
+            .from("event_meeting_points")
+            .delete()
+            .eq("event_id", savedId)
+            .in("id", removedIds);
+          if (deleteError) throw deleteError;
+        }
+
+        for (const [idx, mp] of validMps.entries()) {
+          const row = {
+            event_id: savedId,
+            name: mp.name,
+            location: mp.location,
+            time: mp.time || "09:00",
+            notes: mp.notes || null,
+            sort_order: idx,
+          };
+
+          const { error } = mp.id
+            ? await supabase
+              .from("event_meeting_points")
+              .update(row)
+              .eq("id", mp.id)
+              .eq("event_id", savedId)
+            : await supabase
+              .from("event_meeting_points")
+              .insert(row);
           if (error) throw error;
         }
 
