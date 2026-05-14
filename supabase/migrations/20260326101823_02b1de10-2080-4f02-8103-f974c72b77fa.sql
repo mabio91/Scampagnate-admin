@@ -1,0 +1,1 @@
+ALTER TABLE public.merch_products ADD COLUMN gallery_images jsonb DEFAULT '[]'::jsonb;

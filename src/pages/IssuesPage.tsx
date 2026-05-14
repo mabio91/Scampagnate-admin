@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertTriangle, Clock, CheckCircle2, MessageSquare, Plus } from "lucide-react";
+import RefreshButton from "@/components/RefreshButton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,6 +14,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 type Issue = Tables<"issues">;
 
@@ -41,6 +43,7 @@ const statusText: Record<string, string> = {
 };
 
 export default function IssuesPage() {
+  const { t } = useLanguage();
   const [createOpen, setCreateOpen] = useState(false);
   const [resolveIssue, setResolveIssue] = useState<Issue | null>(null);
   const [resolutionNotes, setResolutionNotes] = useState("");
@@ -113,14 +116,17 @@ export default function IssuesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Issues</h1>
-          <p className="text-muted-foreground mt-1">Intervene and resolve platform issues ({issues.length} total)</p>
+          <h1 className="text-2xl md:text-3xl font-bold">{t("issues.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("issues.subtitle")} ({issues.length} {t("common.total").toLowerCase()})</p>
         </div>
-        <Button className="gap-2" onClick={() => setCreateOpen(true)}>
-          <Plus className="h-4 w-4" /> Report Issue
-        </Button>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <RefreshButton queryKeys={[["admin-issues"]]} />
+          <Button className="gap-2 flex-1 sm:flex-initial" onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4" /> {t("issues.reportIssue")}
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -140,7 +146,7 @@ export default function IssuesPage() {
                       <div className="flex-1">
                         <h3 className="font-semibold font-sans">{issue.title}</h3>
                         <p className="text-sm text-muted-foreground mt-1">
-                          Reported by <span className="font-medium text-foreground">{issue.reporter_name}</span>
+                          {t("issues.reportedBy")} <span className="font-medium text-foreground">{issue.reporter_name}</span>
                         </p>
                         {issue.description && <p className="text-sm text-muted-foreground mt-1">{issue.description}</p>}
                         <div className="flex items-center gap-2 mt-2">
@@ -150,24 +156,24 @@ export default function IssuesPage() {
                         </div>
                         {issue.resolution_notes && (
                           <p className="text-xs mt-2 p-2 bg-success/5 rounded text-success border border-success/20">
-                            Resolution: {issue.resolution_notes}
+                            {t("issues.resolution")}: {issue.resolution_notes}
                           </p>
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-2 flex-shrink-0">
+                    <div className="flex gap-2 flex-shrink-0 flex-wrap">
                       {issue.status === "open" && (
                         <Button variant="outline" size="sm" onClick={() => updateStatus.mutate({ id: issue.id, status: "in_progress" })}>
-                          <Clock className="h-3.5 w-3.5 mr-1" /> In Progress
+                          <Clock className="h-3.5 w-3.5 mr-1" /> {t("issues.inProgress")}
                         </Button>
                       )}
                       {issue.status !== "resolved" && (
                         <Button size="sm" onClick={() => { setResolveIssue(issue); setResolutionNotes(""); }}>
-                          <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Resolve
+                          <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> {t("issues.resolve")}
                         </Button>
                       )}
-                      <Button variant="ghost" size="sm" className="text-destructive" onClick={() => { if (confirm("Delete this issue?")) deleteMutation.mutate(issue.id); }}>
-                        Delete
+                      <Button variant="ghost" size="sm" className="text-destructive" onClick={() => { if (confirm(t("issues.deleteConfirm"))) deleteMutation.mutate(issue.id); }}>
+                        {t("common.delete")}
                       </Button>
                     </div>
                   </div>
@@ -176,7 +182,7 @@ export default function IssuesPage() {
             );
           })}
           {issues.length === 0 && (
-            <p className="text-muted-foreground text-center py-8">No issues reported</p>
+            <p className="text-muted-foreground text-center py-8">{t("issues.noIssues")}</p>
           )}
         </div>
       )}
@@ -184,26 +190,26 @@ export default function IssuesPage() {
       {/* Create Issue */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Report Issue</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("issues.reportIssue")}</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <div><Label>Title</Label><Input value={newIssue.title} onChange={(e) => setNewIssue({ ...newIssue, title: e.target.value })} /></div>
-            <div><Label>Description</Label><Textarea value={newIssue.description} onChange={(e) => setNewIssue({ ...newIssue, description: e.target.value })} rows={3} /></div>
+            <div><Label>{t("issues.issueTitle")}</Label><Input value={newIssue.title} onChange={(e) => setNewIssue({ ...newIssue, title: e.target.value })} /></div>
+            <div><Label>{t("common.description")}</Label><Textarea value={newIssue.description} onChange={(e) => setNewIssue({ ...newIssue, description: e.target.value })} rows={3} /></div>
             <div>
-              <Label>Priority</Label>
+              <Label>{t("issues.priority")}</Label>
               <Select value={newIssue.priority} onValueChange={(v) => setNewIssue({ ...newIssue, priority: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="low">{t("issues.low")}</SelectItem>
+                  <SelectItem value="medium">{t("issues.medium")}</SelectItem>
+                  <SelectItem value="high">{t("issues.high")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>{t("common.cancel")}</Button>
             <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending || !newIssue.title}>
-              {createMutation.isPending ? "Creating..." : "Create"}
+              {createMutation.isPending ? t("common.creating") : t("common.create")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -212,12 +218,12 @@ export default function IssuesPage() {
       {/* Resolve Issue */}
       <Dialog open={!!resolveIssue} onOpenChange={(o) => !o && setResolveIssue(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Resolve: {resolveIssue?.title}</DialogTitle></DialogHeader>
-          <div><Label>Resolution Notes</Label><Textarea value={resolutionNotes} onChange={(e) => setResolutionNotes(e.target.value)} rows={3} placeholder="Describe how the issue was resolved..." /></div>
+          <DialogHeader><DialogTitle>{t("issues.resolve")}: {resolveIssue?.title}</DialogTitle></DialogHeader>
+          <div><Label>{t("issues.resolutionNotes")}</Label><Textarea value={resolutionNotes} onChange={(e) => setResolutionNotes(e.target.value)} rows={3} placeholder={t("issues.resolutionPlaceholder")} /></div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setResolveIssue(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setResolveIssue(null)}>{t("common.cancel")}</Button>
             <Button onClick={() => resolveIssue && updateStatus.mutate({ id: resolveIssue.id, status: "resolved", notes: resolutionNotes })} disabled={updateStatus.isPending}>
-              {updateStatus.isPending ? "Resolving..." : "Mark Resolved"}
+              {updateStatus.isPending ? t("issues.resolving") : t("issues.markResolved")}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -5,18 +5,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus, Edit2, Trash2 } from "lucide-react";
+import RefreshButton from "@/components/RefreshButton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import IconPicker from "@/components/IconPicker";
+import DynamicIcon from "@/components/DynamicIcon";
 import type { Tables } from "@/integrations/supabase/types";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 type Category = Tables<"event_categories">;
 
 const emptyCategory = { name: "", description: "", icon: "📂", sort_order: 0 };
 
 export default function CategoriesPage() {
+  const { t } = useLanguage();
   const [editCat, setEditCat] = useState<(Partial<Category> & { isNew?: boolean }) | null>(null);
   const queryClient = useQueryClient();
 
@@ -72,14 +77,17 @@ export default function CategoriesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Event Categories</h1>
-          <p className="text-muted-foreground mt-1">Manage event categories ({categories.length} total)</p>
+          <h1 className="text-2xl md:text-3xl font-bold">{t("categories.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("categories.subtitle")} ({categories.length} {t("common.total").toLowerCase()})</p>
         </div>
-        <Button className="gap-2" onClick={() => setEditCat({ ...emptyCategory, isNew: true })}>
-          <Plus className="h-4 w-4" /> Add Category
-        </Button>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <RefreshButton queryKeys={[["admin-categories"], ["admin-category-event-counts"]]} />
+          <Button className="gap-2 flex-1 sm:flex-initial" onClick={() => setEditCat({ ...emptyCategory, isNew: true })}>
+            <Plus className="h-4 w-4" /> {t("categories.addCategory")}
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -93,10 +101,10 @@ export default function CategoriesPage() {
               <CardContent className="p-5">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-lg bg-primary/10 text-xl">{cat.icon || "📂"}</div>
+                    <div className="p-2.5 rounded-lg bg-primary/10 flex items-center justify-center"><DynamicIcon value={cat.icon || "📂"} size={22} /></div>
                     <div>
                       <h3 className="font-semibold font-sans">{cat.name}</h3>
-                      <p className="text-sm text-muted-foreground">{eventCounts[cat.id] || 0} events</p>
+                      <p className="text-sm text-muted-foreground">{eventCounts[cat.id] || 0} {t("categories.events")}</p>
                       {cat.description && <p className="text-xs text-muted-foreground mt-0.5">{cat.description}</p>}
                     </div>
                   </div>
@@ -104,7 +112,7 @@ export default function CategoriesPage() {
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditCat(cat)}>
                       <Edit2 className="h-3.5 w-3.5" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { if (confirm("Delete this category?")) deleteMutation.mutate(cat.id); }}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { if (confirm(t("categories.deleteConfirm"))) deleteMutation.mutate(cat.id); }}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
@@ -113,26 +121,26 @@ export default function CategoriesPage() {
             </Card>
           ))}
           {categories.length === 0 && (
-            <p className="text-muted-foreground col-span-full text-center py-8">No categories yet</p>
+            <p className="text-muted-foreground col-span-full text-center py-8">{t("categories.noCategories")}</p>
           )}
         </div>
       )}
 
       <Dialog open={!!editCat} onOpenChange={(o) => !o && setEditCat(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{editCat?.isNew ? "Create Category" : "Edit Category"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editCat?.isNew ? t("categories.createCategory") : t("categories.editCategory")}</DialogTitle></DialogHeader>
           {editCat && (
             <div className="space-y-4">
-              <div><Label>Name</Label><Input value={editCat.name || ""} onChange={(e) => setEditCat({ ...editCat, name: e.target.value })} /></div>
-              <div><Label>Icon (emoji)</Label><Input value={editCat.icon || ""} onChange={(e) => setEditCat({ ...editCat, icon: e.target.value })} /></div>
-              <div><Label>Description</Label><Input value={editCat.description || ""} onChange={(e) => setEditCat({ ...editCat, description: e.target.value })} /></div>
-              <div><Label>Sort Order</Label><Input type="number" value={editCat.sort_order || 0} onChange={(e) => setEditCat({ ...editCat, sort_order: parseInt(e.target.value) })} /></div>
+              <div><Label>{t("categories.categoryName")}</Label><Input value={editCat.name || ""} onChange={(e) => setEditCat({ ...editCat, name: e.target.value })} /></div>
+              <div><Label>Icona</Label><IconPicker value={editCat.icon || ""} onChange={(v) => setEditCat({ ...editCat, icon: v })} /></div>
+              <div><Label>{t("common.description")}</Label><Input value={editCat.description || ""} onChange={(e) => setEditCat({ ...editCat, description: e.target.value })} /></div>
+              <div><Label>{t("categories.sortOrder")}</Label><Input type="number" value={editCat.sort_order ?? ""} onChange={(e) => setEditCat({ ...editCat, sort_order: e.target.value === "" ? undefined : parseInt(e.target.value, 10) })} /></div>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditCat(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setEditCat(null)}>{t("common.cancel")}</Button>
             <Button onClick={() => saveMutation.mutate(editCat)} disabled={saveMutation.isPending}>
-              {saveMutation.isPending ? "Saving..." : "Save"}
+              {saveMutation.isPending ? t("common.saving") : t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>

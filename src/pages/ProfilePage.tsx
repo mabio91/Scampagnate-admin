@@ -8,10 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
-import { Camera, Loader2, Save, KeyRound, User } from "lucide-react";
+import { Camera, Loader2, Save, KeyRound, User, Activity } from "lucide-react";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 export default function ProfilePage() {
+  const { t } = useLanguage();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -45,6 +49,32 @@ export default function ProfilePage() {
         .single();
       if (error) throw error;
       return data;
+    },
+    enabled: !!userId,
+  });
+
+  const { data: userActivity, isLoading: loadingActivity } = useQuery({
+    queryKey: ["user-activity", userId],
+    queryFn: async () => {
+      if (!userId) return [];
+      const { data, error } = await supabase
+        .from("event_registrations")
+        .select(`
+          id,
+          status,
+          checked_in,
+          created_at,
+          events:event_id (
+            id,
+            title,
+            date
+          )
+        `)
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
+      
+      if (error) throw error;
+      return data || [];
     },
     enabled: !!userId,
   });
@@ -155,8 +185,8 @@ export default function ProfilePage() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold font-display text-foreground">My Profile</h1>
-        <p className="text-muted-foreground text-sm">Manage your account settings</p>
+        <h1 className="text-2xl font-bold font-display text-foreground">{t("profile.title")}</h1>
+        <p className="text-muted-foreground text-sm">{t("profile.subtitle")}</p>
       </div>
 
       {/* Avatar Section */}
@@ -271,6 +301,102 @@ export default function ProfilePage() {
             {changePasswordMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <KeyRound className="h-4 w-4 mr-2" />}
             Update Password
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Activity History */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Activity className="h-5 w-5 text-primary" />
+            Activity History
+          </CardTitle>
+          <CardDescription>Your event registration and attendance history</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card className="bg-primary/5 border-primary/20">
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-primary">{userActivity?.filter((a: any) => a.status === 'registered' || a.status === 'paid').length || 0}</div>
+                <div className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Joined</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-success/5 border-success/20">
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-success">{userActivity?.filter((a: any) => a.checked_in).length || 0}</div>
+                <div className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Attended</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-warning/5 border-warning/20">
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-warning">{userActivity?.filter((a: any) => a.status === 'waitlist').length || 0}</div>
+                <div className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Waitlist</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-destructive/5 border-destructive/20">
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-destructive">{userActivity?.filter((a: any) => a.status === 'cancelled').length || 0}</div>
+                <div className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Cancelled</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {loadingActivity ? (
+            <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+          ) : !userActivity || userActivity.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground border rounded-lg bg-muted/10">
+              No event activity yet.
+            </div>
+          ) : (
+            <div className="border rounded-md overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Event</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Attendance</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {userActivity.slice(0, 10).map((activity: any) => {
+                    const eventDateStr = activity.events?.date;
+                    const isPast = eventDateStr ? new Date(eventDateStr) < new Date(new Date().setHours(0,0,0,0)) : false;
+                    const isNoShow = isPast && !activity.checked_in && (activity.status === 'registered' || activity.status === 'paid');
+
+                    return (
+                      <TableRow key={activity.id}>
+                        <TableCell className="font-medium">{activity.events?.title || "Unknown Event"}</TableCell>
+                        <TableCell className="text-muted-foreground">{eventDateStr ? new Date(eventDateStr).toLocaleDateString() : "—"}</TableCell>
+                        <TableCell>
+                          <Badge variant={
+                            activity.status === 'registered' || activity.status === 'paid' ? 'default' :
+                            activity.status === 'waitlist' ? 'secondary' : 'outline'
+                          }>
+                            {activity.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {activity.checked_in ? (
+                            <Badge variant="outline" className="bg-success/10 text-success border-success/30">Present</Badge>
+                          ) : isNoShow ? (
+                            <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30">No Show</Badge>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">—</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+              {userActivity.length > 10 && (
+                <div className="text-center p-3 text-sm text-muted-foreground border-t bg-muted/5">
+                  Showing top 10 recent activities.
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
