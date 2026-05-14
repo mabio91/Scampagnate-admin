@@ -1,6 +1,34 @@
 import { LevelBadgeAvatar, useUserLevel } from "@/components/gamification/LevelBadgeAvatar";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CheckCircle2, CreditCard, Shield, Target, XCircle } from "lucide-react";
+import type { Database } from "@/integrations/supabase/types";
+
+const NO_MEETING_POINT = "__no_meeting_point__";
+
+const REGISTRATION_STATUS_OPTIONS = [
+  "registered",
+  "deposit_paid",
+  "paid",
+  "attended",
+  "no_show",
+  "waitlist",
+  "pending_approval",
+  "pending_payment",
+  "cancelled",
+];
+
+const PAYMENT_STATUS_OPTIONS = [
+  "pending",
+  "paid",
+  "deposit_paid",
+  "pay_on_location",
+  "not_required",
+  "failed",
+];
+
+type EventRegistrationUpdate = Database["public"]["Tables"]["event_registrations"]["Update"];
 
 interface AdminParticipantListItemProps {
   avatarUrl?: string | null;
@@ -13,6 +41,9 @@ interface AdminParticipantListItemProps {
   noShowCount: number;
   status?: string | null;
   paymentStatus?: string | null;
+  checkedIn?: boolean | null;
+  meetingPointId?: string | null;
+  meetingPoints?: { id: string; name: string }[];
   priceOptionName?: string | null;
   amountPaid?: number | null;
   totalPriceAmount?: number | null;
@@ -21,6 +52,8 @@ interface AdminParticipantListItemProps {
   balancePaymentMode?: string | null;
   refundStatus?: string | null;
   refundAmount?: number | null;
+  isUpdating?: boolean;
+  onUpdate?: (updates: EventRegistrationUpdate) => void;
   className?: string;
 }
 
@@ -43,6 +76,9 @@ export function AdminParticipantListItem({
   noShowCount,
   status,
   paymentStatus,
+  checkedIn,
+  meetingPointId,
+  meetingPoints = [],
   priceOptionName,
   amountPaid,
   totalPriceAmount,
@@ -51,6 +87,8 @@ export function AdminParticipantListItem({
   balancePaymentMode,
   refundStatus,
   refundAmount,
+  isUpdating = false,
+  onUpdate,
   className,
 }: AdminParticipantListItemProps) {
   const { currentLevel } = useUserLevel(totalPoints);
@@ -131,6 +169,72 @@ export function AdminParticipantListItem({
                 Rimborso {refundAmount != null ? `€${Number(refundAmount).toFixed(2)}` : ""} {refundStatus || ""}
               </span>
             ) : null}
+          </div>
+        )}
+        {onUpdate && (
+          <div className="grid gap-2 pt-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+            <Select
+              value={status || "registered"}
+              onValueChange={(value) => onUpdate({
+                status: value,
+                cancelled_at: value === "cancelled" ? new Date().toISOString() : null,
+              })}
+              disabled={isUpdating}
+            >
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {REGISTRATION_STATUS_OPTIONS.map((option) => (
+                  <SelectItem key={option} value={option}>{option}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={paymentStatus || "pending"}
+              onValueChange={(value) => onUpdate({ payment_status: value })}
+              disabled={isUpdating}
+            >
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PAYMENT_STATUS_OPTIONS.map((option) => (
+                  <SelectItem key={option} value={option}>{option}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={meetingPointId || NO_MEETING_POINT}
+              onValueChange={(value) => onUpdate({ meeting_point_id: value === NO_MEETING_POINT ? null : value })}
+              disabled={isUpdating || meetingPoints.length === 0}
+            >
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue placeholder="Punto ritrovo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_MEETING_POINT}>Nessun punto</SelectItem>
+                {meetingPoints.map((point) => (
+                  <SelectItem key={point.id} value={point.id}>{point.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Button
+              type="button"
+              variant={checkedIn ? "secondary" : "outline"}
+              size="sm"
+              className="h-8 whitespace-nowrap text-xs"
+              disabled={isUpdating}
+              onClick={() => onUpdate({
+                checked_in: !checkedIn,
+                status: !checkedIn ? "attended" : status === "attended" ? "registered" : status || "registered",
+              })}
+            >
+              {checkedIn ? "Check-in fatto" : "Check-in"}
+            </Button>
           </div>
         )}
       </div>

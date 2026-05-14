@@ -58,6 +58,7 @@ export const translations = {
   "sidebar.rewards": { it: "Ricompense", en: "Rewards" },
   "sidebar.trekkingDifficulty": { it: "Difficoltà Trekking", en: "Trekking Difficulty" },
   "sidebar.emailTemplates": { it: "Email Templates", en: "Email Templates" },
+  "sidebar.pushBroadcasts": { it: "Broadcast Push", en: "Push Broadcasts" },
   "sidebar.logout": { it: "Esci", en: "Logout" },
 
   // ── Dashboard ──

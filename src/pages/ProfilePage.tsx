@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/hooks/use-toast";
 import { Camera, Loader2, Save, KeyRound, User, Activity } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
+import ImageCropDialog from "@/components/ImageCropDialog";
 
 export default function ProfilePage() {
   const { t } = useLanguage();
@@ -27,6 +28,7 @@ export default function ProfilePage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [avatarCropFile, setAvatarCropFile] = useState<File | null>(null);
 
   const { data: session } = useQuery({
     queryKey: ["session"],
@@ -131,6 +133,7 @@ export default function ProfilePage() {
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file || !userId) return;
 
     const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
@@ -143,6 +146,11 @@ export default function ProfilePage() {
       return;
     }
 
+    setAvatarCropFile(file);
+  };
+
+  const uploadAvatarFile = async (file: File) => {
+    if (!userId) return;
     setUploading(true);
     try {
       const ext = file.name.split(".").pop();
@@ -183,6 +191,20 @@ export default function ProfilePage() {
   }
 
   return (
+    <>
+      <ImageCropDialog
+        open={!!avatarCropFile}
+        file={avatarCropFile}
+        title="Crop profile picture"
+        aspect={{ width: 1, height: 1 }}
+        outputWidth={900}
+        outputHeight={900}
+        onCancel={() => setAvatarCropFile(null)}
+        onCropped={(croppedFile) => {
+          setAvatarCropFile(null);
+          void uploadAvatarFile(croppedFile);
+        }}
+      />
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold font-display text-foreground">{t("profile.title")}</h1>
@@ -400,5 +422,6 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
     </div>
+    </>
   );
 }

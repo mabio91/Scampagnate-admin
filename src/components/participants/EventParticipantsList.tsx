@@ -1,9 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ParticipantListItem } from "./ParticipantListItem";
 import { AdminParticipantListItem } from "./AdminParticipantListItem";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Users } from "lucide-react";
+import type { Database } from "@/integrations/supabase/types";
+import { toast } from "sonner";
 
 interface EventParticipantsListProps {
   eventId: string;
@@ -16,6 +18,7 @@ interface ParticipantData {
   status: string;
   payment_status: string | null;
   checked_in: boolean;
+  meeting_point_id: string | null;
   price_option_id: string | null;
   amount_paid: number | null;
   total_price_amount: number | null;
@@ -40,7 +43,17 @@ interface ParticipantData {
   } | null;
 }
 
+type EventRegistrationUpdate = Database["public"]["Tables"]["event_registrations"]["Update"];
+type UserRegistrationStatsRow = {
+  user_id: string;
+  status: string | null;
+  checked_in: boolean | null;
+  events: { date: string | null } | null;
+};
+
 export function EventParticipantsList({ eventId, isAdmin = false }: EventParticipantsListProps) {
+  const queryClient = useQueryClient();
+
   // Fetch registrations with profile data
   const { data: participants = [], isLoading } = useQuery({
     queryKey: ["event-participants", eventId],
@@ -53,6 +66,7 @@ export function EventParticipantsList({ eventId, isAdmin = false }: EventPartici
           status,
           payment_status,
           checked_in,
+          meeting_point_id,
           price_option_id,
           amount_paid,
           total_price_amount,
@@ -94,7 +108,39 @@ export function EventParticipantsList({ eventId, isAdmin = false }: EventPartici
         .from("event_registrations")
         .select("user_id, status, checked_in, events:event_id(date)")
         .in("user_id", userIds);
+      return (data || []) as UserRegistrationStatsRow[];
+    },
+  });
+
+  const { data: meetingPoints = [] } = useQuery({
+    queryKey: ["event-meeting-points", eventId],
+    enabled: isAdmin,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("event_meeting_points")
+        .select("id, name")
+        .eq("event_id", eventId)
+        .order("sort_order");
+      if (error) throw error;
       return data || [];
+    },
+  });
+
+  const updateRegistrationMutation = useMutation({
+    mutationFn: async ({ registrationId, updates }: { registrationId: string; updates: EventRegistrationUpdate }) => {
+      const { error } = await supabase
+        .from("event_registrations")
+        .update(updates)
+        .eq("id", registrationId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["event-participants", eventId] });
+      queryClient.invalidateQueries({ queryKey: ["event", eventId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-events"] });
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
     },
   });
 
@@ -126,7 +172,7 @@ export function EventParticipantsList({ eventId, isAdmin = false }: EventPartici
   // Compute per-user stats for admin view
   const userStats: Record<string, { completed: number; total: number; noShows: number }> = {};
   if (isAdmin) {
-    allUserRegs.forEach((r: any) => {
+    allUserRegs.forEach((r) => {
       if (!userStats[r.user_id]) userStats[r.user_id] = { completed: 0, total: 0, noShows: 0 };
       const isPast = r.events?.date ? new Date(r.events.date) < new Date() : false;
       if (["registered", "paid", "deposit_paid", "attended", "no_show"].includes(r.status)) {
@@ -140,7 +186,7 @@ export function EventParticipantsList({ eventId, isAdmin = false }: EventPartici
   return (
     <div className="space-y-0.5 divide-y divide-border/50">
       {participants.map((p) => {
-        const profile = p.profiles as any;
+        const profile = p.profiles;
         if (!profile) return null;
 
         if (isAdmin) {
@@ -157,6 +203,9 @@ export function EventParticipantsList({ eventId, isAdmin = false }: EventPartici
               noShowCount={stats.noShows}
               status={p.status}
               paymentStatus={p.payment_status}
+              checkedIn={p.checked_in}
+              meetingPointId={p.meeting_point_id}
+              meetingPoints={meetingPoints}
               priceOptionName={p.price_option?.name || null}
               amountPaid={p.amount_paid}
               totalPriceAmount={p.total_price_amount}
@@ -165,6 +214,8 @@ export function EventParticipantsList({ eventId, isAdmin = false }: EventPartici
               balancePaymentMode={p.balance_payment_mode}
               refundStatus={p.refund_status}
               refundAmount={p.refund_amount}
+              isUpdating={updateRegistrationMutation.isPending}
+              onUpdate={(updates) => updateRegistrationMutation.mutate({ registrationId: p.id, updates })}
             />
           );
         }

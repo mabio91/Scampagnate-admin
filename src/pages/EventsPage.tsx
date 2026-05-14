@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { GoogleAddressInput } from "@/components/GoogleAddressInput";
+import ImageCropDialog from "@/components/ImageCropDialog";
 
 type Event = Tables<"events">;
 type EventWithCategory = Event & {
@@ -291,6 +292,7 @@ export default function EventsPage() {
   const [localMeetingPoints, setLocalMeetingPoints] = useState<LocalMeetingPoint[]>([]);
   const [localPriceOptions, setLocalPriceOptions] = useState<PricingRule[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [imageCropTarget, setImageCropTarget] = useState<{ file: File; type: "cover" | "gallery" } | null>(null);
   const [convertProposalId, setConvertProposalId] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { data: difficultyLevels = [] } = useTrekkingDifficultyLevels();
@@ -472,6 +474,7 @@ export default function EventsPage() {
   /* ── Image upload ── */
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: "cover" | "gallery") => {
     const files = e.target.files;
+    e.target.value = "";
     if (!files?.length || !editEvent) return;
     const currentGallery = normalizeGalleryImages(editEvent.gallery_images);
     if (type === "gallery" && currentGallery.length >= 5) {
@@ -479,6 +482,20 @@ export default function EventsPage() {
       return;
     }
     const file = files[0];
+    if (!file.type.startsWith("image/")) {
+      toast.error("Seleziona un file immagine");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("L'immagine deve essere inferiore a 5MB");
+      return;
+    }
+    setImageCropTarget({ file, type });
+  };
+
+  const uploadCroppedImage = async (file: File, type: "cover" | "gallery") => {
+    if (!editEvent) return;
+    const currentGallery = normalizeGalleryImages(editEvent.gallery_images);
     const ext = file.name.split(".").pop();
     const path = `${Math.random().toString(36).substring(2)}.${ext}`;
     setIsUploading(true);
@@ -798,6 +815,21 @@ export default function EventsPage() {
   const specialBadges = badges.filter((badge) => badge.category === "special");
 
   return (
+    <>
+    <ImageCropDialog
+      open={!!imageCropTarget}
+      file={imageCropTarget?.file || null}
+      title={imageCropTarget?.type === "gallery" ? "Ritaglia immagine galleria" : "Ritaglia copertina"}
+      aspect={imageCropTarget?.type === "gallery" ? { width: 1, height: 1 } : { width: 16, height: 9 }}
+      outputWidth={imageCropTarget?.type === "gallery" ? 1200 : 1600}
+      outputHeight={imageCropTarget?.type === "gallery" ? 1200 : 900}
+      onCancel={() => setImageCropTarget(null)}
+      onCropped={(croppedFile) => {
+        const targetType = imageCropTarget?.type;
+        setImageCropTarget(null);
+        if (targetType) void uploadCroppedImage(croppedFile, targetType);
+      }}
+    />
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -1701,5 +1733,6 @@ export default function EventsPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </>
   );
 }

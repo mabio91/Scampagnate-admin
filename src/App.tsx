@@ -29,6 +29,7 @@ import GamificationSettingsPage from "@/pages/GamificationSettingsPage";
 import RewardsAdminPage from "@/pages/RewardsAdminPage";
 import TrekkingDifficultyPage from "@/pages/TrekkingDifficultyPage";
 import EmailTemplatesPage from "@/pages/EmailTemplatesPage";
+import PushBroadcastsPage from "@/pages/PushBroadcastsPage";
 import KPIDetailPage from "@/pages/KPIDetailPage";
 import LoginPage from "@/pages/LoginPage";
 import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
@@ -79,6 +80,7 @@ const App = () => (
               <Route path="/rewards" element={<RewardsAdminPage />} />
               <Route path="/trekking-difficulty" element={<TrekkingDifficultyPage />} />
               <Route path="/email-templates" element={<EmailTemplatesPage />} />
+              <Route path="/push-broadcasts" element={<PushBroadcastsPage />} />
               <Route path="/kpi" element={<KPIDetailPage />} />
               <Route path="/profile" element={<ProfilePage />} />
             </Route>

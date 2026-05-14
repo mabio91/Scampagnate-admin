@@ -1,4 +1,4 @@
-import { Users, Building2, Tags, Calendar, AlertTriangle, LayoutDashboard, Shield, IdCard, Package, User, LogOut, Lightbulb, TicketPercent, ShoppingBag, FileText, Target, Settings2, Mountain, Mail, Gift } from "lucide-react";
+import { Users, Building2, Tags, Calendar, AlertTriangle, LayoutDashboard, Shield, IdCard, Package, User, LogOut, Lightbulb, TicketPercent, ShoppingBag, FileText, Target, Settings2, Mountain, Mail, Gift, BellRing, type LucideIcon } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import logo from "@/assets/logo.png";
@@ -20,7 +20,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-const navItems: { titleKey: TranslationKey; url: string; icon: any }[] = [
+const navItems: { titleKey: TranslationKey; url: string; icon: LucideIcon }[] = [
   { titleKey: "sidebar.dashboard", url: "/", icon: LayoutDashboard },
   { titleKey: "sidebar.users", url: "/users", icon: Users },
   { titleKey: "sidebar.members", url: "/members", icon: IdCard },
@@ -38,6 +38,7 @@ const navItems: { titleKey: TranslationKey; url: string; icon: any }[] = [
   { titleKey: "sidebar.rewards", url: "/rewards", icon: Gift },
   { titleKey: "sidebar.trekkingDifficulty", url: "/trekking-difficulty", icon: Mountain },
   { titleKey: "sidebar.emailTemplates", url: "/email-templates", icon: Mail },
+  { titleKey: "sidebar.pushBroadcasts", url: "/push-broadcasts", icon: BellRing },
 ];
 
 export function AdminSidebar() {
