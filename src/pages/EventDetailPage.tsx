@@ -18,6 +18,7 @@ import type { Tables } from "@/integrations/supabase/types";
 
 type Event = Tables<"events">;
 type EventWithCategory = Event & { event_categories: { name: string; icon: string } | null };
+type GalleryImage = { url: string; order: number };
 
 const statusColors: Record<string, string> = {
   available: "text-success border-success/30 bg-success/10",
@@ -27,6 +28,27 @@ const statusColors: Record<string, string> = {
   published: "text-success border-success/30 bg-success/10",
   cancelled: "text-destructive border-destructive/30 bg-destructive/10",
   past: "text-muted-foreground border-muted-foreground/30 bg-muted/50",
+};
+
+const normalizeGalleryImages = (value: unknown): GalleryImage[] => {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item, index): GalleryImage | null => {
+      if (typeof item === "string") {
+        return item ? { url: item, order: index } : null;
+      }
+
+      if (item && typeof item === "object" && typeof (item as any).url === "string") {
+        const order = typeof (item as any).order === "number" ? (item as any).order : index;
+        return { url: (item as any).url, order };
+      }
+
+      return null;
+    })
+    .filter((item): item is GalleryImage => Boolean(item?.url))
+    .sort((a, b) => a.order - b.order)
+    .map((item, index) => ({ ...item, order: index }));
 };
 
 export default function EventDetailPage() {
@@ -95,6 +117,7 @@ export default function EventDetailPage() {
 
   const checkedIn = registrations.filter((r) => r.checked_in).length;
   const registered = registrations.filter((r) => ["registered", "paid"].includes(r.status)).length;
+  const galleryImages = normalizeGalleryImages(event.gallery_images);
 
   return (
     <div className="space-y-6">
@@ -223,13 +246,13 @@ export default function EventDetailPage() {
           )}
 
           {/* Gallery */}
-          {event.gallery_images && (event.gallery_images as string[]).length > 0 && (
+          {galleryImages.length > 0 && (
             <Card>
               <CardHeader><CardTitle className="text-lg">Galleria</CardTitle></CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {(event.gallery_images as string[]).map((img, idx) => (
-                    <img key={idx} src={img} alt={`Gallery ${idx + 1}`} className="w-full h-32 object-cover rounded-lg border" />
+                  {galleryImages.map((img, idx) => (
+                    <img key={idx} src={img.url} alt={`Gallery ${idx + 1}`} className="w-full h-32 object-cover rounded-lg border" />
                   ))}
                 </div>
               </CardContent>

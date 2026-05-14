@@ -85,6 +85,7 @@ type AdditionalFields = {
 type LocalMeetingPoint = { _key: string; id?: string; name: string; location: string; time: string; notes: string; sort_order: number };
 type EquipmentItem = { name: string; is_mandatory: boolean; notes: string };
 type AttendanceBadgeEntry = { type: "attendance_badge"; badge_id: string };
+type GalleryImage = { url: string; order: number };
 
 /* ══════ Constants ══════ */
 const CANCELLATION_POLICY_OPTIONS = [
@@ -187,6 +188,27 @@ const replaceAttendanceBadgeIdsInEventBadges = (eventBadges: any, badgeIds: stri
     ...baseEntries,
     ...badgeIds.map((badgeId) => ({ type: "attendance_badge" as const, badge_id: badgeId })),
   ];
+};
+
+const normalizeGalleryImages = (value: unknown): GalleryImage[] => {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item, index): GalleryImage | null => {
+      if (typeof item === "string") {
+        return item ? { url: item, order: index } : null;
+      }
+
+      if (item && typeof item === "object" && typeof (item as any).url === "string") {
+        const order = typeof (item as any).order === "number" ? (item as any).order : index;
+        return { url: (item as any).url, order };
+      }
+
+      return null;
+    })
+    .filter((item): item is GalleryImage => Boolean(item?.url))
+    .sort((a, b) => a.order - b.order)
+    .map((item, index) => ({ ...item, order: index }));
 };
 
 export default function EventsPage() {
@@ -347,7 +369,7 @@ export default function EventsPage() {
     const { data } = await supabase.from("event_meeting_points").select("*").eq("event_id", event.id).order("sort_order");
     if (data) mps = data.map(mp => ({ ...mp, _key: mp.id, notes: mp.notes || "" }));
     setLocalMeetingPoints(mps);
-    setEditEvent(event);
+    setEditEvent({ ...event, gallery_images: normalizeGalleryImages(event.gallery_images) });
   };
   const handleOpenCreate = () => {
     setLocalMeetingPoints([]);
@@ -358,6 +380,11 @@ export default function EventsPage() {
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: "cover" | "gallery") => {
     const files = e.target.files;
     if (!files?.length || !editEvent) return;
+    const currentGallery = normalizeGalleryImages(editEvent.gallery_images);
+    if (type === "gallery" && currentGallery.length >= 5) {
+      toast.error("Massimo 5 immagini galleria");
+      return;
+    }
     const file = files[0];
     const ext = file.name.split(".").pop();
     const path = `${Math.random().toString(36).substring(2)}.${ext}`;
@@ -369,9 +396,10 @@ export default function EventsPage() {
       if (type === "cover") {
         setEditEvent({ ...editEvent, image_url: publicUrl });
       } else {
-        const g = (editEvent.gallery_images as any[]) || [];
-        if (g.length >= 5) { toast.error("Massimo 5 immagini galleria"); return; }
-        setEditEvent({ ...editEvent, gallery_images: [...g, publicUrl] });
+        setEditEvent({
+          ...editEvent,
+          gallery_images: [...currentGallery, { url: publicUrl, order: currentGallery.length }],
+        });
       }
       toast.success("Immagine caricata");
     } catch (err: any) { toast.error(err.message); }
@@ -379,17 +407,18 @@ export default function EventsPage() {
   };
   const removeGalleryImage = (i: number) => {
     if (!editEvent) return;
-    const g = [...((editEvent.gallery_images as any[]) || [])];
-    g.splice(i, 1);
+    const g = normalizeGalleryImages(editEvent.gallery_images)
+      .filter((_, index) => index !== i)
+      .map((item, index) => ({ ...item, order: index }));
     setEditEvent({ ...editEvent, gallery_images: g });
   };
   const moveGalleryImage = (i: number, dir: "up" | "down") => {
     if (!editEvent) return;
-    const g = [...((editEvent.gallery_images as any[]) || [])];
+    const g = normalizeGalleryImages(editEvent.gallery_images);
     const j = dir === "up" ? i - 1 : i + 1;
     if (j < 0 || j >= g.length) return;
     [g[i], g[j]] = [g[j], g[i]];
-    setEditEvent({ ...editEvent, gallery_images: g });
+    setEditEvent({ ...editEvent, gallery_images: g.map((item, index) => ({ ...item, order: index })) });
   };
 
   /* ── Save mutation ── */
@@ -435,6 +464,7 @@ export default function EventsPage() {
           ? getAttendanceBadgeIdsFromEventBadges(data.event_badges).filter((badgeId) => specialBadgeIds.has(badgeId))
           : getAttendanceBadgeIdsFromEventBadges(data.event_badges),
       );
+      data.gallery_images = normalizeGalleryImages(data.gallery_images);
 
       let savedId = data.id;
       if (isNew) {
@@ -874,21 +904,21 @@ export default function EventsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label className="flex items-center justify-between">
-                    <span>Immagini galleria ({((editEvent.gallery_images as any[]) || []).length}/5)</span>
-                    {((editEvent.gallery_images as any[]) || []).length < 5 && (
+                    <span>Immagini galleria ({normalizeGalleryImages(editEvent.gallery_images).length}/5)</span>
+                    {normalizeGalleryImages(editEvent.gallery_images).length < 5 && (
                       <Button variant="ghost" size="sm" asChild disabled={isUploading} className="h-7 text-xs">
                         <label className="cursor-pointer"><Plus className="h-3 w-3 mr-1" /> Aggiungi<input type="file" accept="image/*" className="hidden" onChange={e => handleImageUpload(e, "gallery")} /></label>
                       </Button>
                     )}
                   </Label>
-                  {((editEvent.gallery_images as any[]) || []).length === 0 && <p className="text-xs text-muted-foreground italic">Nessuna immagine aggiunta.</p>}
-                  {((editEvent.gallery_images as any[]) || []).map((img, idx) => (
+                  {normalizeGalleryImages(editEvent.gallery_images).length === 0 && <p className="text-xs text-muted-foreground italic">Nessuna immagine aggiunta.</p>}
+                  {normalizeGalleryImages(editEvent.gallery_images).map((img, idx) => (
                     <div key={idx} className="flex items-center gap-3 bg-muted/30 p-2 rounded-md border">
-                      <img src={typeof img === "string" ? img : ""} alt={`Galleria ${idx}`} className="w-12 h-10 object-cover rounded border" />
-                      <div className="flex-1 text-[10px] truncate max-w-[200px] font-mono text-muted-foreground">{typeof img === "string" ? img.split("/").pop() : ""}</div>
+                      <img src={img.url} alt={`Galleria ${idx}`} className="w-12 h-10 object-cover rounded border" />
+                      <div className="flex-1 text-[10px] truncate max-w-[200px] font-mono text-muted-foreground">{img.url.split("/").pop()}</div>
                       <div className="flex items-center gap-1">
                         <Button variant="ghost" size="icon" className="h-7 w-7" disabled={idx === 0} onClick={() => moveGalleryImage(idx, "up")}><ArrowUp className="h-3 w-3" /></Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" disabled={idx === ((editEvent.gallery_images as any[]) || []).length - 1} onClick={() => moveGalleryImage(idx, "down")}><ArrowDown className="h-3 w-3" /></Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" disabled={idx === normalizeGalleryImages(editEvent.gallery_images).length - 1} onClick={() => moveGalleryImage(idx, "down")}><ArrowDown className="h-3 w-3" /></Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeGalleryImage(idx)}><X className="h-3 w-3" /></Button>
                       </div>
                     </div>
