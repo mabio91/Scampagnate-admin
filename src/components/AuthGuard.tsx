@@ -5,7 +5,6 @@ import { supabase } from "@/integrations/supabase/client";
 export function AuthGuard({ children }: { children: ReactNode }) {
   const [authorized, setAuthorized] = useState<boolean | null>(null);
   const navigate = useNavigate();
-
   useEffect(() => {
     const check = async () => {
       const { data: { session } } = await supabase.auth.getSession();
