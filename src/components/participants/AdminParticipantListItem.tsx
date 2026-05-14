@@ -1,6 +1,6 @@
 import { LevelBadgeAvatar, useUserLevel } from "@/components/gamification/LevelBadgeAvatar";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, CreditCard, Shield, Target } from "lucide-react";
+import { CheckCircle2, CreditCard, Shield, Target, XCircle } from "lucide-react";
 
 interface AdminParticipantListItemProps {
   avatarUrl?: string | null;
@@ -55,6 +55,14 @@ export function AdminParticipantListItem({
 }: AdminParticipantListItemProps) {
   const { currentLevel } = useUserLevel(totalPoints);
   const reliability = getReliabilityLabel(completedEventsCount, totalRegistrations, noShowCount);
+  const isCancelled = status === "cancelled";
+  const hasPaymentDetails =
+    amountPaid != null ||
+    totalPriceAmount != null ||
+    depositAmount != null ||
+    balanceDueAmount != null ||
+    refundAmount != null ||
+    !!refundStatus;
 
   return (
     <div className={cn("flex items-start gap-3 py-2.5", className)}>
@@ -90,9 +98,14 @@ export function AdminParticipantListItem({
           </span>
         </div>
         <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
-          {status && (
+          {isCancelled ? (
+            <span className="flex items-center gap-1 font-medium text-destructive">
+              <XCircle className="h-3 w-3" />
+              Iscrizione cancellata
+            </span>
+          ) : status ? (
             <span>Stato: <span className="font-medium text-foreground">{status}</span></span>
-          )}
+          ) : null}
           {paymentStatus && (
             <span>Pagamento: <span className="font-medium text-foreground">{paymentStatus}</span></span>
           )}
@@ -100,18 +113,24 @@ export function AdminParticipantListItem({
             <span>Opzione: <span className="font-medium text-foreground">{priceOptionName}</span></span>
           )}
         </div>
-        {(amountPaid || totalPriceAmount || depositAmount || balanceDueAmount || refundAmount) && (
+        {hasPaymentDetails && (
           <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <CreditCard className="h-3 w-3" />
-              {amountPaid ? `Pagato €${Number(amountPaid).toFixed(2)}` : "Pagato €0.00"}
-            </span>
-            {totalPriceAmount ? <span>Totale €{Number(totalPriceAmount).toFixed(2)}</span> : null}
-            {depositAmount ? <span>Acconto €{Number(depositAmount).toFixed(2)}</span> : null}
-            {balanceDueAmount ? (
+            {amountPaid != null ? (
+              <span className="flex items-center gap-1">
+                <CreditCard className="h-3 w-3" />
+                Pagato €{Number(amountPaid).toFixed(2)}
+              </span>
+            ) : null}
+            {totalPriceAmount != null ? <span>Totale €{Number(totalPriceAmount).toFixed(2)}</span> : null}
+            {depositAmount != null ? <span>Acconto €{Number(depositAmount).toFixed(2)}</span> : null}
+            {balanceDueAmount != null ? (
               <span>Saldo €{Number(balanceDueAmount).toFixed(2)} {balancePaymentMode === "on_site" ? "sul posto" : "online"}</span>
             ) : null}
-            {refundAmount ? <span>Rimborso €{Number(refundAmount).toFixed(2)} {refundStatus || ""}</span> : null}
+            {refundStatus || refundAmount != null ? (
+              <span className={cn("font-medium", refundStatus === "completed" ? "text-success" : "text-warning")}>
+                Rimborso {refundAmount != null ? `€${Number(refundAmount).toFixed(2)}` : ""} {refundStatus || ""}
+              </span>
+            ) : null}
           </div>
         )}
       </div>

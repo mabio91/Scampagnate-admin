@@ -77,7 +77,7 @@ export function EventParticipantsList({ eventId, isAdmin = false }: EventPartici
           )
         `)
         .eq("event_id", eventId)
-        .in("status", ["registered", "paid", "deposit_paid", "attended", "no_show", "waitlist", "pending_approval", "pending_payment"]);
+        .in("status", ["registered", "paid", "deposit_paid", "attended", "no_show", "waitlist", "pending_approval", "pending_payment", "cancelled"]);
 
       if (error) throw error;
       return (data || []) as unknown as ParticipantData[];
@@ -147,7 +147,7 @@ export function EventParticipantsList({ eventId, isAdmin = false }: EventPartici
           const stats = userStats[p.user_id] || { completed: 0, total: 0, noShows: 0 };
           return (
             <AdminParticipantListItem
-              key={p.user_id}
+              key={p.id}
               avatarUrl={profile.avatar_url}
               firstName={profile.first_name}
               lastName={profile.last_name}
@@ -171,7 +171,7 @@ export function EventParticipantsList({ eventId, isAdmin = false }: EventPartici
 
         return (
           <ParticipantListItem
-            key={p.user_id}
+            key={p.id}
             avatarUrl={profile.avatar_url}
             firstName={profile.first_name}
             lastName={profile.last_name}
