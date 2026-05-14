@@ -27,7 +27,12 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { GoogleAddressInput } from "@/components/GoogleAddressInput";
 
 type Event = Tables<"events">;
-type EventWithCategory = Event & { event_categories: { name: string; icon: string } | null };
+type EventWithCategory = Event & {
+  event_categories: { name: string; icon: string } | null;
+  event_price_options?: { id: string }[] | null;
+};
+type PaymentType = "free" | "paid" | "deposit" | "location";
+type BalancePaymentMode = "online" | "on_site";
 
 const statusColors: Record<string, string> = {
   available: "text-success border-success/30 bg-success/10",
@@ -47,6 +52,7 @@ const visibilityColors: Record<string, string> = {
 /* ══════ Types ══════ */
 type PricingRule = {
   id: string;
+  isNew?: boolean;
   name: string;
   price: number;
   original_price?: number | null;
@@ -57,6 +63,14 @@ type PricingRule = {
   is_promotional?: boolean;
   promo_start?: string | null;
   promo_end?: string | null;
+  payment_type?: PaymentType;
+  deposit_amount?: number | null;
+  balance_amount?: number | null;
+  balance_payment_mode?: BalancePaymentMode | null;
+  has_dedicated_spots?: boolean;
+  dedicated_spots?: number | null;
+  spots_taken?: number | null;
+  waitlist_enabled?: boolean;
 };
 
 type AccessRules = {
@@ -211,6 +225,58 @@ const normalizeGalleryImages = (value: unknown): GalleryImage[] => {
     .map((item, index) => ({ ...item, order: index }));
 };
 
+const ruleConditionFromEligibleGroup = (group: string | null | undefined): Pick<PricingRule, "condition" | "condition_value" | "condition_numeric_value" | "condition_operator"> => {
+  if (!group || group === "all") return { condition: "everyone" };
+  if (group === "members") return { condition: "active_members" };
+  if (group === "new_users") return { condition: "new_users" };
+  if (group === "experienced") return { condition: "experienced_users" };
+  if (group === "loyal") return { condition: "loyal_participants" };
+  if (group.startsWith("badge:")) {
+    return { condition: "specific_badge", condition_value: group.replace("badge:", "").split(",").filter(Boolean) };
+  }
+  if (group.startsWith("trekking_gt:")) {
+    return { condition: "trekking_count", condition_operator: ">", condition_numeric_value: Number(group.split(":")[1] || 0) };
+  }
+  if (group.startsWith("events_gt:")) {
+    return { condition: "events_count", condition_operator: ">", condition_numeric_value: Number(group.split(":")[1] || 0) };
+  }
+  return { condition: "everyone" };
+};
+
+const eligibleGroupFromRule = (rule: PricingRule) => {
+  if (rule.condition === "active_members") return "members";
+  if (rule.condition === "new_users") return "new_users";
+  if (rule.condition === "experienced_users") return "experienced";
+  if (rule.condition === "loyal_participants") return "loyal";
+  if (rule.condition === "specific_badge") {
+    const ids = (rule.condition_value || []).filter((value) => !value.startsWith("level_"));
+    return ids.length ? `badge:${ids.join(",")}` : "all";
+  }
+  if (rule.condition === "trekking_count") return `trekking_gt:${rule.condition_numeric_value ?? 0}`;
+  if (rule.condition === "events_count") return `events_gt:${rule.condition_numeric_value ?? 0}`;
+  return "all";
+};
+
+const priceOptionToRule = (option: any, fallbackPaymentType: PaymentType): PricingRule => ({
+  id: option.id,
+  isNew: false,
+  name: option.name || "",
+  price: Number(option.price || 0),
+  original_price: option.original_price != null ? Number(option.original_price) : null,
+  ...ruleConditionFromEligibleGroup(option.eligible_group),
+  is_promotional: !!option.is_promotional,
+  promo_start: option.promo_start || null,
+  promo_end: option.promo_end || null,
+  payment_type: (option.payment_type || fallbackPaymentType) as PaymentType,
+  deposit_amount: option.deposit_amount != null ? Number(option.deposit_amount) : null,
+  balance_amount: option.balance_amount != null ? Number(option.balance_amount) : null,
+  balance_payment_mode: (option.balance_payment_mode || "online") as BalancePaymentMode,
+  has_dedicated_spots: !!option.has_dedicated_spots,
+  dedicated_spots: option.dedicated_spots != null ? Number(option.dedicated_spots) : null,
+  spots_taken: option.spots_taken != null ? Number(option.spots_taken) : 0,
+  waitlist_enabled: !!option.waitlist_enabled,
+});
+
 export default function EventsPage() {
   type SortField = "date" | "organizer";
   const [searchParams] = useSearchParams();
@@ -223,6 +289,7 @@ export default function EventsPage() {
   const dashboardFilter = searchParams.get("filter");
   const [editEvent, setEditEvent] = useState<(Record<string, any> & { isNew?: boolean }) | null>(null);
   const [localMeetingPoints, setLocalMeetingPoints] = useState<LocalMeetingPoint[]>([]);
+  const [localPriceOptions, setLocalPriceOptions] = useState<PricingRule[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [convertProposalId, setConvertProposalId] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -234,6 +301,7 @@ export default function EventsPage() {
     if (state?.convertProposal) {
       const p = state.convertProposal;
       setLocalMeetingPoints([]);
+      setLocalPriceOptions([]);
       setEditEvent({
         ...emptyEvent,
         isNew: true,
@@ -258,7 +326,7 @@ export default function EventsPage() {
   const { data: events = [], isLoading } = useQuery({
     queryKey: ["admin-events"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("events").select("*, event_categories(name, icon)").order("date", { ascending: false });
+      const { data, error } = await supabase.from("events").select("*, event_categories(name, icon), event_price_options(id)").order("date", { ascending: false });
       if (error) throw error;
       return (data || []) as EventWithCategory[];
     },
@@ -333,16 +401,33 @@ export default function EventsPage() {
     });
   };
 
-  const getPricingRules = (evt: any): PricingRule[] => getAR(evt).pricing_rules || [];
+  const getPricingRules = (_evt: any): PricingRule[] => localPriceOptions;
   const addPricingRule = () => {
-    const rules = getPricingRules(editEvent);
-    updateAR({ pricing_rules: [...rules, { id: crypto.randomUUID(), name: "", price: 0, condition: "everyone" }] });
+    const paymentType = (editEvent?.payment_type || "free") as PaymentType;
+    setLocalPriceOptions((rules) => [
+      ...rules,
+      {
+        id: crypto.randomUUID(),
+        isNew: true,
+        name: "",
+        price: Number(editEvent?.price || 0),
+        condition: "everyone",
+        payment_type: paymentType,
+        deposit_amount: paymentType === "deposit" ? Number(editEvent?.deposit || 0) : null,
+        balance_amount: paymentType === "deposit" ? Math.max(0, Number(editEvent?.price || 0) - Number(editEvent?.deposit || 0)) : null,
+        balance_payment_mode: "online",
+        has_dedicated_spots: false,
+        dedicated_spots: null,
+        spots_taken: 0,
+        waitlist_enabled: false,
+      },
+    ]);
   };
   const updatePricingRule = (id: string, patch: Partial<PricingRule>) => {
-    updateAR({ pricing_rules: getPricingRules(editEvent).map(r => r.id === id ? { ...r, ...patch } : r) });
+    setLocalPriceOptions((rules) => rules.map(r => r.id === id ? { ...r, ...patch } : r));
   };
   const removePricingRule = (id: string) => {
-    updateAR({ pricing_rules: getPricingRules(editEvent).filter(r => r.id !== id) });
+    setLocalPriceOptions((rules) => rules.filter(r => r.id !== id));
   };
 
   const hasAnyAccessRule = (evt: any): boolean => {
@@ -368,11 +453,19 @@ export default function EventsPage() {
     let mps: LocalMeetingPoint[] = [];
     const { data } = await supabase.from("event_meeting_points").select("*").eq("event_id", event.id).order("sort_order");
     if (data) mps = data.map(mp => ({ ...mp, _key: mp.id, notes: mp.notes || "" }));
+    const { data: priceOptions, error: priceOptionsError } = await supabase
+      .from("event_price_options")
+      .select("*")
+      .eq("event_id", event.id)
+      .order("sort_order");
+    if (priceOptionsError) throw priceOptionsError;
     setLocalMeetingPoints(mps);
+    setLocalPriceOptions((priceOptions || []).map((option) => priceOptionToRule(option, event.payment_type as PaymentType)));
     setEditEvent({ ...event, gallery_images: normalizeGalleryImages(event.gallery_images) });
   };
   const handleOpenCreate = () => {
     setLocalMeetingPoints([]);
+    setLocalPriceOptions([]);
     setEditEvent({ ...emptyEvent, isNew: true });
   };
 
@@ -423,9 +516,18 @@ export default function EventsPage() {
 
   /* ── Save mutation ── */
   const saveMutation = useMutation({
-    mutationFn: async (payload: { evt: any; mps: LocalMeetingPoint[] }) => {
-      const { evt, mps } = payload;
-      const { isNew, event_categories, ...data } = evt;
+    mutationFn: async (payload: { evt: any; mps: LocalMeetingPoint[]; priceOptions: PricingRule[] }) => {
+      const { evt, mps, priceOptions } = payload;
+      const { isNew, event_categories, event_price_options, ...data } = evt;
+      const validPriceOptions = priceOptions.filter((option) => option.name.trim());
+      const primaryPriceOption = validPriceOptions[0];
+      if (primaryPriceOption) {
+        const primaryPaymentType = primaryPriceOption.payment_type || data.payment_type || "free";
+        data.price = Number(primaryPriceOption.price || 0);
+        data.payment_type = primaryPaymentType;
+        data.deposit = primaryPaymentType === "deposit" ? Number(primaryPriceOption.deposit_amount || 0) : null;
+        data.balance_payment_mode = primaryPaymentType === "deposit" ? (primaryPriceOption.balance_payment_mode || "online") : null;
+      }
 
       // Build duration with unit
       const af = (data.additional_fields as AdditionalFields) || {};
@@ -449,6 +551,7 @@ export default function EventsPage() {
         ar.required_badge_ids = [ar.required_badge_id];
       }
       delete ar.required_badge_id;
+      delete ar.pricing_rules;
       data.access_rules = ar;
 
       const specialBadgeIds = new Set(badges.filter((badge) => badge.category === "special").map((badge) => badge.id));
@@ -531,6 +634,73 @@ export default function EventsPage() {
           if (error) throw error;
         }
 
+        const retainedOptionIds = validPriceOptions
+          .filter((option) => !option.isNew)
+          .map((option) => option.id);
+
+        const { data: existingOptions, error: existingOptionsError } = await supabase
+          .from("event_price_options")
+          .select("id")
+          .eq("event_id", savedId);
+        if (existingOptionsError) throw existingOptionsError;
+
+        const removedOptions = (existingOptions || []).filter((option) => !retainedOptionIds.includes(option.id));
+        for (const removedOption of removedOptions) {
+          const { data: linkedRegistrations, error: linkedRegistrationsError } = await supabase
+            .from("event_registrations")
+            .select("id")
+            .eq("price_option_id", removedOption.id)
+            .limit(1);
+          if (linkedRegistrationsError) throw linkedRegistrationsError;
+          if ((linkedRegistrations || []).length > 0) continue;
+
+          const { error: deleteOptionError } = await supabase
+            .from("event_price_options")
+            .delete()
+            .eq("id", removedOption.id)
+            .eq("event_id", savedId);
+          if (deleteOptionError) throw deleteOptionError;
+        }
+
+        for (const [idx, option] of validPriceOptions.entries()) {
+          const optionPaymentType = option.payment_type || (data.payment_type as PaymentType) || "free";
+          const depositAmount = optionPaymentType === "deposit" ? Number(option.deposit_amount || 0) : null;
+          const optionPayload = {
+            event_id: savedId,
+            name: option.name.trim(),
+            price: Number(option.price || 0),
+            sort_order: idx,
+            eligible_group: eligibleGroupFromRule(option),
+            original_price: option.original_price || null,
+            is_promotional: !!option.is_promotional,
+            promo_start: option.promo_start || null,
+            promo_end: option.promo_end || null,
+            payment_type: optionPaymentType,
+            deposit_amount: depositAmount,
+            balance_amount: optionPaymentType === "deposit"
+              ? Number(option.balance_amount ?? Math.max(0, Number(option.price || 0) - Number(depositAmount || 0)))
+              : null,
+            balance_payment_mode: optionPaymentType === "deposit" ? (option.balance_payment_mode || "online") : null,
+            has_dedicated_spots: !!option.has_dedicated_spots,
+            dedicated_spots: option.has_dedicated_spots ? Number(option.dedicated_spots || 0) : null,
+            waitlist_enabled: !!option.waitlist_enabled,
+          };
+
+          if (!option.isNew) {
+            const { error: updateOptionError } = await supabase
+              .from("event_price_options")
+              .update(optionPayload)
+              .eq("id", option.id)
+              .eq("event_id", savedId);
+            if (updateOptionError) throw updateOptionError;
+          } else {
+            const { error: insertOptionError } = await supabase
+              .from("event_price_options")
+              .insert(optionPayload);
+            if (insertOptionError) throw insertOptionError;
+          }
+        }
+
         const attendanceBadgeIds = getAttendanceBadgeIdsFromEventBadges(data.event_badges);
         if (attendanceBadgeIds.length) {
           const { data: attendedUsers, error: attendedUsersError } = await supabase
@@ -567,6 +737,7 @@ export default function EventsPage() {
       queryClient.invalidateQueries({ queryKey: ["admin-events"] });
       queryClient.invalidateQueries({ queryKey: ["admin-proposals"] });
       setEditEvent(null);
+      setLocalPriceOptions([]);
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -704,7 +875,7 @@ export default function EventsPage() {
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-1.5">
                         {hasAnyAccessRule(event) && <Shield className="h-3.5 w-3.5 text-primary shrink-0" />}
-                        {getPricingRules(event).length > 0 && <DollarSign className="h-3.5 w-3.5 text-accent-foreground shrink-0" />}
+                        {(event.event_price_options?.length || 0) > 0 && <DollarSign className="h-3.5 w-3.5 text-accent-foreground shrink-0" />}
                         <span className="truncate">{event.title}</span>
                         <EventBadgePills event={event} className="ml-1" />
                       </div>
@@ -986,7 +1157,13 @@ export default function EventsPage() {
                         <div className="grid grid-cols-3 gap-2">
                           <div>
                             <Label className="text-[10px]">Prezzo (€)</Label>
-                            <Input type="number" step="0.01" min={0} className="h-8 text-sm" value={rule.price ?? ""} onChange={e => updatePricingRule(rule.id, { price: parseFloat(e.target.value) || 0 })} />
+                            <Input type="number" step="0.01" min={0} className="h-8 text-sm" value={rule.price ?? ""} onChange={e => {
+                              const price = parseFloat(e.target.value) || 0;
+                              updatePricingRule(rule.id, {
+                                price,
+                                balance_amount: rule.payment_type === "deposit" ? Math.max(0, price - Number(rule.deposit_amount || 0)) : rule.balance_amount,
+                              });
+                            }} />
                           </div>
                           <div>
                             <Label className="text-[10px]">Prezzo originale (€)</Label>
@@ -1000,6 +1177,84 @@ export default function EventsPage() {
                             </Select>
                           </div>
                         </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div>
+                            <Label className="text-[10px]">Pagamento</Label>
+                            <Select value={rule.payment_type || (editEvent.payment_type as PaymentType) || "free"} onValueChange={v => {
+                              const paymentType = v as PaymentType;
+                              const depositAmount = paymentType === "deposit" ? Number(rule.deposit_amount ?? editEvent.deposit ?? 0) : null;
+                              updatePricingRule(rule.id, {
+                                payment_type: paymentType,
+                                deposit_amount: depositAmount,
+                                balance_amount: paymentType === "deposit" ? Math.max(0, Number(rule.price || 0) - Number(depositAmount || 0)) : null,
+                                balance_payment_mode: paymentType === "deposit" ? (rule.balance_payment_mode || "online") : null,
+                              });
+                            }}>
+                              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="free">Gratis</SelectItem>
+                                <SelectItem value="paid">Online completo</SelectItem>
+                                <SelectItem value="location">Sul posto</SelectItem>
+                                <SelectItem value="deposit">Acconto + saldo</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="flex items-end gap-2">
+                            <Switch
+                              checked={!!rule.has_dedicated_spots}
+                              onCheckedChange={v => updatePricingRule(rule.id, { has_dedicated_spots: v, dedicated_spots: v ? (rule.dedicated_spots ?? 1) : null })}
+                            />
+                            <Label className="text-xs pb-1">Posti dedicati</Label>
+                          </div>
+                          <div className="flex items-end gap-2">
+                            <Switch
+                              checked={!!rule.waitlist_enabled}
+                              onCheckedChange={v => updatePricingRule(rule.id, { waitlist_enabled: v })}
+                            />
+                            <Label className="text-xs pb-1">Waitlist opzione</Label>
+                          </div>
+                        </div>
+
+                        {rule.payment_type === "deposit" && (
+                          <div className="grid grid-cols-3 gap-2">
+                            <div>
+                              <Label className="text-[10px]">Acconto (€)</Label>
+                              <Input type="number" step="0.01" min={0} className="h-8 text-sm" value={rule.deposit_amount ?? ""} onChange={e => {
+                                const depositAmount = parseFloat(e.target.value) || 0;
+                                updatePricingRule(rule.id, {
+                                  deposit_amount: depositAmount,
+                                  balance_amount: Math.max(0, Number(rule.price || 0) - depositAmount),
+                                });
+                              }} />
+                            </div>
+                            <div>
+                              <Label className="text-[10px]">Saldo (€)</Label>
+                              <Input type="number" step="0.01" min={0} className="h-8 text-sm" value={rule.balance_amount ?? ""} onChange={e => updatePricingRule(rule.id, { balance_amount: parseFloat(e.target.value) || 0 })} />
+                            </div>
+                            <div>
+                              <Label className="text-[10px]">Modalità saldo</Label>
+                              <Select value={rule.balance_payment_mode || "online"} onValueChange={v => updatePricingRule(rule.id, { balance_payment_mode: v as BalancePaymentMode })}>
+                                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="online">Online</SelectItem>
+                                  <SelectItem value="on_site">Sul posto</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        )}
+
+                        {rule.has_dedicated_spots && (
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label className="text-[10px]">Posti opzione</Label>
+                              <Input type="number" min={0} className="h-8 text-sm" value={rule.dedicated_spots ?? ""} onChange={e => updatePricingRule(rule.id, { dedicated_spots: parseInt(e.target.value) || 0 })} />
+                            </div>
+                            <div className="flex items-end text-[10px] text-muted-foreground pb-2">
+                              {rule.spots_taken ? `${rule.spots_taken} posti gia presi` : "Nessun posto preso su questa opzione"}
+                            </div>
+                          </div>
+                        )}
 
                         {/* Numeric condition (trekking_count / events_count) */}
                         {(rule.condition === "trekking_count" || rule.condition === "events_count") && (
@@ -1437,7 +1692,7 @@ export default function EventsPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditEvent(null)}>Annulla</Button>
             <Button
-              onClick={() => saveMutation.mutate({ evt: editEvent, mps: localMeetingPoints })}
+              onClick={() => saveMutation.mutate({ evt: editEvent, mps: localMeetingPoints, priceOptions: localPriceOptions })}
               disabled={saveMutation.isPending || !editEvent?.image_url}
             >
               {saveMutation.isPending ? "Salvataggio..." : "Salva"}

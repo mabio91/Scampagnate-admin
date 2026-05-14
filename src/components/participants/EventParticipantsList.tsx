@@ -11,9 +11,27 @@ interface EventParticipantsListProps {
 }
 
 interface ParticipantData {
+  id: string;
   user_id: string;
   status: string;
+  payment_status: string | null;
   checked_in: boolean;
+  price_option_id: string | null;
+  amount_paid: number | null;
+  total_price_amount: number | null;
+  deposit_amount: number | null;
+  balance_due_amount: number | null;
+  balance_payment_mode: string | null;
+  refund_amount: number | null;
+  refund_status: string | null;
+  price_option: {
+    name: string;
+    price: number;
+    payment_type: string | null;
+    deposit_amount: number | null;
+    balance_amount: number | null;
+    balance_payment_mode: string | null;
+  } | null;
   profiles: {
     first_name: string;
     last_name: string;
@@ -30,9 +48,27 @@ export function EventParticipantsList({ eventId, isAdmin = false }: EventPartici
       const { data, error } = await supabase
         .from("event_registrations")
         .select(`
+          id,
           user_id,
           status,
+          payment_status,
           checked_in,
+          price_option_id,
+          amount_paid,
+          total_price_amount,
+          deposit_amount,
+          balance_due_amount,
+          balance_payment_mode,
+          refund_amount,
+          refund_status,
+          price_option:event_price_options (
+            name,
+            price,
+            payment_type,
+            deposit_amount,
+            balance_amount,
+            balance_payment_mode
+          ),
           profiles:user_id (
             first_name,
             last_name,
@@ -41,7 +77,7 @@ export function EventParticipantsList({ eventId, isAdmin = false }: EventPartici
           )
         `)
         .eq("event_id", eventId)
-        .in("status", ["registered", "paid", "attended"]);
+        .in("status", ["registered", "paid", "deposit_paid", "attended", "no_show", "waitlist", "pending_approval", "pending_payment"]);
 
       if (error) throw error;
       return (data || []) as unknown as ParticipantData[];
@@ -93,7 +129,7 @@ export function EventParticipantsList({ eventId, isAdmin = false }: EventPartici
     allUserRegs.forEach((r: any) => {
       if (!userStats[r.user_id]) userStats[r.user_id] = { completed: 0, total: 0, noShows: 0 };
       const isPast = r.events?.date ? new Date(r.events.date) < new Date() : false;
-      if (["registered", "paid", "attended"].includes(r.status)) {
+      if (["registered", "paid", "deposit_paid", "attended", "no_show"].includes(r.status)) {
         userStats[r.user_id].total++;
         if (r.checked_in) userStats[r.user_id].completed++;
         else if (isPast) userStats[r.user_id].noShows++;
@@ -119,6 +155,16 @@ export function EventParticipantsList({ eventId, isAdmin = false }: EventPartici
               completedEventsCount={stats.completed}
               totalRegistrations={stats.total}
               noShowCount={stats.noShows}
+              status={p.status}
+              paymentStatus={p.payment_status}
+              priceOptionName={p.price_option?.name || null}
+              amountPaid={p.amount_paid}
+              totalPriceAmount={p.total_price_amount}
+              depositAmount={p.deposit_amount}
+              balanceDueAmount={p.balance_due_amount}
+              balancePaymentMode={p.balance_payment_mode}
+              refundStatus={p.refund_status}
+              refundAmount={p.refund_amount}
             />
           );
         }

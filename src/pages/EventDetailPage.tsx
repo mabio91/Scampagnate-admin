@@ -17,7 +17,10 @@ import {
 import type { Tables } from "@/integrations/supabase/types";
 
 type Event = Tables<"events">;
-type EventWithCategory = Event & { event_categories: { name: string; icon: string } | null };
+type EventWithCategory = Event & {
+  event_categories: { name: string; icon: string } | null;
+  event_price_options?: any[] | null;
+};
 type GalleryImage = { url: string; order: number };
 
 const statusColors: Record<string, string> = {
@@ -51,6 +54,20 @@ const normalizeGalleryImages = (value: unknown): GalleryImage[] => {
     .map((item, index) => ({ ...item, order: index }));
 };
 
+const getPriceOptionPaymentSummary = (option: any, event: Event) => {
+  const paymentType = option.payment_type || event.payment_type || "free";
+  const price = Number(option.price || 0);
+  if (paymentType === "free") return "Gratis";
+  if (paymentType === "location") return `€${price.toFixed(2)} sul posto`;
+  if (paymentType === "deposit") {
+    const deposit = Number(option.deposit_amount || event.deposit || 0);
+    const balance = Number(option.balance_amount ?? Math.max(0, price - deposit));
+    const mode = (option.balance_payment_mode || event.balance_payment_mode) === "on_site" ? "sul posto" : "online";
+    return `Acconto €${deposit.toFixed(2)} + saldo €${balance.toFixed(2)} ${mode}`;
+  }
+  return `€${price.toFixed(2)} online`;
+};
+
 export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -62,7 +79,7 @@ export default function EventDetailPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("events")
-        .select("*, event_categories(name, icon)")
+        .select("*, event_categories(name, icon), event_price_options(*)")
         .eq("id", id!)
         .single();
       if (error) throw error;
@@ -76,7 +93,7 @@ export default function EventDetailPage() {
     queryFn: async () => {
       const { data } = await supabase
         .from("event_registrations")
-        .select("id, status, checked_in")
+        .select("id, status, checked_in, payment_status, price_option_id, amount_paid, total_price_amount, deposit_amount, balance_due_amount, balance_payment_mode, refund_amount, refund_status")
         .eq("event_id", id!);
       return data || [];
     },
@@ -116,8 +133,9 @@ export default function EventDetailPage() {
   }
 
   const checkedIn = registrations.filter((r) => r.checked_in).length;
-  const registered = registrations.filter((r) => ["registered", "paid"].includes(r.status)).length;
+  const registered = registrations.filter((r) => ["registered", "paid", "deposit_paid", "attended"].includes(r.status)).length;
   const galleryImages = normalizeGalleryImages(event.gallery_images);
+  const priceOptions = [...((event.event_price_options as any[]) || [])].sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
 
   return (
     <div className="space-y-6">
@@ -223,6 +241,31 @@ export default function EventDetailPage() {
               </div>
             </CardContent>
           </Card>
+
+          {priceOptions.length > 0 && (
+            <Card>
+              <CardHeader><CardTitle className="text-lg">Opzioni prezzo</CardTitle></CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {priceOptions.map((option) => (
+                    <div key={option.id} className="rounded-lg border bg-muted/30 p-3 text-sm">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-medium">{option.name}</p>
+                          <p className="text-xs text-muted-foreground">{getPriceOptionPaymentSummary(option, event)}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {option.has_dedicated_spots ? `${option.spots_taken || 0}/${option.dedicated_spots || 0} posti dedicati` : "Usa capienza evento"}
+                            {option.waitlist_enabled ? " · waitlist attiva" : ""}
+                          </p>
+                        </div>
+                        <Badge variant="outline">€{Number(option.price || 0).toFixed(2)}</Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Meeting Points */}
           {meetingPoints.length > 0 && (

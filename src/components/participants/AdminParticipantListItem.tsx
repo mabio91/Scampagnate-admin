@@ -1,6 +1,6 @@
 import { LevelBadgeAvatar, useUserLevel } from "@/components/gamification/LevelBadgeAvatar";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, Shield, Target } from "lucide-react";
+import { CheckCircle2, CreditCard, Shield, Target } from "lucide-react";
 
 interface AdminParticipantListItemProps {
   avatarUrl?: string | null;
@@ -11,6 +11,16 @@ interface AdminParticipantListItemProps {
   completedEventsCount: number;
   totalRegistrations: number;
   noShowCount: number;
+  status?: string | null;
+  paymentStatus?: string | null;
+  priceOptionName?: string | null;
+  amountPaid?: number | null;
+  totalPriceAmount?: number | null;
+  depositAmount?: number | null;
+  balanceDueAmount?: number | null;
+  balancePaymentMode?: string | null;
+  refundStatus?: string | null;
+  refundAmount?: number | null;
   className?: string;
 }
 
@@ -31,6 +41,16 @@ export function AdminParticipantListItem({
   completedEventsCount,
   totalRegistrations,
   noShowCount,
+  status,
+  paymentStatus,
+  priceOptionName,
+  amountPaid,
+  totalPriceAmount,
+  depositAmount,
+  balanceDueAmount,
+  balancePaymentMode,
+  refundStatus,
+  refundAmount,
   className,
 }: AdminParticipantListItemProps) {
   const { currentLevel } = useUserLevel(totalPoints);
@@ -69,6 +89,31 @@ export function AdminParticipantListItem({
             <span className="font-medium text-foreground">{completedEventsCount}</span> eventi completati
           </span>
         </div>
+        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
+          {status && (
+            <span>Stato: <span className="font-medium text-foreground">{status}</span></span>
+          )}
+          {paymentStatus && (
+            <span>Pagamento: <span className="font-medium text-foreground">{paymentStatus}</span></span>
+          )}
+          {priceOptionName && (
+            <span>Opzione: <span className="font-medium text-foreground">{priceOptionName}</span></span>
+          )}
+        </div>
+        {(amountPaid || totalPriceAmount || depositAmount || balanceDueAmount || refundAmount) && (
+          <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <CreditCard className="h-3 w-3" />
+              {amountPaid ? `Pagato €${Number(amountPaid).toFixed(2)}` : "Pagato €0.00"}
+            </span>
+            {totalPriceAmount ? <span>Totale €{Number(totalPriceAmount).toFixed(2)}</span> : null}
+            {depositAmount ? <span>Acconto €{Number(depositAmount).toFixed(2)}</span> : null}
+            {balanceDueAmount ? (
+              <span>Saldo €{Number(balanceDueAmount).toFixed(2)} {balancePaymentMode === "on_site" ? "sul posto" : "online"}</span>
+            ) : null}
+            {refundAmount ? <span>Rimborso €{Number(refundAmount).toFixed(2)} {refundStatus || ""}</span> : null}
+          </div>
+        )}
       </div>
     </div>
   );

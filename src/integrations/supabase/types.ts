@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.4"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -139,6 +139,36 @@ export type Database = {
         }
         Relationships: []
       }
+      broadcast_message_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          message: string
+          sort_order: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          message: string
+          sort_order?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          message?: string
+          sort_order?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       community_levels: {
         Row: {
           color: string
@@ -263,6 +293,7 @@ export type Database = {
           starts_at: string | null
           times_used: number
           updated_at: string
+          waives_service_fee: boolean
         }
         Insert: {
           applies_to_all?: boolean
@@ -282,6 +313,7 @@ export type Database = {
           starts_at?: string | null
           times_used?: number
           updated_at?: string
+          waives_service_fee?: boolean
         }
         Update: {
           applies_to_all?: boolean
@@ -301,6 +333,7 @@ export type Database = {
           starts_at?: string | null
           times_used?: number
           updated_at?: string
+          waives_service_fee?: boolean
         }
         Relationships: []
       }
@@ -577,43 +610,73 @@ export type Database = {
       }
       event_price_options: {
         Row: {
+          balance_amount: number | null
+          balance_payment_mode:
+            | Database["public"]["Enums"]["balance_payment_mode"]
+            | null
           created_at: string
+          dedicated_spots: number | null
+          deposit_amount: number | null
           eligible_group: string
           event_id: string
+          has_dedicated_spots: boolean
           id: string
           is_promotional: boolean
           name: string
           original_price: number | null
+          payment_type: Database["public"]["Enums"]["payment_type"]
           price: number
           promo_end: string | null
           promo_start: string | null
           sort_order: number
+          spots_taken: number
+          waitlist_enabled: boolean
         }
         Insert: {
+          balance_amount?: number | null
+          balance_payment_mode?:
+            | Database["public"]["Enums"]["balance_payment_mode"]
+            | null
           created_at?: string
+          dedicated_spots?: number | null
+          deposit_amount?: number | null
           eligible_group?: string
           event_id: string
+          has_dedicated_spots?: boolean
           id?: string
           is_promotional?: boolean
           name: string
           original_price?: number | null
+          payment_type?: Database["public"]["Enums"]["payment_type"]
           price?: number
           promo_end?: string | null
           promo_start?: string | null
           sort_order?: number
+          spots_taken?: number
+          waitlist_enabled?: boolean
         }
         Update: {
+          balance_amount?: number | null
+          balance_payment_mode?:
+            | Database["public"]["Enums"]["balance_payment_mode"]
+            | null
           created_at?: string
+          dedicated_spots?: number | null
+          deposit_amount?: number | null
           eligible_group?: string
           event_id?: string
+          has_dedicated_spots?: boolean
           id?: string
           is_promotional?: boolean
           name?: string
           original_price?: number | null
+          payment_type?: Database["public"]["Enums"]["payment_type"]
           price?: number
           promo_end?: string | null
           promo_start?: string | null
           sort_order?: number
+          spots_taken?: number
+          waitlist_enabled?: boolean
         }
         Relationships: [
           {
@@ -627,42 +690,90 @@ export type Database = {
       }
       event_registrations: {
         Row: {
+          additional_responses: Json | null
+          amount_paid: number | null
+          balance_due_amount: number | null
+          balance_payment_mode:
+            | Database["public"]["Enums"]["balance_payment_mode"]
+            | null
+          cancellation_policy: string | null
+          cancelled_at: string | null
+          car_availability: string | null
           checked_in: boolean
           created_at: string
+          deposit_amount: number | null
           event_id: string
           id: string
+          last_balance_reminder_sent_at: string | null
           meeting_point_id: string | null
           payment_status: string | null
           price_option_id: string | null
+          refund_amount: number | null
+          refund_percentage: number | null
+          refund_status: string | null
+          service_fee_amount: number
           sport_level: string | null
           status: Database["public"]["Enums"]["registration_status"]
           stripe_payment_intent_id: string | null
+          total_price_amount: number | null
           user_id: string
         }
         Insert: {
+          additional_responses?: Json | null
+          amount_paid?: number | null
+          balance_due_amount?: number | null
+          balance_payment_mode?:
+            | Database["public"]["Enums"]["balance_payment_mode"]
+            | null
+          cancellation_policy?: string | null
+          cancelled_at?: string | null
+          car_availability?: string | null
           checked_in?: boolean
           created_at?: string
+          deposit_amount?: number | null
           event_id: string
           id?: string
+          last_balance_reminder_sent_at?: string | null
           meeting_point_id?: string | null
           payment_status?: string | null
           price_option_id?: string | null
+          refund_amount?: number | null
+          refund_percentage?: number | null
+          refund_status?: string | null
+          service_fee_amount?: number
           sport_level?: string | null
           status?: Database["public"]["Enums"]["registration_status"]
           stripe_payment_intent_id?: string | null
+          total_price_amount?: number | null
           user_id: string
         }
         Update: {
+          additional_responses?: Json | null
+          amount_paid?: number | null
+          balance_due_amount?: number | null
+          balance_payment_mode?:
+            | Database["public"]["Enums"]["balance_payment_mode"]
+            | null
+          cancellation_policy?: string | null
+          cancelled_at?: string | null
+          car_availability?: string | null
           checked_in?: boolean
           created_at?: string
+          deposit_amount?: number | null
           event_id?: string
           id?: string
+          last_balance_reminder_sent_at?: string | null
           meeting_point_id?: string | null
           payment_status?: string | null
           price_option_id?: string | null
+          refund_amount?: number | null
+          refund_percentage?: number | null
+          refund_status?: string | null
+          service_fee_amount?: number
           sport_level?: string | null
           status?: Database["public"]["Enums"]["registration_status"]
           stripe_payment_intent_id?: string | null
+          total_price_amount?: number | null
           user_id?: string
         }
         Relationships: [
@@ -696,10 +807,49 @@ export type Database = {
           },
         ]
       }
+      event_special_badges: {
+        Row: {
+          badge_id: string
+          created_at: string
+          event_id: string
+          id: string
+        }
+        Insert: {
+          badge_id: string
+          created_at?: string
+          event_id: string
+          id?: string
+        }
+        Update: {
+          badge_id?: string
+          created_at?: string
+          event_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_special_badges_badge_id_fkey"
+            columns: ["badge_id"]
+            isOneToOne: false
+            referencedRelation: "badges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_special_badges_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       events: {
         Row: {
           access_rules: Json | null
           additional_fields: Json | null
+          balance_payment_mode:
+            | Database["public"]["Enums"]["balance_payment_mode"]
+            | null
           cancellation_policy: string | null
           category_id: string | null
           created_at: string
@@ -734,6 +884,9 @@ export type Database = {
         Insert: {
           access_rules?: Json | null
           additional_fields?: Json | null
+          balance_payment_mode?:
+            | Database["public"]["Enums"]["balance_payment_mode"]
+            | null
           cancellation_policy?: string | null
           category_id?: string | null
           created_at?: string
@@ -768,6 +921,9 @@ export type Database = {
         Update: {
           access_rules?: Json | null
           additional_fields?: Json | null
+          balance_payment_mode?:
+            | Database["public"]["Enums"]["balance_payment_mode"]
+            | null
           cancellation_policy?: string | null
           category_id?: string | null
           created_at?: string
@@ -808,6 +964,111 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      ios_device_tokens: {
+        Row: {
+          app_version: string | null
+          bundle_id: string
+          created_at: string
+          device_model: string | null
+          device_token: string
+          enabled: boolean
+          environment: string
+          id: string
+          installation_id: string
+          last_registered_at: string
+          last_seen_at: string
+          locale: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          app_version?: string | null
+          bundle_id?: string
+          created_at?: string
+          device_model?: string | null
+          device_token: string
+          enabled?: boolean
+          environment?: string
+          id?: string
+          installation_id: string
+          last_registered_at?: string
+          last_seen_at?: string
+          locale?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          app_version?: string | null
+          bundle_id?: string
+          created_at?: string
+          device_model?: string | null
+          device_token?: string
+          enabled?: boolean
+          environment?: string
+          id?: string
+          installation_id?: string
+          last_registered_at?: string
+          last_seen_at?: string
+          locale?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ios_push_broadcasts: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          environment: string
+          error_message: string | null
+          expired_count: number
+          failed_count: number
+          id: string
+          message: string
+          sent_count: number
+          status: string
+          target_count: number
+          title: string
+          unique_user_count: number
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          environment?: string
+          error_message?: string | null
+          expired_count?: number
+          failed_count?: number
+          id?: string
+          message: string
+          sent_count?: number
+          status?: string
+          target_count?: number
+          title: string
+          unique_user_count?: number
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          environment?: string
+          error_message?: string | null
+          expired_count?: number
+          failed_count?: number
+          id?: string
+          message?: string
+          sent_count?: number
+          status?: string
+          target_count?: number
+          title?: string
+          unique_user_count?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       issues: {
         Row: {
@@ -918,162 +1179,6 @@ export type Database = {
           whatsapp_number?: string | null
         }
         Relationships: []
-      }
-      missions: {
-        Row: {
-          auto_generate_coupon: boolean
-          banner_url: string | null
-          category: string | null
-          category_filter: string[] | null
-          campaign_id: string | null
-          campaign_tag: string | null
-          conditions_logic: string
-          created_at: string
-          definition_version: number
-          description: string
-          ends_at: string | null
-          expires_at: string | null
-          featured: boolean
-          icon: string
-          icon_background: string | null
-          icon_color: string | null
-          id: string
-          is_active: boolean
-          is_archived: boolean
-          internal_name: string | null
-          legacy_config: Json
-          level: number | null
-          max_completions_per_user: number | null
-          mission_group: string | null
-          notify_on_progress: boolean
-          prerequisite_summary: Json
-          priority: number
-          reset_on_failure: boolean
-          repeatable: boolean
-          reward_badge_id: string | null
-          reward_points: number
-          reward_type: string
-          reward_value: string | null
-          sort_order: number
-          starts_at: string | null
-          status: string
-          streak_count: number | null
-          target_action: string
-          target_value: number
-          timezone: string
-          title: string
-          type: string
-          updated_at: string
-          visibility: string
-        }
-        Insert: {
-          auto_generate_coupon?: boolean
-          banner_url?: string | null
-          category?: string | null
-          category_filter?: string[] | null
-          campaign_id?: string | null
-          campaign_tag?: string | null
-          conditions_logic?: string
-          created_at?: string
-          definition_version?: number
-          description?: string
-          ends_at?: string | null
-          expires_at?: string | null
-          featured?: boolean
-          icon?: string
-          icon_background?: string | null
-          icon_color?: string | null
-          id?: string
-          is_active?: boolean
-          is_archived?: boolean
-          internal_name?: string | null
-          legacy_config?: Json
-          level?: number | null
-          max_completions_per_user?: number | null
-          mission_group?: string | null
-          notify_on_progress?: boolean
-          prerequisite_summary?: Json
-          priority?: number
-          reset_on_failure?: boolean
-          repeatable?: boolean
-          reward_badge_id?: string | null
-          reward_points?: number
-          reward_type?: string
-          reward_value?: string | null
-          sort_order?: number
-          starts_at?: string | null
-          status?: string
-          streak_count?: number | null
-          target_action?: string
-          target_value?: number
-          timezone?: string
-          title: string
-          type?: string
-          updated_at?: string
-          visibility?: string
-        }
-        Update: {
-          auto_generate_coupon?: boolean
-          banner_url?: string | null
-          category?: string | null
-          category_filter?: string[] | null
-          campaign_id?: string | null
-          campaign_tag?: string | null
-          conditions_logic?: string
-          created_at?: string
-          definition_version?: number
-          description?: string
-          ends_at?: string | null
-          expires_at?: string | null
-          featured?: boolean
-          icon?: string
-          icon_background?: string | null
-          icon_color?: string | null
-          id?: string
-          is_active?: boolean
-          is_archived?: boolean
-          internal_name?: string | null
-          legacy_config?: Json
-          level?: number | null
-          max_completions_per_user?: number | null
-          mission_group?: string | null
-          notify_on_progress?: boolean
-          prerequisite_summary?: Json
-          priority?: number
-          reset_on_failure?: boolean
-          repeatable?: boolean
-          reward_badge_id?: string | null
-          reward_points?: number
-          reward_type?: string
-          reward_value?: string | null
-          sort_order?: number
-          starts_at?: string | null
-          status?: string
-          streak_count?: number | null
-          target_action?: string
-          target_value?: number
-          timezone?: string
-          title?: string
-          type?: string
-          updated_at?: string
-          visibility?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "missions_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "mission_campaigns"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "missions_reward_badge_id_fkey"
-            columns: ["reward_badge_id"]
-            isOneToOne: false
-            referencedRelation: "badges"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       mission_campaigns: {
         Row: {
@@ -1327,6 +1432,162 @@ export type Database = {
           },
         ]
       }
+      missions: {
+        Row: {
+          auto_generate_coupon: boolean
+          banner_url: string | null
+          campaign_id: string | null
+          campaign_tag: string | null
+          category: string | null
+          category_filter: string[] | null
+          conditions_logic: string
+          created_at: string
+          definition_version: number
+          description: string
+          ends_at: string | null
+          expires_at: string | null
+          featured: boolean
+          icon: string
+          icon_background: string | null
+          icon_color: string | null
+          id: string
+          internal_name: string | null
+          is_active: boolean
+          is_archived: boolean
+          legacy_config: Json
+          level: number | null
+          max_completions_per_user: number | null
+          mission_group: string | null
+          notify_on_progress: boolean
+          prerequisite_summary: Json
+          priority: number
+          repeatable: boolean
+          reset_on_failure: boolean
+          reward_badge_id: string | null
+          reward_points: number
+          reward_type: string
+          reward_value: string | null
+          sort_order: number
+          starts_at: string | null
+          status: string
+          streak_count: number | null
+          target_action: string
+          target_value: number
+          timezone: string
+          title: string
+          type: string
+          updated_at: string
+          visibility: string
+        }
+        Insert: {
+          auto_generate_coupon?: boolean
+          banner_url?: string | null
+          campaign_id?: string | null
+          campaign_tag?: string | null
+          category?: string | null
+          category_filter?: string[] | null
+          conditions_logic?: string
+          created_at?: string
+          definition_version?: number
+          description?: string
+          ends_at?: string | null
+          expires_at?: string | null
+          featured?: boolean
+          icon?: string
+          icon_background?: string | null
+          icon_color?: string | null
+          id?: string
+          internal_name?: string | null
+          is_active?: boolean
+          is_archived?: boolean
+          legacy_config?: Json
+          level?: number | null
+          max_completions_per_user?: number | null
+          mission_group?: string | null
+          notify_on_progress?: boolean
+          prerequisite_summary?: Json
+          priority?: number
+          repeatable?: boolean
+          reset_on_failure?: boolean
+          reward_badge_id?: string | null
+          reward_points?: number
+          reward_type?: string
+          reward_value?: string | null
+          sort_order?: number
+          starts_at?: string | null
+          status?: string
+          streak_count?: number | null
+          target_action?: string
+          target_value?: number
+          timezone?: string
+          title: string
+          type?: string
+          updated_at?: string
+          visibility?: string
+        }
+        Update: {
+          auto_generate_coupon?: boolean
+          banner_url?: string | null
+          campaign_id?: string | null
+          campaign_tag?: string | null
+          category?: string | null
+          category_filter?: string[] | null
+          conditions_logic?: string
+          created_at?: string
+          definition_version?: number
+          description?: string
+          ends_at?: string | null
+          expires_at?: string | null
+          featured?: boolean
+          icon?: string
+          icon_background?: string | null
+          icon_color?: string | null
+          id?: string
+          internal_name?: string | null
+          is_active?: boolean
+          is_archived?: boolean
+          legacy_config?: Json
+          level?: number | null
+          max_completions_per_user?: number | null
+          mission_group?: string | null
+          notify_on_progress?: boolean
+          prerequisite_summary?: Json
+          priority?: number
+          repeatable?: boolean
+          reset_on_failure?: boolean
+          reward_badge_id?: string | null
+          reward_points?: number
+          reward_type?: string
+          reward_value?: string | null
+          sort_order?: number
+          starts_at?: string | null
+          status?: string
+          streak_count?: number | null
+          target_action?: string
+          target_value?: number
+          timezone?: string
+          title?: string
+          type?: string
+          updated_at?: string
+          visibility?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "missions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "mission_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "missions_reward_badge_id_fkey"
+            columns: ["reward_badge_id"]
+            isOneToOne: false
+            referencedRelation: "badges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string
@@ -1546,6 +1807,7 @@ export type Database = {
           membership_id: number | null
           membership_registration_date: string | null
           membership_status: string | null
+          membership_subscription_order: number | null
           membership_year: number | null
           onboarding_completed: boolean | null
           phone: string
@@ -1582,6 +1844,7 @@ export type Database = {
           membership_id?: number | null
           membership_registration_date?: string | null
           membership_status?: string | null
+          membership_subscription_order?: number | null
           membership_year?: number | null
           onboarding_completed?: boolean | null
           phone?: string
@@ -1618,6 +1881,7 @@ export type Database = {
           membership_id?: number | null
           membership_registration_date?: string | null
           membership_status?: string | null
+          membership_subscription_order?: number | null
           membership_year?: number | null
           onboarding_completed?: boolean | null
           phone?: string
@@ -1730,6 +1994,158 @@ export type Database = {
         }
         Relationships: []
       }
+      user_activity_log: {
+        Row: {
+          activity_group: string
+          activity_type: string
+          actor_id: string | null
+          actor_role: string | null
+          amount: number | null
+          audit_log_id: string | null
+          badge_id: string | null
+          created_at: string
+          description: string | null
+          event_id: string | null
+          id: string
+          issue_id: string | null
+          metadata: Json
+          mission_id: string | null
+          notification_id: string | null
+          occurred_at: string
+          payment_status_after: string | null
+          payment_status_before: string | null
+          registration_id: string | null
+          reward_id: string | null
+          source_record_id: string | null
+          source_table: string | null
+          status_after: string | null
+          status_before: string | null
+          title: string | null
+          user_id: string
+        }
+        Insert: {
+          activity_group?: string
+          activity_type: string
+          actor_id?: string | null
+          actor_role?: string | null
+          amount?: number | null
+          audit_log_id?: string | null
+          badge_id?: string | null
+          created_at?: string
+          description?: string | null
+          event_id?: string | null
+          id?: string
+          issue_id?: string | null
+          metadata?: Json
+          mission_id?: string | null
+          notification_id?: string | null
+          occurred_at?: string
+          payment_status_after?: string | null
+          payment_status_before?: string | null
+          registration_id?: string | null
+          reward_id?: string | null
+          source_record_id?: string | null
+          source_table?: string | null
+          status_after?: string | null
+          status_before?: string | null
+          title?: string | null
+          user_id: string
+        }
+        Update: {
+          activity_group?: string
+          activity_type?: string
+          actor_id?: string | null
+          actor_role?: string | null
+          amount?: number | null
+          audit_log_id?: string | null
+          badge_id?: string | null
+          created_at?: string
+          description?: string | null
+          event_id?: string | null
+          id?: string
+          issue_id?: string | null
+          metadata?: Json
+          mission_id?: string | null
+          notification_id?: string | null
+          occurred_at?: string
+          payment_status_after?: string | null
+          payment_status_before?: string | null
+          registration_id?: string | null
+          reward_id?: string | null
+          source_record_id?: string | null
+          source_table?: string | null
+          status_after?: string | null
+          status_before?: string | null
+          title?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_activity_log_audit_log_id_fkey"
+            columns: ["audit_log_id"]
+            isOneToOne: false
+            referencedRelation: "user_audit_log"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_audit_log: {
+        Row: {
+          actor_id: string | null
+          actor_role: string | null
+          changed_columns: string[]
+          created_at: string
+          id: string
+          metadata: Json
+          new_row: Json | null
+          occurred_at: string
+          old_row: Json | null
+          operation: string
+          record_id: string | null
+          schema_name: string
+          source: string
+          table_name: string
+          transaction_id: number
+          user_id: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_role?: string | null
+          changed_columns?: string[]
+          created_at?: string
+          id?: string
+          metadata?: Json
+          new_row?: Json | null
+          occurred_at?: string
+          old_row?: Json | null
+          operation: string
+          record_id?: string | null
+          schema_name?: string
+          source?: string
+          table_name: string
+          transaction_id?: number
+          user_id?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          actor_role?: string | null
+          changed_columns?: string[]
+          created_at?: string
+          id?: string
+          metadata?: Json
+          new_row?: Json | null
+          occurred_at?: string
+          old_row?: Json | null
+          operation?: string
+          record_id?: string | null
+          schema_name?: string
+          source?: string
+          table_name?: string
+          transaction_id?: number
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       user_badges: {
         Row: {
           badge_id: string
@@ -1804,47 +2220,6 @@ export type Database = {
         }
         Relationships: []
       }
-      user_missions: {
-        Row: {
-          completed: boolean
-          completed_at: string | null
-          created_at: string
-          id: string
-          mission_id: string
-          progress: number
-          reward_details: Json | null
-          user_id: string
-        }
-        Insert: {
-          completed?: boolean
-          completed_at?: string | null
-          created_at?: string
-          id?: string
-          mission_id: string
-          progress?: number
-          reward_details?: Json | null
-          user_id: string
-        }
-        Update: {
-          completed?: boolean
-          completed_at?: string | null
-          created_at?: string
-          id?: string
-          mission_id?: string
-          progress?: number
-          reward_details?: Json | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_missions_mission_id_fkey"
-            columns: ["mission_id"]
-            isOneToOne: false
-            referencedRelation: "missions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       user_mission_history: {
         Row: {
           admin_id: string | null
@@ -1901,8 +2276,8 @@ export type Database = {
       }
       user_mission_progress: {
         Row: {
-          completion_count: number
           completed_at: string | null
+          completion_count: number
           created_at: string
           current_value: number
           cycle_ends_at: string | null
@@ -1923,8 +2298,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          completion_count?: number
           completed_at?: string | null
+          completion_count?: number
           created_at?: string
           current_value?: number
           cycle_ends_at?: string | null
@@ -1945,8 +2320,8 @@ export type Database = {
           user_id: string
         }
         Update: {
-          completion_count?: number
           completed_at?: string | null
+          completion_count?: number
           created_at?: string
           current_value?: number
           cycle_ends_at?: string | null
@@ -1983,6 +2358,47 @@ export type Database = {
           },
         ]
       }
+      user_missions: {
+        Row: {
+          completed: boolean
+          completed_at: string | null
+          created_at: string
+          id: string
+          mission_id: string
+          progress: number
+          reward_details: Json | null
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          mission_id: string
+          progress?: number
+          reward_details?: Json | null
+          user_id: string
+        }
+        Update: {
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          mission_id?: string
+          progress?: number
+          reward_details?: Json | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_missions_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_rewards: {
         Row: {
           created_at: string
@@ -1990,6 +2406,7 @@ export type Database = {
           id: string
           mission_id: string | null
           redeemed_at: string | null
+          source_mission_reward_id: string | null
           status: string
           title: string
           type: string
@@ -2002,6 +2419,7 @@ export type Database = {
           id?: string
           mission_id?: string | null
           redeemed_at?: string | null
+          source_mission_reward_id?: string | null
           status?: string
           title?: string
           type?: string
@@ -2014,6 +2432,7 @@ export type Database = {
           id?: string
           mission_id?: string | null
           redeemed_at?: string | null
+          source_mission_reward_id?: string | null
           status?: string
           title?: string
           type?: string
@@ -2026,6 +2445,13 @@ export type Database = {
             columns: ["mission_id"]
             isOneToOne: false
             referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_rewards_source_mission_reward_id_fkey"
+            columns: ["source_mission_reward_id"]
+            isOneToOne: false
+            referencedRelation: "mission_rewards"
             referencedColumns: ["id"]
           },
         ]
@@ -2050,15 +2476,70 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      admin_user_activity_timeline: {
+        Row: {
+          activity_group: string | null
+          activity_type: string | null
+          amount: number | null
+          badge_id: string | null
+          badge_name: string | null
+          description: string | null
+          email: string | null
+          event_date: string | null
+          event_id: string | null
+          event_title: string | null
+          id: string | null
+          metadata: Json | null
+          mission_id: string | null
+          mission_title: string | null
+          notification_id: string | null
+          occurred_at: string | null
+          payment_status_after: string | null
+          payment_status_before: string | null
+          registration_id: string | null
+          reward_id: string | null
+          source_record_id: string | null
+          source_table: string | null
+          status_after: string | null
+          status_before: string | null
+          title: string | null
+          user_id: string | null
+          user_name: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      _scamp_activity_group: {
+        Args: { activity_type: string }
+        Returns: string
+      }
+      _scamp_activity_title: {
+        Args: { activity_type: string }
+        Returns: string
+      }
+      _scamp_activity_type: {
+        Args: {
+          new_row: Json
+          old_row: Json
+          operation: string
+          table_name: string
+        }
+        Returns: string
+      }
+      _scamp_changed_columns: {
+        Args: { new_row: Json; old_row: Json }
+        Returns: string[]
+      }
+      _scamp_extract_log_user_id: {
+        Args: { row_data: Json; table_name: string }
+        Returns: string
+      }
+      _scamp_safe_numeric: { Args: { value: string }; Returns: number }
+      _scamp_safe_uuid: { Args: { value: string }; Returns: string }
+      _scamp_sanitize_audit_row: { Args: { row_data: Json }; Returns: Json }
       activate_membership: {
         Args: { user_id_param: string }
-        Returns: undefined
-      }
-      admin_assign_badge: {
-        Args: { p_badge_id: string; p_user_id: string }
         Returns: undefined
       }
       add_user_points: {
@@ -2072,11 +2553,71 @@ export type Database = {
         }
         Returns: undefined
       }
+      admin_assign_badge: {
+        Args: { p_badge_id: string; p_user_id: string }
+        Returns: undefined
+      }
+      award_event_attendance_badges: {
+        Args: { p_event_id: string; p_user_id: string }
+        Returns: undefined
+      }
+      award_mission_rewards: {
+        Args: { p_mission_id: string; p_notify?: boolean; p_user_id: string }
+        Returns: Json
+      }
+      compute_mission_cycle_key: {
+        Args: { p_mission_type: string; p_timezone?: string }
+        Returns: string
+      }
+      count_event_active_participants: {
+        Args: { p_event_id: string }
+        Returns: number
+      }
+      count_event_option_active_participants: {
+        Args: { p_option_id: string }
+        Returns: number
+      }
+      count_user_attended_events: {
+        Args: { p_user_id: string }
+        Returns: number
+      }
+      count_user_attended_events_in_category: {
+        Args: { p_category: string; p_user_id: string }
+        Returns: number
+      }
+      get_event_option_availability: {
+        Args: { p_event_id: string }
+        Returns: {
+          event_id: string
+          event_remaining: number
+          is_bookable: boolean
+          option_id: string
+          option_remaining: number
+          option_spots_taken: number
+          option_spots_total: number
+          real_remaining: number
+          waitlist_enabled: boolean
+        }[]
+      }
       get_event_participant_avatars: {
         Args: { p_event_id: string }
         Returns: {
           avatar_url: string
           first_name: string
+          user_id: string
+        }[]
+      }
+      get_event_people_public: {
+        Args: { p_event_id: string }
+        Returns: {
+          age: number
+          avatar_url: string
+          first_name: string
+          id: string
+          last_name_initial: string
+          role: string
+          sort_order: number
+          total_points: number
           user_id: string
         }[]
       }
@@ -2087,6 +2628,7 @@ export type Database = {
           first_name: string
           id: string
           last_name_initial: string
+          total_points: number
         }[]
       }
       get_public_profiles: {
@@ -2096,6 +2638,7 @@ export type Database = {
           first_name: string
           id: string
           last_name_initial: string
+          total_points: number
         }[]
       }
       get_user_community_level: {
@@ -2115,6 +2658,32 @@ export type Database = {
         }
         Returns: boolean
       }
+      invoke_scampagnate_edge_function: {
+        Args: { p_body?: Json; p_function_name: string }
+        Returns: number
+      }
+      is_active_event_participant_status: {
+        Args: { p_payment_status?: string; p_status: string }
+        Returns: boolean
+      }
+      is_event_option_bookable: {
+        Args: { p_event_id: string; p_price_option_id?: string }
+        Returns: boolean
+      }
+      next_available_membership_id: { Args: never; Returns: number }
+      recalculate_user_total_points: {
+        Args: { p_user_id: string }
+        Returns: number
+      }
+      refresh_event_spots: { Args: { p_event_id: string }; Returns: undefined }
+      scamp_changed_columns: {
+        Args: { new_data: Json; old_data: Json }
+        Returns: string[]
+      }
+      sync_user_missions_for_user: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
       validate_discount_code: {
         Args: { p_code: string; p_event_id: string; p_user_id: string }
         Returns: Json
@@ -2123,6 +2692,7 @@ export type Database = {
     Enums: {
       account_status: "Active" | "Suspended" | "Banned"
       app_role: "admin" | "organizer" | "user"
+      balance_payment_mode: "online" | "on_site"
       event_status:
         | "available"
         | "full"
@@ -2142,6 +2712,7 @@ export type Database = {
         | "attended"
         | "no_show"
         | "pending_payment"
+        | "deposit_paid"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2271,6 +2842,7 @@ export const Constants = {
     Enums: {
       account_status: ["Active", "Suspended", "Banned"],
       app_role: ["admin", "organizer", "user"],
+      balance_payment_mode: ["online", "on_site"],
       event_status: [
         "available",
         "full",
@@ -2291,6 +2863,7 @@ export const Constants = {
         "attended",
         "no_show",
         "pending_payment",
+        "deposit_paid",
       ],
     },
   },
