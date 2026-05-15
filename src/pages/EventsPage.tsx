@@ -258,25 +258,30 @@ const eligibleGroupFromRule = (rule: PricingRule) => {
   return "all";
 };
 
-const priceOptionToRule = (option: any, fallbackPaymentType: PaymentType): PricingRule => ({
-  id: option.id,
-  isNew: false,
-  name: option.name || "",
-  price: Number(option.price || 0),
-  original_price: option.original_price != null ? Number(option.original_price) : null,
-  ...ruleConditionFromEligibleGroup(option.eligible_group),
-  is_promotional: !!option.is_promotional,
-  promo_start: option.promo_start || null,
-  promo_end: option.promo_end || null,
-  payment_type: (option.payment_type || fallbackPaymentType) as PaymentType,
-  deposit_amount: option.deposit_amount != null ? Number(option.deposit_amount) : null,
-  balance_amount: option.balance_amount != null ? Number(option.balance_amount) : null,
-  balance_payment_mode: (option.balance_payment_mode || "online") as BalancePaymentMode,
-  has_dedicated_spots: !!option.has_dedicated_spots,
-  dedicated_spots: option.dedicated_spots != null ? Number(option.dedicated_spots) : null,
-  spots_taken: option.spots_taken != null ? Number(option.spots_taken) : 0,
-  waitlist_enabled: !!option.waitlist_enabled,
-});
+const priceOptionToRule = (option: any, fallbackPaymentType: PaymentType): PricingRule => {
+  const paymentType = (option.payment_type || fallbackPaymentType) as PaymentType;
+  const depositAmount = option.deposit_amount != null ? Number(option.deposit_amount) : null;
+  const price = Number(option.price || 0);
+  return {
+    id: option.id,
+    isNew: false,
+    name: option.name || "",
+    price,
+    original_price: option.original_price != null ? Number(option.original_price) : null,
+    ...ruleConditionFromEligibleGroup(option.eligible_group),
+    is_promotional: !!option.is_promotional,
+    promo_start: option.promo_start || null,
+    promo_end: option.promo_end || null,
+    payment_type: paymentType,
+    deposit_amount: depositAmount,
+    balance_amount: paymentType === "deposit" ? Math.max(0, price - Number(depositAmount || 0)) : null,
+    balance_payment_mode: (option.balance_payment_mode || "online") as BalancePaymentMode,
+    has_dedicated_spots: !!option.has_dedicated_spots,
+    dedicated_spots: option.dedicated_spots != null ? Number(option.dedicated_spots) : null,
+    spots_taken: option.spots_taken != null ? Number(option.spots_taken) : 0,
+    waitlist_enabled: !!option.waitlist_enabled,
+  };
+};
 
 export default function EventsPage() {
   type SortField = "date" | "organizer";
@@ -695,7 +700,7 @@ export default function EventsPage() {
             payment_type: optionPaymentType,
             deposit_amount: depositAmount,
             balance_amount: optionPaymentType === "deposit"
-              ? Number(option.balance_amount ?? Math.max(0, Number(option.price || 0) - Number(depositAmount || 0)))
+              ? Math.max(0, Number(option.price || 0) - Number(depositAmount || 0))
               : null,
             balance_payment_mode: optionPaymentType === "deposit" ? (option.balance_payment_mode || "online") : null,
             has_dedicated_spots: !!option.has_dedicated_spots,
@@ -1260,8 +1265,10 @@ export default function EventsPage() {
                               }} />
                             </div>
                             <div>
-                              <Label className="text-[10px]">Saldo (€)</Label>
-                              <Input type="number" step="0.01" min={0} className="h-8 text-sm" value={rule.balance_amount ?? ""} onChange={e => updatePricingRule(rule.id, { balance_amount: parseFloat(e.target.value) || 0 })} />
+                              <Label className="text-[10px]">Saldo calcolato</Label>
+                              <div className="h-8 rounded-md border border-input bg-muted/40 px-3 text-sm font-semibold flex items-center">
+                                €{Math.max(0, Number(rule.price || 0) - Number(rule.deposit_amount || 0)).toFixed(2)}
+                              </div>
                             </div>
                             <div>
                               <Label className="text-[10px]">Modalità saldo</Label>
