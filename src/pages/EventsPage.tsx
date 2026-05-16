@@ -105,6 +105,7 @@ type AccessRules = {
 };
 
 type AdditionalFields = {
+  closing_sentence?: string | null;
   weather_override?: { weather_condition?: string; temp_min?: number | null; temp_max?: number | null; temp_avg?: number | null };
   show_car_availability?: boolean;
   custom_fields?: { label: string; type: string; required: boolean }[];
@@ -155,6 +156,20 @@ const WEATHER_OPTIONS = [
   { value: "neve", emoji: "❄️", label: "Neve" },
   { value: "nebbia", emoji: "🌫", label: "Nebbia" },
 ];
+
+const EVENT_CLOSING_SENTENCES = [
+  "Porta leggerezza, al resto pensiamo noi",
+  "Una community che arriva per i sentieri... e resta per le persone",
+  "Il difficile è venire. Poi non vorrai più andare via",
+  "Fidati: sarà una di quelle giornate che ricordi",
+  "Vieni con lo spirito giusto - il resto viene da sé",
+  "Qui si conoscono persone, non solo posti",
+];
+
+const normalizeEventClosingSentence = (sentence?: string | null) => {
+  if (!sentence) return "";
+  return sentence.replace(/^(?:✨\s*)+/u, "").trim();
+};
 
 const DETAIL_VISIBILITY_OPTIONS = [
   { value: "everyone", label: "Tutti possono vedere i dettagli" },
@@ -390,11 +405,40 @@ export default function EventsPage() {
       return data || [];
     },
   });
+  const { data: remoteClosingSentences = [] } = useQuery<string[]>({
+    queryKey: ["event-closing-sentences"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("event_closing_sentences" as any)
+        .select("sentence")
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true })
+        .order("sentence", { ascending: true });
+
+      if (error) throw error;
+      return ((data as Array<{ sentence?: string | null }> | null) || [])
+        .map((row) => normalizeEventClosingSentence(row.sentence))
+        .filter(Boolean);
+    },
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  });
+  const closingSentenceOptions =
+    remoteClosingSentences.length > 0 ? remoteClosingSentences : [...EVENT_CLOSING_SENTENCES];
 
   /* ── Access rules helpers ── */
   const getAR = (evt: any): AccessRules => (evt?.access_rules as AccessRules) || {};
-  const getAF = (evt: any): AdditionalFields => (evt?.additional_fields as AdditionalFields) || {};
+  const getAF = (evt: any): AdditionalFields => {
+    const value = evt?.additional_fields;
+    return value && typeof value === "object" && !Array.isArray(value) ? (value as AdditionalFields) : {};
+  };
   const getWeather = (evt: any) => getAF(evt).weather_override || {};
+  const getClosingSentence = (evt: any) => normalizeEventClosingSentence(getAF(evt).closing_sentence);
+  const getClosingSentenceMode = (evt: any): "random" | "preset" | "manual" => {
+    const sentence = getClosingSentence(evt);
+    if (!sentence) return "random";
+    return closingSentenceOptions.includes(sentence) ? "preset" : "manual";
+  };
   const getRequiredBadgeIds = (rules: AccessRules): string[] => {
     if (rules.required_badge_ids?.length) return rules.required_badge_ids;
     if (rules.required_badge_id) return [rules.required_badge_id];
@@ -413,6 +457,24 @@ export default function EventsPage() {
     if (!editEvent) return;
     const af = getAF(editEvent);
     setEditEvent({ ...editEvent, additional_fields: { ...af, weather_override: { ...getWeather(editEvent), ...patch } } });
+  };
+  const updateClosingSentenceMode = (mode: "random" | "preset" | "manual") => {
+    if (mode === "random") {
+      updateAF({ closing_sentence: null });
+      return;
+    }
+
+    if (mode === "preset") {
+      const current = getClosingSentence(editEvent);
+      updateAF({
+        closing_sentence: closingSentenceOptions.includes(current)
+          ? current
+          : closingSentenceOptions[0] || null,
+      });
+    }
+  };
+  const updateClosingSentence = (sentence: string) => {
+    updateAF({ closing_sentence: normalizeEventClosingSentence(sentence) || null });
   };
   const updateAttendanceBadgeIds = (badgeIds: string[]) => {
     if (!editEvent) return;
@@ -983,6 +1045,51 @@ export default function EventsPage() {
                 <div>
                   <Label>Descrizione</Label>
                   <RichTextEditor content={editEvent.description || ""} onChange={(html) => setEditEvent({ ...editEvent, description: html })} />
+                </div>
+                <div className="space-y-3 rounded-lg border bg-muted/30 p-3">
+                  <Label className="flex items-center gap-1.5 text-sm font-semibold">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    Frase conclusiva
+                  </Label>
+                  <Select value={getClosingSentenceMode(editEvent)} onValueChange={(value) => updateClosingSentenceMode(value as "random" | "preset" | "manual")}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="random">Random</SelectItem>
+                      <SelectItem value="preset">Scegli frase</SelectItem>
+                      <SelectItem value="manual">Frase manuale</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  {getClosingSentenceMode(editEvent) === "preset" && (
+                    <Select
+                      value={getClosingSentence(editEvent) || closingSentenceOptions[0]}
+                      onValueChange={updateClosingSentence}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {closingSentenceOptions.map((sentence) => (
+                          <SelectItem key={sentence} value={sentence}>
+                            {sentence}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+
+                  {getClosingSentenceMode(editEvent) === "manual" && (
+                    <Input
+                      value={getClosingSentence(editEvent)}
+                      onChange={(event) => updateClosingSentence(event.target.value)}
+                      placeholder="Inserisci una frase conclusiva"
+                    />
+                  )}
+                  <p className="text-[11px] text-muted-foreground">
+                    Le frasi disponibili si gestiscono da Admin &gt; Frasi evento. Random usa automaticamente una frase attiva.
+                  </p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
