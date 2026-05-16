@@ -52,6 +52,7 @@ export const translations = {
   "sidebar.proposals": { it: "Proposte", en: "Proposals" },
   "sidebar.discountCodes": { it: "Codici Sconto", en: "Discount Codes" },
   "sidebar.contentPages": { it: "Pagine Contenuto", en: "Content Pages" },
+  "sidebar.eventClosingSentences": { it: "Frasi evento", en: "Event Phrases" },
   "sidebar.myProfile": { it: "Il mio profilo", en: "My Profile" },
   "sidebar.missions": { it: "Missioni", en: "Missions" },
   "sidebar.gamificationSettings": { it: "Gamification", en: "Gamification" },

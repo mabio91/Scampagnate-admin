@@ -24,6 +24,7 @@ import DiscountCodesPage from "@/pages/DiscountCodesPage";
 import MerchPage from "@/pages/MerchPage";
 import ContentPagesPage from "@/pages/ContentPagesPage";
 import ContentPageView from "@/pages/ContentPageView";
+import EventClosingSentencesPage from "@/pages/EventClosingSentencesPage";
 import MissionsPage from "@/pages/MissionsPage";
 import GamificationSettingsPage from "@/pages/GamificationSettingsPage";
 import RewardsAdminPage from "@/pages/RewardsAdminPage";
@@ -75,6 +76,7 @@ const App = () => (
               <Route path="/discount-codes" element={<DiscountCodesPage />} />
               <Route path="/merch" element={<MerchPage />} />
               <Route path="/content-pages" element={<ContentPagesPage />} />
+              <Route path="/event-closing-sentences" element={<EventClosingSentencesPage />} />
               <Route path="/missions" element={<MissionsPage />} />
               <Route path="/gamification-settings" element={<GamificationSettingsPage />} />
               <Route path="/rewards" element={<RewardsAdminPage />} />
