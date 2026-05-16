@@ -85,7 +85,6 @@ type PricingRule = {
   has_dedicated_spots?: boolean;
   dedicated_spots?: number | null;
   spots_taken?: number | null;
-  waitlist_enabled?: boolean;
 };
 
 type AccessRules = {
@@ -106,6 +105,7 @@ type AccessRules = {
 
 type AdditionalFields = {
   closing_sentence?: string | null;
+  waiting_list_enabled?: boolean;
   weather_override?: { weather_condition?: string; temp_min?: number | null; temp_max?: number | null; temp_avg?: number | null };
   show_car_availability?: boolean;
   custom_fields?: { label: string; type: string; required: boolean }[];
@@ -196,7 +196,7 @@ const emptyEvent: Record<string, any> = {
   category_id: null, image_url: "", gallery_images: [], access_rules: null,
   featured: false, cancellation_policy: null, difficulty: null, duration: null,
   distance: null, elevation: null, event_badges: [], equipment_list: [],
-  additional_fields: null,
+  additional_fields: { waiting_list_enabled: true },
 };
 
 /* ══════ Helpers ══════ */
@@ -308,7 +308,6 @@ const priceOptionToRule = (option: any, fallbackPaymentType: PaymentType): Prici
     has_dedicated_spots: !!option.has_dedicated_spots,
     dedicated_spots: option.dedicated_spots != null ? Number(option.dedicated_spots) : null,
     spots_taken: option.spots_taken != null ? Number(option.spots_taken) : 0,
-    waitlist_enabled: !!option.waitlist_enabled,
   };
 };
 
@@ -502,7 +501,6 @@ export default function EventsPage() {
         has_dedicated_spots: false,
         dedicated_spots: null,
         spots_taken: 0,
-        waitlist_enabled: false,
       },
     ]);
   };
@@ -781,7 +779,7 @@ export default function EventsPage() {
             balance_payment_mode: optionPaymentType === "deposit" ? (option.balance_payment_mode || "online") : null,
             has_dedicated_spots: !!option.has_dedicated_spots,
             dedicated_spots: option.has_dedicated_spots ? Number(option.dedicated_spots || 0) : null,
-            waitlist_enabled: !!option.waitlist_enabled,
+            waitlist_enabled: false,
           };
 
           if (!option.isNew) {
@@ -1315,7 +1313,7 @@ export default function EventsPage() {
 	                          <Input className="h-8 text-sm" placeholder="Nome formula" value={rule.name} onChange={e => updatePricingRule(rule.id, { name: e.target.value })} />
                           <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive" onClick={() => removePricingRule(rule.id)}><X className="h-3.5 w-3.5" /></Button>
                         </div>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-2 gap-2">
                           <div>
                             <Label className="text-[10px]">Prezzo (€)</Label>
                             <Input type="number" step="0.01" min={0} className="h-8 text-sm" value={rule.price ?? ""} onChange={e => {
@@ -1366,13 +1364,6 @@ export default function EventsPage() {
                               onCheckedChange={v => updatePricingRule(rule.id, { has_dedicated_spots: v, dedicated_spots: v ? (rule.dedicated_spots ?? 1) : null })}
                             />
                             <Label className="text-xs pb-1">Posti dedicati</Label>
-                          </div>
-                          <div className="flex items-end gap-2">
-                            <Switch
-                              checked={!!rule.waitlist_enabled}
-                              onCheckedChange={v => updatePricingRule(rule.id, { waitlist_enabled: v })}
-                            />
-	                            <Label className="text-xs pb-1">Waitlist formula</Label>
                           </div>
                         </div>
 
@@ -1620,6 +1611,18 @@ export default function EventsPage() {
                       <SelectItem value="hidden">Nascosto — solo link diretto</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-card">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold">Lista d'attesa</Label>
+                    <p className="text-[10px] text-muted-foreground">
+                      Se l'evento va sold out, gli utenti possono entrare in lista senza occupare posti o generare pagamenti.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={getAF(editEvent).waiting_list_enabled === true}
+                    onCheckedChange={(value) => updateAF({ waiting_list_enabled: value })}
+                  />
                 </div>
                 <div className="space-y-2 p-3 rounded-lg border bg-card">
                   <Label className="text-xs font-semibold">Chi può vedere i dettagli evento?</Label>

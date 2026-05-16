@@ -255,7 +255,6 @@ export default function EventDetailPage() {
                           <p className="text-xs text-muted-foreground">{getPriceOptionPaymentSummary(option, event)}</p>
                           <p className="text-xs text-muted-foreground">
                             {option.has_dedicated_spots ? `${option.spots_taken || 0}/${option.dedicated_spots || 0} posti dedicati` : "Usa capienza evento"}
-                            {option.waitlist_enabled ? " · waitlist attiva" : ""}
                           </p>
                         </div>
                         <Badge variant="outline">€{Number(option.price || 0).toFixed(2)}</Badge>
