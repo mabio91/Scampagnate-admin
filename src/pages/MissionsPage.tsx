@@ -389,9 +389,14 @@ export default function MissionsPage() {
 
       if (!missionId) throw new Error("Mission ID missing after save");
 
+      const { data: existingRewardRows, error: existingRewardsError } = await supabase
+        .from("mission_rewards" as any)
+        .select("id")
+        .eq("mission_id", missionId);
+      if (existingRewardsError) throw existingRewardsError;
+
       await Promise.all([
         supabase.from("mission_conditions" as any).delete().eq("mission_id", missionId),
-        supabase.from("mission_rewards" as any).delete().eq("mission_id", missionId),
         supabase.from("mission_prerequisites" as any).delete().eq("mission_id", missionId),
       ]);
 
@@ -421,6 +426,7 @@ export default function MissionsPage() {
       }));
 
       const rewardsPayload = preparedRewards.map((reward, index) => ({
+        id: reward.id,
         mission_id: missionId,
         sort_order: index,
         reward_kind: reward.kind,
@@ -450,7 +456,20 @@ export default function MissionsPage() {
         if (error) throw error;
       }
       if (rewardsPayload.length) {
-        const { error } = await supabase.from("mission_rewards" as any).insert(rewardsPayload);
+        const { error } = await supabase
+          .from("mission_rewards" as any)
+          .upsert(rewardsPayload, { onConflict: "id" });
+        if (error) throw error;
+      }
+      const keptRewardIds = new Set(rewardsPayload.map((reward) => reward.id));
+      const removedRewardIds = (existingRewardRows || [])
+        .map((reward: any) => reward.id)
+        .filter((id: string) => !keptRewardIds.has(id));
+      if (removedRewardIds.length) {
+        const { error } = await supabase
+          .from("mission_rewards" as any)
+          .delete()
+          .in("id", removedRewardIds);
         if (error) throw error;
       }
       if (prerequisitesPayload.length) {
