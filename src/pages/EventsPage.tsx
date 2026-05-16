@@ -38,16 +38,30 @@ type BalancePaymentMode = "online" | "on_site";
 const statusColors: Record<string, string> = {
   available: "text-success border-success/30 bg-success/10",
   published: "text-success border-success/30 bg-success/10",
+  open: "text-success border-success/30 bg-success/10",
+  upcoming: "text-warning border-warning/30 bg-warning/10",
   full: "text-warning border-warning/30 bg-warning/10",
   closed: "text-destructive border-destructive/30 bg-destructive/10",
+  rescheduled: "text-warning border-warning/30 bg-warning/10",
   cancelled: "text-destructive border-destructive/30 bg-destructive/10",
   draft: "text-muted-foreground border-muted-foreground/30 bg-muted/50",
+  unpublished: "text-muted-foreground border-muted-foreground/30 bg-muted/50",
   past: "text-muted-foreground border-muted-foreground/30 bg-muted/50",
+  completed: "text-muted-foreground border-muted-foreground/30 bg-muted/50",
 };
 const visibilityColors: Record<string, string> = {
   public: "text-success border-success/30",
   private: "text-primary border-primary/30",
   hidden: "text-muted-foreground border-muted-foreground/30",
+};
+
+const normalizeEditableEventStatus = (status?: string | null) => {
+  if (status === "available" || status === "published") return "open";
+  if (status === "unpublished") return "draft";
+  if (status === "past" || status === "completed") return "closed";
+  return ["draft", "upcoming", "open", "closed", "full", "rescheduled", "cancelled"].includes(status || "")
+    ? status!
+    : "open";
 };
 
 /* ══════ Types ══════ */
@@ -780,7 +794,7 @@ export default function EventsPage() {
     if (!e.title.toLowerCase().includes(search.toLowerCase())) return false;
     if (dashboardFilter === "empty") {
       const today = new Date().toISOString().slice(0, 10);
-      return e.date >= today && ["published", "available"].includes(e.status) && e.spots_taken === 0;
+      return e.date >= today && ["published", "available", "open"].includes(e.status) && e.spots_taken === 0;
     }
     if (dashboardFilter === "pending") return pendingEventIds.includes(e.id);
     return true;
@@ -1073,14 +1087,15 @@ export default function EventsPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label>Stato</Label>
-                    <Select value={editEvent.status || "draft"} onValueChange={v => setEditEvent({ ...editEvent, status: v })}>
+	                    <Select value={normalizeEditableEventStatus(editEvent.status)} onValueChange={v => setEditEvent({ ...editEvent, status: v })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="draft">Bozza</SelectItem>
-                        <SelectItem value="published">Pubblicato</SelectItem>
-                        <SelectItem value="available">Disponibile</SelectItem>
-                        <SelectItem value="full">Completo</SelectItem>
-                        <SelectItem value="closed">Chiuso</SelectItem>
+                        <SelectItem value="draft">Non pubblicato</SelectItem>
+                        <SelectItem value="upcoming">In arrivo</SelectItem>
+                        <SelectItem value="open">Aperto</SelectItem>
+                        <SelectItem value="closed">Iscrizioni chiuse</SelectItem>
+                        <SelectItem value="full">Sold out</SelectItem>
+                        <SelectItem value="rescheduled">Riprogrammato</SelectItem>
                         <SelectItem value="cancelled">Annullato</SelectItem>
                       </SelectContent>
                     </Select>
@@ -1175,22 +1190,22 @@ export default function EventsPage() {
                   </Select>
                 </div>
 
-                {/* ── Fasce di prezzo (inside capacity) ── */}
+                {/* ── Modalità di partecipazione (inside capacity) ── */}
                 {(editEvent.payment_type === "paid" || editEvent.payment_type === "deposit" || editEvent.payment_type === "location") && (
                   <div className="space-y-3 p-3 rounded-lg border border-dashed border-primary/30 bg-primary/5">
                     <div className="flex items-center justify-between">
-                      <Label className="text-xs font-semibold flex items-center gap-1.5"><Tag className="h-3.5 w-3.5 text-primary" /> Fasce di prezzo</Label>
-                      <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={addPricingRule}><Plus className="h-3 w-3 mr-1" /> Aggiungi fascia</Button>
+	                      <Label className="text-xs font-semibold flex items-center gap-1.5"><Tag className="h-3.5 w-3.5 text-primary" /> Modalità di partecipazione</Label>
+	                      <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={addPricingRule}><Plus className="h-3 w-3 mr-1" /> Aggiungi formula</Button>
                     </div>
-                    <p className="text-[10px] text-muted-foreground">Prezzo standard: <strong>€{editEvent.price ?? 0}</strong>. Le fasce vengono valutate dall'alto verso il basso.</p>
+	                    <p className="text-[10px] text-muted-foreground">Prezzo standard: <strong>€{editEvent.price ?? 0}</strong>. Le formule vengono valutate dall'alto verso il basso.</p>
 
-                    {getPricingRules(editEvent).length === 0 && <p className="text-xs text-muted-foreground italic text-center py-2">Nessuna fascia. Tutti vedono il prezzo standard.</p>}
+	                    {getPricingRules(editEvent).length === 0 && <p className="text-xs text-muted-foreground italic text-center py-2">Nessuna formula. Tutti vedono il prezzo standard.</p>}
 
                     {getPricingRules(editEvent).map((rule, ri) => (
                       <div key={rule.id} className="space-y-2 p-3 rounded-md border bg-card">
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] font-bold text-muted-foreground bg-muted rounded-full w-5 h-5 flex items-center justify-center shrink-0">{ri + 1}</span>
-                          <Input className="h-8 text-sm" placeholder="Nome fascia" value={rule.name} onChange={e => updatePricingRule(rule.id, { name: e.target.value })} />
+	                          <Input className="h-8 text-sm" placeholder="Nome formula" value={rule.name} onChange={e => updatePricingRule(rule.id, { name: e.target.value })} />
                           <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive" onClick={() => removePricingRule(rule.id)}><X className="h-3.5 w-3.5" /></Button>
                         </div>
                         <div className="grid grid-cols-3 gap-2">
@@ -1250,7 +1265,7 @@ export default function EventsPage() {
                               checked={!!rule.waitlist_enabled}
                               onCheckedChange={v => updatePricingRule(rule.id, { waitlist_enabled: v })}
                             />
-                            <Label className="text-xs pb-1">Waitlist opzione</Label>
+	                            <Label className="text-xs pb-1">Waitlist formula</Label>
                           </div>
                         </div>
 
@@ -1288,11 +1303,11 @@ export default function EventsPage() {
                         {rule.has_dedicated_spots && (
                           <div className="grid grid-cols-2 gap-2">
                             <div>
-                              <Label className="text-[10px]">Posti opzione</Label>
+	                              <Label className="text-[10px]">Posti formula</Label>
                               <Input type="number" min={0} className="h-8 text-sm" value={rule.dedicated_spots ?? ""} onChange={e => updatePricingRule(rule.id, { dedicated_spots: parseInt(e.target.value) || 0 })} />
                             </div>
                             <div className="flex items-end text-[10px] text-muted-foreground pb-2">
-                              {rule.spots_taken ? `${rule.spots_taken} posti gia presi` : "Nessun posto preso su questa opzione"}
+	                              {rule.spots_taken ? `${rule.spots_taken} posti gia presi` : "Nessun posto preso su questa formula"}
                             </div>
                           </div>
                         )}

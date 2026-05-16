@@ -227,7 +227,7 @@ export default function OrganizerDetailPage() {
                           <TableCell className="text-muted-foreground">{new Date(event.date).toLocaleDateString()}</TableCell>
                           <TableCell>
                             <Badge variant={
-                              event.status === "published" || event.status === "available" ? "default" :
+                              event.status === "published" || event.status === "available" || event.status === "open" ? "default" :
                               event.status === "cancelled" ? "destructive" : "secondary"
                             }>
                               {event.status}
