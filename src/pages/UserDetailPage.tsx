@@ -49,13 +49,14 @@ export default function UserDetailPage() {
       const { data, error } = await supabase
         .from("event_registrations")
         .select(`
-          id, status, checked_in, created_at,
+          id, status, checked_in, created_at, sport_level,
           events:event_id (
             id, title, date, status,
             event_categories:category_id ( name, icon )
           )
         `)
         .eq("user_id", id)
+        .or("sport_level.is.null,sport_level.not.like.manual:%")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];

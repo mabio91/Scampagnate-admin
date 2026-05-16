@@ -103,9 +103,12 @@ export default function UsersPage() {
   const { data: regCounts = {} } = useQuery({
     queryKey: ["admin-user-reg-counts"],
     queryFn: async () => {
-      const { data } = await supabase.from("event_registrations").select("user_id");
+      const { data } = await supabase.from("event_registrations").select("user_id, sport_level");
       const counts: Record<string, number> = {};
-      data?.forEach((r) => { counts[r.user_id] = (counts[r.user_id] || 0) + 1; });
+      data?.forEach((r) => {
+        if (!r.user_id || r.sport_level?.startsWith("manual:")) return;
+        counts[r.user_id] = (counts[r.user_id] || 0) + 1;
+      });
       return counts;
     },
   });

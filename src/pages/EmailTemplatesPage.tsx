@@ -278,13 +278,15 @@ export default function EmailTemplatesPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("event_registrations")
-        .select("user_id, status, checked_in, created_at, events(date, status)");
+        .select("user_id, status, checked_in, created_at, sport_level, events(date, status)");
       if (error) throw error;
 
       const stats: Record<string, BroadcastUserStats> = {};
       const today = new Date().toISOString().slice(0, 10);
 
       data?.forEach((reg: any) => {
+        if (!reg.user_id || reg.sport_level?.startsWith("manual:")) return;
+
         if (!stats[reg.user_id]) {
           stats[reg.user_id] = {
             joined: 0,
@@ -1369,4 +1371,3 @@ export default function EmailTemplatesPage() {
     </div>
   );
 }
-

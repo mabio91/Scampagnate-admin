@@ -6,6 +6,7 @@ interface ParticipantListItemProps {
   firstName: string;
   lastName?: string;
   totalPoints: number;
+  showLevel?: boolean;
   className?: string;
 }
 
@@ -14,6 +15,7 @@ export function ParticipantListItem({
   firstName,
   lastName = "",
   totalPoints,
+  showLevel = true,
   className,
 }: ParticipantListItemProps) {
   const { currentLevel } = useUserLevel(totalPoints);
@@ -26,7 +28,7 @@ export function ParticipantListItem({
         lastName={lastName}
         totalPoints={totalPoints}
         size="sm"
-        showLevel
+        showLevel={showLevel}
       />
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium truncate">{firstName}</p>

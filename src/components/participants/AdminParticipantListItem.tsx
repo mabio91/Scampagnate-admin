@@ -52,6 +52,7 @@ interface AdminParticipantListItemProps {
   balancePaymentMode?: string | null;
   refundStatus?: string | null;
   refundAmount?: number | null;
+  showLevel?: boolean;
   isUpdating?: boolean;
   onUpdate?: (updates: EventRegistrationUpdate) => void;
   className?: string;
@@ -87,6 +88,7 @@ export function AdminParticipantListItem({
   balancePaymentMode,
   refundStatus,
   refundAmount,
+  showLevel = true,
   isUpdating = false,
   onUpdate,
   className,
@@ -110,11 +112,11 @@ export function AdminParticipantListItem({
         lastName={lastName}
         totalPoints={totalPoints}
         size="md"
-        showLevel
+        showLevel={showLevel}
       />
       <div className="min-w-0 flex-1 space-y-0.5">
         <p className="text-sm font-medium truncate">{firstName}</p>
-        {currentLevel && (
+        {showLevel && currentLevel && (
           <p className="text-xs text-muted-foreground">
             {currentLevel.icon} {currentLevel.name}
           </p>

@@ -10,6 +10,9 @@ import { Ruler, TrendingUp, Calendar, Star, Users, CreditCard, ClipboardList, Fo
 import type { DashboardFilterValues } from "./DashboardFilters";
 import { formatMembershipId } from "@/lib/membership";
 
+const isRealUserRegistration = (registration: any) =>
+  Boolean(registration.user_id) && !registration.sport_level?.startsWith("manual:");
+
 export type KPIType =
   | "total-users"
   | "active-members"
@@ -347,7 +350,7 @@ function ParticipatingUsersDetail({ filters }: { filters: DashboardFilterValues 
   const { data, isLoading } = useQuery({
     queryKey: ["kpi-detail-participating-full", filters],
     queryFn: async () => {
-      let q = supabase.from("event_registrations").select("user_id, status, checked_in, created_at, event_id, events!inner(date, title, category_id)");
+      let q = supabase.from("event_registrations").select("user_id, status, checked_in, created_at, event_id, sport_level, events!inner(date, title, category_id)");
       if (filters.dateFrom) q = q.gte("events.date", format(filters.dateFrom, "yyyy-MM-dd"));
       if (filters.dateTo) q = q.lte("events.date", format(filters.dateTo, "yyyy-MM-dd"));
       if (filters.categoryId) q = q.eq("events.category_id", filters.categoryId);
@@ -357,7 +360,7 @@ function ParticipatingUsersDetail({ filters }: { filters: DashboardFilterValues 
       const userMap: Record<string, { userId: string; eventsJoined: number; eventsAttended: number; lastEvent: string; lastDate: string; noShows: number; cancelled: number; firstDate: string }> = {};
       let totalRegs = 0, totalCheckedIn = 0, totalNoShows = 0, totalCancelled = 0;
 
-      regs.forEach((r: any) => {
+      regs.filter(isRealUserRegistration).forEach((r: any) => {
         if (!userMap[r.user_id]) userMap[r.user_id] = { userId: r.user_id, eventsJoined: 0, eventsAttended: 0, lastEvent: "", lastDate: "", noShows: 0, cancelled: 0, firstDate: r.events.date };
         const u = userMap[r.user_id];
         if (["registered", "paid", "attended"].includes(r.status)) { u.eventsJoined++; totalRegs++; }
@@ -576,11 +579,12 @@ function ParticipationRateDetail({ filters }: { filters: DashboardFilterValues }
     queryKey: ["kpi-detail-participation-rate-full", filters],
     queryFn: async () => {
       const { count: totalUsers } = await supabase.from("profiles").select("*", { count: "exact", head: true });
-      const { data: regs } = await supabase.from("event_registrations").select("user_id, created_at, events!inner(date, category_id, organizer_id, organizer_name)").in("status", ["registered", "paid", "attended"]);
+      const { data: regs } = await supabase.from("event_registrations").select("user_id, created_at, sport_level, events!inner(date, category_id, organizer_id, organizer_name)").in("status", ["registered", "paid", "attended"]);
       const { data: cats } = await supabase.from("event_categories").select("id, name");
       const catMap = Object.fromEntries((cats || []).map(c => [c.id, c.name]));
 
       const filtered = (regs || []).filter((r: any) => {
+        if (!isRealUserRegistration(r)) return false;
         if (filters.dateFrom && r.events.date < format(filters.dateFrom, "yyyy-MM-dd")) return false;
         if (filters.dateTo && r.events.date > format(filters.dateTo, "yyyy-MM-dd")) return false;
         if (filters.categoryId && r.events.category_id !== filters.categoryId) return false;
@@ -1008,7 +1012,7 @@ function WaitlistDetail({ filters }: { filters: DashboardFilterValues }) {
     queryFn: async () => {
       // Get all registrations for waitlist analysis
       const { data: regs } = await supabase.from("event_registrations")
-        .select("user_id, status, created_at, events!inner(id, title, date, spots_total, spots_taken, organizer_name, category_id)");
+        .select("user_id, status, created_at, sport_level, events!inner(id, title, date, spots_total, spots_taken, organizer_name, category_id)");
 
       const { data: cats } = await supabase.from("event_categories").select("id, name");
       const catMap = Object.fromEntries((cats || []).map(c => [c.id, c.name]));
@@ -1040,12 +1044,12 @@ function WaitlistDetail({ filters }: { filters: DashboardFilterValues }) {
       const events = Object.values(eventMap).filter(e => e.waitlistCount > 0).sort((a, b) => b.waitlistCount - a.waitlistCount);
 
       // Waitlisted users
-      const userIds = [...new Set(waitlistRegs.map(r => r.user_id))];
+      const userIds = [...new Set(waitlistRegs.filter(isRealUserRegistration).map(r => r.user_id))];
       let waitlistUsers: any[] = [];
       if (userIds.length > 0) {
         const { data: profiles } = await supabase.from("profiles").select("id, first_name, last_name, email").in("id", userIds.slice(0, 200));
         const profileMap = Object.fromEntries((profiles || []).map(p => [p.id, p]));
-        waitlistUsers = waitlistRegs.map((r: any) => ({
+        waitlistUsers = waitlistRegs.filter(isRealUserRegistration).map((r: any) => ({
           name: profileMap[r.user_id] ? `${profileMap[r.user_id].first_name} ${profileMap[r.user_id].last_name}` : r.user_id.slice(0, 8),
           email: profileMap[r.user_id]?.email || "—",
           event: r.events.title,
@@ -1128,12 +1132,13 @@ function RepeatParticipantsDetail({ filters }: { filters: DashboardFilterValues 
     queryKey: ["kpi-detail-repeat-full", filters],
     queryFn: async () => {
       const { data: regs } = await supabase.from("event_registrations")
-        .select("user_id, checked_in, created_at, events!inner(date, title)")
+        .select("user_id, checked_in, created_at, sport_level, events!inner(date, title)")
         .eq("checked_in", true);
       if (!regs) return { users: [], threshold: 3 };
 
       const counts: Record<string, { count: number; lastDate: string; lastEvent: string; firstDate: string }> = {};
       (regs as any[]).forEach(r => {
+        if (!isRealUserRegistration(r)) return;
         if (filters.dateFrom && r.events.date < format(filters.dateFrom, "yyyy-MM-dd")) return;
         if (filters.dateTo && r.events.date > format(filters.dateTo, "yyyy-MM-dd")) return;
         if (!counts[r.user_id]) counts[r.user_id] = { count: 0, lastDate: "", lastEvent: "", firstDate: r.events.date };
@@ -1246,7 +1251,7 @@ function TopCategoryDetail({ filters }: { filters: DashboardFilterValues }) {
       if (filters.dateFrom) eq = eq.gte("date", format(filters.dateFrom, "yyyy-MM-dd"));
       if (filters.dateTo) eq = eq.lte("date", format(filters.dateTo, "yyyy-MM-dd"));
       const { data: events } = await eq;
-      const { data: regs } = await supabase.from("event_registrations").select("event_id, checked_in, status, user_id").in("status", ["registered", "paid", "attended", "no_show"]);
+      const { data: regs } = await supabase.from("event_registrations").select("event_id, checked_in, status, user_id, sport_level").in("status", ["registered", "paid", "attended", "no_show"]);
       if (!cats || !events) return [];
 
       const eventIds = new Set(events.map(e => e.id));
@@ -1259,7 +1264,7 @@ function TopCategoryDetail({ filters }: { filters: DashboardFilterValues }) {
         const noShows = catRegs.filter(r => r.status === "no_show").length;
         const totalCapacity = catEvents.reduce((s, e) => s + (e.spots_total || 0), 0);
         const totalTaken = catEvents.reduce((s, e) => s + (e.spots_taken || 0), 0);
-        const uniqueUsers = new Set(catRegs.map(r => r.user_id));
+        const uniqueUsers = new Set(catRegs.filter(isRealUserRegistration).map(r => r.user_id));
         const uniqueOrganizers = new Set(catEvents.map(e => e.organizer_name));
         const activeRegs = catRegs.filter(r => ["registered", "paid", "attended"].includes(r.status)).length;
 
@@ -1481,8 +1486,8 @@ function CommunityHealthDetail({ filters }: { filters: DashboardFilterValues }) 
       const { count: totalEvents } = await supabase.from("events").select("*", { count: "exact", head: true });
 
       // Participating users
-      const { data: regUsers } = await supabase.from("event_registrations").select("user_id").in("status", ["registered", "paid", "attended"]);
-      const participatingUsers = new Set(regUsers?.map(r => r.user_id)).size;
+      const { data: regUsers } = await supabase.from("event_registrations").select("user_id, sport_level").in("status", ["registered", "paid", "attended"]);
+      const participatingUsers = new Set(regUsers?.filter(isRealUserRegistration).map(r => r.user_id)).size;
 
       const attendanceRate = (totalRegs || 0) > 0 ? Math.round(((checkedIn || 0) / (totalRegs || 1)) * 100) : 0;
       const noShowRate = (totalRegs || 0) > 0 ? Math.round(((noShows || 0) / (totalRegs || 1)) * 100) : 0;

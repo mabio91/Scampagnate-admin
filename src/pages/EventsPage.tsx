@@ -727,13 +727,15 @@ export default function EventsPage() {
         if (attendanceBadgeIds.length) {
           const { data: attendedUsers, error: attendedUsersError } = await supabase
             .from("event_registrations")
-            .select("user_id")
+            .select("user_id, sport_level")
             .eq("event_id", savedId)
             .or("checked_in.eq.true,status.eq.attended");
 
           if (attendedUsersError) throw attendedUsersError;
 
-          const awardRows = [...new Set((attendedUsers || []).map((row) => row.user_id))]
+          const awardRows = [...new Set((attendedUsers || [])
+            .filter((row) => row.user_id && !row.sport_level?.startsWith("manual:"))
+            .map((row) => row.user_id))]
             .flatMap((userId) => attendanceBadgeIds.map((badgeId) => ({ user_id: userId, badge_id: badgeId })));
 
           if (awardRows.length) {

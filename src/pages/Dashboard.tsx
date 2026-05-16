@@ -252,6 +252,8 @@ export default function Dashboard() {
 
   const currentYear = new Date().getFullYear();
   const yearStart = `${currentYear}-01-01`;
+  const isRealUserRegistration = (registration: any) =>
+    Boolean(registration.user_id) && !registration.sport_level?.startsWith("manual:");
 
   // ── Trend comparison: current month vs previous month ──
   const curMonthStart = format(startOfMonth(new Date()), "yyyy-MM-dd");
@@ -273,8 +275,8 @@ export default function Dashboard() {
       const { count: eventsPrev } = await supabase.from("events").select("*", { count: "exact", head: true }).gte("date", prevMonthStart).lt("date", curMonthStart);
 
       // Registrations current month vs previous month (for attendance/participation trends)
-      const { data: regsCur } = await supabase.from("event_registrations").select("user_id, checked_in, status, events!inner(date)").gte("events.date", curMonthStart);
-      const { data: regsPrev } = await supabase.from("event_registrations").select("user_id, checked_in, status, events!inner(date)").gte("events.date", prevMonthStart).lt("events.date", curMonthStart);
+      const { data: regsCur } = await supabase.from("event_registrations").select("user_id, checked_in, status, sport_level, events!inner(date)").gte("events.date", curMonthStart);
+      const { data: regsPrev } = await supabase.from("event_registrations").select("user_id, checked_in, status, sport_level, events!inner(date)").gte("events.date", prevMonthStart).lt("events.date", curMonthStart);
 
       const calcAttendance = (regs: any[] | null) => {
         if (!regs || regs.length === 0) return null;
@@ -285,7 +287,7 @@ export default function Dashboard() {
 
       const calcParticipants = (regs: any[] | null) => {
         if (!regs) return 0;
-        return new Set(regs.filter(r => r.checked_in).map(r => r.user_id)).size;
+        return new Set(regs.filter(r => r.checked_in && isRealUserRegistration(r)).map(r => r.user_id)).size;
       };
 
       // Fill rate current vs previous
@@ -401,7 +403,7 @@ export default function Dashboard() {
     queryFn: async () => {
       let q = supabase
         .from("event_registrations")
-        .select("user_id, events!inner(date, category_id, organizer_id, status)")
+        .select("user_id, sport_level, events!inner(date, category_id, organizer_id, status)")
         .eq("checked_in", true);
       if (filters.dateFrom) q = q.gte("events.date", format(filters.dateFrom, "yyyy-MM-dd"));
       else q = q.gte("events.date", yearStart);
@@ -411,7 +413,7 @@ export default function Dashboard() {
       if (filters.eventStatus) q = q.eq("events.status", filters.eventStatus as any);
       const { data } = await q;
       if (!data) return 0;
-      const uniqueUsers = new Set(data.map((r: any) => r.user_id));
+      const uniqueUsers = new Set(data.filter(isRealUserRegistration).map((r: any) => r.user_id));
       return uniqueUsers.size;
     },
   });
@@ -438,7 +440,7 @@ export default function Dashboard() {
     queryFn: async () => {
       let q = supabase
         .from("event_registrations")
-        .select("user_id, events!inner(date, category_id, organizer_id, status)")
+        .select("user_id, sport_level, events!inner(date, category_id, organizer_id, status)")
         .in("status", ["registered", "paid", "attended"]);
       if (filters.dateFrom) q = q.gte("events.date", format(filters.dateFrom, "yyyy-MM-dd"));
       if (filters.dateTo) q = q.lte("events.date", format(filters.dateTo, "yyyy-MM-dd"));
@@ -447,7 +449,7 @@ export default function Dashboard() {
       if (filters.eventStatus) q = q.eq("events.status", filters.eventStatus as any);
       const { data } = await q;
       if (!data || totalUsers === 0) return "0%";
-      const uniqueUsers = new Set(data.map((r: any) => r.user_id));
+      const uniqueUsers = new Set(data.filter(isRealUserRegistration).map((r: any) => r.user_id));
       return `${Math.round((uniqueUsers.size / totalUsers) * 100)}%`;
     },
     enabled: totalUsers > 0,
@@ -523,7 +525,7 @@ export default function Dashboard() {
     queryFn: async () => {
       let q = supabase
         .from("event_registrations")
-        .select("user_id, events!inner(date, category_id, organizer_id, status)")
+        .select("user_id, sport_level, events!inner(date, category_id, organizer_id, status)")
         .eq("checked_in", true);
       if (filters.dateFrom) q = q.gte("events.date", format(filters.dateFrom, "yyyy-MM-dd"));
       if (filters.dateTo) q = q.lte("events.date", format(filters.dateTo, "yyyy-MM-dd"));
@@ -533,7 +535,7 @@ export default function Dashboard() {
       const { data } = await q;
       if (!data) return 0;
       const counts: Record<string, number> = {};
-      data.forEach((r: any) => { counts[r.user_id] = (counts[r.user_id] || 0) + 1; });
+      data.filter(isRealUserRegistration).forEach((r: any) => { counts[r.user_id] = (counts[r.user_id] || 0) + 1; });
       return Object.values(counts).filter((c) => c > 3).length;
     },
   });

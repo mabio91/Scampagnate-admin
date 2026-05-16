@@ -14,10 +14,11 @@ interface EventParticipantsListProps {
 
 interface ParticipantData {
   id: string;
-  user_id: string;
+  user_id: string | null;
   status: string;
   payment_status: string | null;
   checked_in: boolean;
+  sport_level: string | null;
   meeting_point_id: string | null;
   price_option_id: string | null;
   amount_paid: number | null;
@@ -45,11 +46,16 @@ interface ParticipantData {
 
 type EventRegistrationUpdate = Database["public"]["Tables"]["event_registrations"]["Update"];
 type UserRegistrationStatsRow = {
-  user_id: string;
+  user_id: string | null;
   status: string | null;
   checked_in: boolean | null;
   events: { date: string | null } | null;
 };
+
+function manualParticipantName(sportLevel: string | null | undefined) {
+  if (!sportLevel?.startsWith("manual:")) return null;
+  return sportLevel.replace("manual:", "").split("|")[0]?.trim() || "Partecipante";
+}
 
 export function EventParticipantsList({ eventId, isAdmin = false }: EventParticipantsListProps) {
   const queryClient = useQueryClient();
@@ -66,6 +72,7 @@ export function EventParticipantsList({ eventId, isAdmin = false }: EventPartici
           status,
           payment_status,
           checked_in,
+          sport_level,
           meeting_point_id,
           price_option_id,
           amount_paid,
@@ -99,7 +106,7 @@ export function EventParticipantsList({ eventId, isAdmin = false }: EventPartici
   });
 
   // For admin view: fetch all registrations per user to compute reliability
-  const userIds = participants.map((p) => p.user_id);
+  const userIds = participants.map((p) => p.user_id).filter(Boolean) as string[];
   const { data: allUserRegs = [] } = useQuery({
     queryKey: ["user-all-regs", userIds],
     enabled: isAdmin && userIds.length > 0,
@@ -173,6 +180,7 @@ export function EventParticipantsList({ eventId, isAdmin = false }: EventPartici
   const userStats: Record<string, { completed: number; total: number; noShows: number }> = {};
   if (isAdmin) {
     allUserRegs.forEach((r) => {
+      if (!r.user_id) return;
       if (!userStats[r.user_id]) userStats[r.user_id] = { completed: 0, total: 0, noShows: 0 };
       const isPast = r.events?.date ? new Date(r.events.date) < new Date() : false;
       if (["registered", "paid", "deposit_paid", "attended", "no_show"].includes(r.status)) {
@@ -187,17 +195,23 @@ export function EventParticipantsList({ eventId, isAdmin = false }: EventPartici
     <div className="space-y-0.5 divide-y divide-border/50">
       {participants.map((p) => {
         const profile = p.profiles;
-        if (!profile) return null;
+        const manualName = manualParticipantName(p.sport_level);
+        const firstName = manualName || profile?.first_name || "Partecipante";
+        const lastName = manualName ? "(manuale)" : profile?.last_name || "";
+        const avatarUrl = manualName ? null : profile?.avatar_url || null;
+        const totalPoints = manualName ? 0 : profile?.total_points || 0;
+        const showLevel = !manualName && !!profile;
 
         if (isAdmin) {
-          const stats = userStats[p.user_id] || { completed: 0, total: 0, noShows: 0 };
+          const stats = p.user_id ? userStats[p.user_id] || { completed: 0, total: 0, noShows: 0 } : { completed: 0, total: 0, noShows: 0 };
           return (
             <AdminParticipantListItem
               key={p.id}
-              avatarUrl={profile.avatar_url}
-              firstName={profile.first_name}
-              lastName={profile.last_name}
-              totalPoints={profile.total_points || 0}
+              avatarUrl={avatarUrl}
+              firstName={firstName}
+              lastName={lastName}
+              totalPoints={totalPoints}
+              showLevel={showLevel}
               completedEventsCount={stats.completed}
               totalRegistrations={stats.total}
               noShowCount={stats.noShows}
@@ -223,10 +237,11 @@ export function EventParticipantsList({ eventId, isAdmin = false }: EventPartici
         return (
           <ParticipantListItem
             key={p.id}
-            avatarUrl={profile.avatar_url}
-            firstName={profile.first_name}
-            lastName={profile.last_name}
-            totalPoints={profile.total_points || 0}
+            avatarUrl={avatarUrl}
+            firstName={firstName}
+            lastName={lastName}
+            totalPoints={totalPoints}
+            showLevel={showLevel}
           />
         );
       })}

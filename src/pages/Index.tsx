@@ -101,19 +101,20 @@ export default function Index() {
     queryFn: async () => {
       const { data: regs } = await supabase
         .from("event_registrations")
-        .select("user_id, status, checked_in, events!inner(date)");
+        .select("user_id, status, checked_in, sport_level, events!inner(date)");
 
       if (!regs) return { participationRate: 0, attendanceRate: 0, waitlistCount: 0, repeatCount: 0, attendedAtLeastOneCount: 0 };
 
       // Current Year Attendance Logic
       const currentYearRegs = regs.filter(r => r.events && (r.events as any).date.startsWith(currentYear.toString()));
+      const realUserRegs = regs.filter(r => r.user_id && !r.sport_level?.startsWith("manual:"));
       const uniqueAttendedCurrentYear = new Set(
-        currentYearRegs.filter(r => r.checked_in).map(r => r.user_id)
+        currentYearRegs.filter(r => r.checked_in && r.user_id && !r.sport_level?.startsWith("manual:")).map(r => r.user_id)
       );
 
       // Participation Rate (users who joined AT LEAST ONE event / total unique users)
       const allUniqueParticipants = new Set(
-        regs.filter(r => ["paid", "registered", "pending_approval"].includes(r.status)).map(r => r.user_id)
+        realUserRegs.filter(r => ["paid", "registered", "pending_approval"].includes(r.status)).map(r => r.user_id)
       );
       
       // Attendance Rate (Checked in / Total registered)
@@ -126,7 +127,7 @@ export default function Index() {
 
       // Repeat Participants (> 3 events attended)
       const userAttendanceCounts: Record<string, number> = {};
-      regs.filter(r => r.checked_in).forEach(r => {
+      realUserRegs.filter(r => r.checked_in).forEach(r => {
         userAttendanceCounts[r.user_id] = (userAttendanceCounts[r.user_id] || 0) + 1;
       });
       const repeatCount = Object.values(userAttendanceCounts).filter(count => count > 3).length;
