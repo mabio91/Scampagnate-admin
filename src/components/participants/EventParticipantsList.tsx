@@ -3,9 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { ParticipantListItem } from "./ParticipantListItem";
 import { AdminParticipantListItem } from "./AdminParticipantListItem";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Download, Users } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import { toast } from "sonner";
+import { exportToCsv } from "@/lib/exportUtils";
 
 interface EventParticipantsListProps {
   eventId: string;
@@ -39,6 +41,7 @@ interface ParticipantData {
   profiles: {
     first_name: string;
     last_name: string;
+    instagram_handle: string | null;
     avatar_url: string | null;
     total_points: number;
   } | null;
@@ -51,6 +54,8 @@ type UserRegistrationStatsRow = {
   checked_in: boolean | null;
   events: { date: string | null } | null;
 };
+
+const CONFIRMED_REGISTRATION_STATUSES = ["registered", "deposit_paid", "paid", "attended", "no_show"];
 
 function manualParticipantName(sportLevel: string | null | undefined) {
   if (!sportLevel?.startsWith("manual:")) return null;
@@ -93,6 +98,7 @@ export function EventParticipantsList({ eventId, isAdmin = false }: EventPartici
           profiles:user_id (
             first_name,
             last_name,
+            instagram_handle,
             avatar_url,
             total_points
           )
@@ -191,8 +197,37 @@ export function EventParticipantsList({ eventId, isAdmin = false }: EventPartici
     });
   }
 
+  const handleExportConfirmedInstagram = () => {
+    const rows = participants
+      .filter((p) => (
+        p.user_id &&
+        !manualParticipantName(p.sport_level) &&
+        CONFIRMED_REGISTRATION_STATUSES.includes(p.status) &&
+        p.payment_status !== "pending" &&
+        p.profiles?.instagram_handle
+      ))
+      .map((p) => [
+        p.profiles?.first_name || "",
+        p.profiles?.last_name || "",
+        p.profiles?.instagram_handle ? `@${p.profiles.instagram_handle}` : "",
+        p.status,
+        p.payment_status || "",
+      ]);
+
+    exportToCsv(`event-${eventId}-instagram`, ["Nome", "Cognome", "Instagram", "Stato", "Pagamento"], rows);
+    toast.success("Instagram partecipanti confermati esportati");
+  };
+
   return (
     <div className="space-y-0.5 divide-y divide-border/50">
+      {isAdmin && (
+        <div className="flex justify-end pb-2">
+          <Button type="button" variant="outline" size="sm" className="gap-2" onClick={handleExportConfirmedInstagram}>
+            <Download className="h-4 w-4" />
+            Esporta Instagram confermati
+          </Button>
+        </div>
+      )}
       {participants.map((p) => {
         const profile = p.profiles;
         const manualName = manualParticipantName(p.sport_level);
@@ -211,6 +246,7 @@ export function EventParticipantsList({ eventId, isAdmin = false }: EventPartici
               firstName={firstName}
               lastName={lastName}
               totalPoints={totalPoints}
+              instagramHandle={manualName ? null : profile?.instagram_handle || null}
               showLevel={showLevel}
               completedEventsCount={stats.completed}
               totalRegistrations={stats.total}

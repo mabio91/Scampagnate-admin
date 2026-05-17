@@ -2,8 +2,9 @@ import { LevelBadgeAvatar, useUserLevel } from "@/components/gamification/LevelB
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CheckCircle2, CreditCard, Shield, Target, XCircle } from "lucide-react";
+import { CheckCircle2, CreditCard, Instagram, Shield, Target, XCircle } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
+import { instagramProfileUrl } from "@/lib/instagram";
 
 const NO_MEETING_POINT = "__no_meeting_point__";
 
@@ -35,6 +36,7 @@ interface AdminParticipantListItemProps {
   firstName: string;
   lastName?: string;
   totalPoints: number;
+  instagramHandle?: string | null;
   fitScore?: number | null;
   completedEventsCount: number;
   totalRegistrations: number;
@@ -71,6 +73,7 @@ export function AdminParticipantListItem({
   firstName,
   lastName = "",
   totalPoints,
+  instagramHandle,
   fitScore,
   completedEventsCount,
   totalRegistrations,
@@ -122,6 +125,17 @@ export function AdminParticipantListItem({
           </p>
         )}
         <div className="flex flex-wrap gap-x-3 gap-y-0.5 pt-1 text-[11px]">
+          {instagramHandle && (
+            <a
+              href={instagramProfileUrl(instagramHandle)}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1 text-primary hover:underline"
+            >
+              <Instagram className="h-3 w-3" />
+              @{instagramHandle}
+            </a>
+          )}
           {fitScore != null && (
             <span className="flex items-center gap-1 text-muted-foreground">
               <Target className="h-3 w-3" />

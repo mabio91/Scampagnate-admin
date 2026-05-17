@@ -6,12 +6,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Landmark, Car, Target, Activity, TrendingUp, Calendar, MapPin, ChevronRight, Gamepad2 } from "lucide-react";
+import { ArrowLeft, Instagram, Landmark, Car, Target, Activity, TrendingUp, Calendar, MapPin, ChevronRight, Gamepad2 } from "lucide-react";
 import { UserGamificationSection } from "@/components/gamification/UserGamificationSection";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { formatMembershipId } from "@/lib/membership";
+import { instagramProfileUrl } from "@/lib/instagram";
 
 export default function UserDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -160,6 +161,7 @@ export default function UserDetailPage() {
               <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
                 <InfoField label={t("common.email")} value={user.email} />
                 <InfoField label={t("common.phone")} value={user.phone || "—"} />
+                <InstagramField handle={user.instagram_handle} />
                 <InfoField label={t("users.joinedDate")} value={new Date(user.created_at).toLocaleDateString()} />
                 <InfoField label={t("users.lastLogin")} value={user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString() : t("users.never")} />
                 <div className="space-y-1">
@@ -364,6 +366,27 @@ function InfoField({ label, value, mono }: { label: string; value: string; mono?
     <div className="space-y-1">
       <p className="text-sm text-muted-foreground">{label}</p>
       <p className={`font-medium ${mono ? "font-mono text-sm" : ""}`}>{value}</p>
+    </div>
+  );
+}
+
+function InstagramField({ handle }: { handle?: string | null }) {
+  return (
+    <div className="space-y-1">
+      <p className="text-sm text-muted-foreground">Instagram</p>
+      {handle ? (
+        <a
+          href={instagramProfileUrl(handle)}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+        >
+          <Instagram className="h-4 w-4" />
+          @{handle}
+        </a>
+      ) : (
+        <p className="font-medium">—</p>
+      )}
     </div>
   );
 }

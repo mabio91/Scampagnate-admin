@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import type { Tables, Database } from "@/integrations/supabase/types";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { exportToCsv } from "@/lib/exportUtils";
+import { instagramProfileUrl, isValidInstagramHandle, normalizeInstagramHandle } from "@/lib/instagram";
 
 type Profile = Tables<"profiles">;
 
@@ -58,7 +59,7 @@ export default function UsersPage() {
   const [segment, setSegment] = useState<string>("all");
   const [editUser, setEditUser] = useState<(Profile & { roles: string[] }) | null>(null);
   const [editForm, setEditForm] = useState({
-    first_name: "", last_name: "", phone: "", bio: "",
+    first_name: "", last_name: "", phone: "", instagram_handle: "", bio: "",
     birth_date: "",
     birth_place: "",
     province_of_birth: "",
@@ -116,9 +117,13 @@ export default function UsersPage() {
   const updateProfile = useMutation({
     mutationFn: async () => {
       if (!editUser) return;
+      const normalizedInstagramHandle = normalizeInstagramHandle(editForm.instagram_handle);
+      if (!isValidInstagramHandle(normalizedInstagramHandle)) {
+        throw new Error("Instagram non valido: inserisci solo username, @username o link instagram.com/username.");
+      }
       const { error } = await supabase.from("profiles").update({
         first_name: editForm.first_name, last_name: editForm.last_name,
-        phone: editForm.phone, bio: editForm.bio, account_status: editForm.account_status,
+        phone: editForm.phone, instagram_handle: normalizedInstagramHandle, bio: editForm.bio, account_status: editForm.account_status,
         birth_date: editForm.birth_date || null,
         birth_place: editForm.birth_place || null,
         province_of_birth: editForm.province_of_birth || null,
@@ -178,6 +183,7 @@ export default function UsersPage() {
       first_name: user.first_name,
       last_name: user.last_name,
       phone: user.phone,
+      instagram_handle: user.instagram_handle || "",
       bio: user.bio || "",
       birth_date: user.birth_date || "",
       birth_place: user.birth_place || "",
@@ -200,6 +206,7 @@ export default function UsersPage() {
     const matchesSearch =
       `${u.first_name} ${u.last_name}`.toLowerCase().includes(searchLower) ||
       (u.phone || "").toLowerCase().includes(searchLower) ||
+      (u.instagram_handle || "").toLowerCase().includes(searchLower) ||
       (u.email || "").toLowerCase().includes(searchLower) ||
       (u.membership_id ? String(u.membership_id).toLowerCase().includes(searchLower) : false);
     const matchesStatus = statusFilter === "All" || u.account_status === statusFilter;
@@ -225,9 +232,9 @@ export default function UsersPage() {
   });
 
   const handleExport = () => {
-    exportToCsv("users", [t("common.name"), t("common.email"), t("common.phone"), t("users.role"), t("common.status"), t("users.events"), t("users.joined")],
+    exportToCsv("users", [t("common.name"), t("common.email"), t("common.phone"), "Instagram", t("users.role"), t("common.status"), t("users.events"), t("users.joined")],
       filtered.map((u) => [
-        `${u.first_name} ${u.last_name}`, u.email || "", u.phone || "",
+        `${u.first_name} ${u.last_name}`, u.email || "", u.phone || "", u.instagram_handle ? `@${u.instagram_handle}` : "",
         u.roles.join(", "), u.account_status || "Active",
         String(regCounts[u.id] || 0), new Date(u.created_at).toLocaleDateString(),
       ])
@@ -303,6 +310,7 @@ export default function UsersPage() {
                   <TableHead>{t("common.name")}</TableHead>
                   <TableHead>{t("common.email")}</TableHead>
                   <TableHead>{t("common.phone")}</TableHead>
+                  <TableHead>Instagram</TableHead>
                   <TableHead>{t("users.role")}</TableHead>
                   <TableHead>{t("common.status")}</TableHead>
                   <TableHead>{t("users.events")}</TableHead>
@@ -317,6 +325,19 @@ export default function UsersPage() {
                     <TableCell className="font-medium">{user.first_name} {user.last_name}</TableCell>
                     <TableCell className="text-muted-foreground">{user.email || "—"}</TableCell>
                     <TableCell className="text-muted-foreground">{user.phone || "—"}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {user.instagram_handle ? (
+                        <a
+                          href={instagramProfileUrl(user.instagram_handle)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-primary hover:underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          @{user.instagram_handle}
+                        </a>
+                      ) : "—"}
+                    </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
                         {user.roles.map((r) => (
@@ -375,7 +396,7 @@ export default function UsersPage() {
                   </TableRow>
                 ))}
                 {filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">{t("users.noUsersFound")}</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">{t("users.noUsersFound")}</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -393,6 +414,7 @@ export default function UsersPage() {
               <div><Label>Last Name</Label><Input value={editForm.last_name} onChange={(e) => setEditForm({ ...editForm, last_name: e.target.value })} /></div>
             </div>
             <div><Label>Phone</Label><Input value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} /></div>
+            <div><Label>Instagram</Label><Input value={editForm.instagram_handle} onChange={(e) => setEditForm({ ...editForm, instagram_handle: e.target.value })} placeholder="@nomeutente" /></div>
             <div><Label>Bio</Label><Input value={editForm.bio} onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })} /></div>
             <div className="rounded-md border border-border p-4 space-y-4">
               <h3 className="text-sm font-medium">Membership Data</h3>
