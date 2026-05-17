@@ -62,6 +62,15 @@ function manualParticipantName(sportLevel: string | null | undefined) {
   return sportLevel.replace("manual:", "").split("|")[0]?.trim() || "Partecipante";
 }
 
+function isConfirmedParticipant(participant: ParticipantData) {
+  return Boolean(
+    participant.user_id &&
+    !manualParticipantName(participant.sport_level) &&
+    CONFIRMED_REGISTRATION_STATUSES.includes(participant.status) &&
+    participant.payment_status !== "pending",
+  );
+}
+
 export function EventParticipantsList({ eventId, isAdmin = false }: EventParticipantsListProps) {
   const queryClient = useQueryClient();
 
@@ -197,34 +206,36 @@ export function EventParticipantsList({ eventId, isAdmin = false }: EventPartici
     });
   }
 
-  const handleExportConfirmedInstagram = () => {
+  const handleExportConfirmedParticipants = () => {
     const rows = participants
-      .filter((p) => (
-        p.user_id &&
-        !manualParticipantName(p.sport_level) &&
-        CONFIRMED_REGISTRATION_STATUSES.includes(p.status) &&
-        p.payment_status !== "pending" &&
-        p.profiles?.instagram_handle
-      ))
+      .filter(isConfirmedParticipant)
       .map((p) => [
         p.profiles?.first_name || "",
         p.profiles?.last_name || "",
         p.profiles?.instagram_handle ? `@${p.profiles.instagram_handle}` : "",
         p.status,
         p.payment_status || "",
+        p.checked_in ? "Si" : "No",
+        p.price_option?.name || "",
+        p.amount_paid != null ? String(p.amount_paid) : "",
+        p.total_price_amount != null ? String(p.total_price_amount) : "",
       ]);
 
-    exportToCsv(`event-${eventId}-instagram`, ["Nome", "Cognome", "Instagram", "Stato", "Pagamento"], rows);
-    toast.success("Instagram partecipanti confermati esportati");
+    exportToCsv(
+      `event-${eventId}-partecipanti-confermati`,
+      ["Nome", "Cognome", "Instagram", "Stato", "Pagamento", "Check-in", "Formula", "Pagato", "Totale"],
+      rows,
+    );
+    toast.success("Partecipanti confermati esportati");
   };
 
   return (
     <div className="space-y-0.5 divide-y divide-border/50">
       {isAdmin && (
         <div className="flex justify-end pb-2">
-          <Button type="button" variant="outline" size="sm" className="gap-2" onClick={handleExportConfirmedInstagram}>
+          <Button type="button" variant="outline" size="sm" className="gap-2" onClick={handleExportConfirmedParticipants}>
             <Download className="h-4 w-4" />
-            Esporta Instagram confermati
+            Esporta CSV confermati
           </Button>
         </div>
       )}
@@ -243,10 +254,11 @@ export function EventParticipantsList({ eventId, isAdmin = false }: EventPartici
             <AdminParticipantListItem
               key={p.id}
               avatarUrl={avatarUrl}
+              userId={p.user_id}
               firstName={firstName}
               lastName={lastName}
               totalPoints={totalPoints}
-              instagramHandle={manualName ? null : profile?.instagram_handle || null}
+              instagramHandle={isConfirmedParticipant(p) ? profile?.instagram_handle || null : null}
               showLevel={showLevel}
               completedEventsCount={stats.completed}
               totalRegistrations={stats.total}

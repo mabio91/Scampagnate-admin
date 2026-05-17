@@ -2,9 +2,10 @@ import { LevelBadgeAvatar, useUserLevel } from "@/components/gamification/LevelB
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CheckCircle2, CreditCard, Instagram, Shield, Target, XCircle } from "lucide-react";
+import { CheckCircle2, CreditCard, Instagram, Shield, Target, UserCircle, XCircle } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import { instagramProfileUrl } from "@/lib/instagram";
+import { Link } from "react-router-dom";
 
 const NO_MEETING_POINT = "__no_meeting_point__";
 
@@ -33,6 +34,7 @@ type EventRegistrationUpdate = Database["public"]["Tables"]["event_registrations
 
 interface AdminParticipantListItemProps {
   avatarUrl?: string | null;
+  userId?: string | null;
   firstName: string;
   lastName?: string;
   totalPoints: number;
@@ -70,6 +72,7 @@ function getReliabilityLabel(attended: number, total: number, noShows: number): 
 
 export function AdminParticipantListItem({
   avatarUrl,
+  userId,
   firstName,
   lastName = "",
   totalPoints,
@@ -118,13 +121,28 @@ export function AdminParticipantListItem({
         showLevel={showLevel}
       />
       <div className="min-w-0 flex-1 space-y-0.5">
-        <p className="text-sm font-medium truncate">{firstName}</p>
+        {userId ? (
+          <Link
+            to={`/users/${userId}`}
+            className="block text-sm font-medium truncate text-foreground hover:text-primary hover:underline"
+          >
+            {[firstName, lastName].filter(Boolean).join(" ")}
+          </Link>
+        ) : (
+          <p className="text-sm font-medium truncate">{[firstName, lastName].filter(Boolean).join(" ")}</p>
+        )}
         {showLevel && currentLevel && (
           <p className="text-xs text-muted-foreground">
             {currentLevel.icon} {currentLevel.name}
           </p>
         )}
         <div className="flex flex-wrap gap-x-3 gap-y-0.5 pt-1 text-[11px]">
+          {userId && (
+            <Link to={`/users/${userId}`} className="flex items-center gap-1 text-muted-foreground hover:text-primary hover:underline">
+              <UserCircle className="h-3 w-3" />
+              Profilo utente
+            </Link>
+          )}
           {instagramHandle && (
             <a
               href={instagramProfileUrl(instagramHandle)}
