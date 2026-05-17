@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertTriangle, Clock, CheckCircle2, MessageSquare, Plus } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, ExternalLink, ImageIcon, Plus, Video } from "lucide-react";
 import RefreshButton from "@/components/RefreshButton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -15,8 +15,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { formatIssueMediaSize, getIssueMediaAttachments, signIssueMediaAttachments, type IssueMediaAttachment } from "@/lib/issueMedia";
 
 type Issue = Tables<"issues">;
+
+const getErrorMessage = (error: unknown) => error instanceof Error ? error.message : String(error);
 
 const priorityStyles: Record<string, string> = {
   high: "bg-destructive/10 text-destructive border-destructive/20",
@@ -59,6 +62,19 @@ export default function IssuesPage() {
     },
   });
 
+  const allAttachments = useMemo(
+    () => issues.flatMap((issue) => getIssueMediaAttachments(issue.media_attachments)),
+    [issues],
+  );
+  const mediaPaths = useMemo(() => allAttachments.map((attachment) => attachment.path), [allAttachments]);
+
+  const { data: signedMediaUrls = {} } = useQuery({
+    queryKey: ["admin-issue-media", mediaPaths],
+    enabled: mediaPaths.length > 0,
+    queryFn: () => signIssueMediaAttachments(supabase, allAttachments),
+    staleTime: 45 * 60 * 1000,
+  });
+
   const createMutation = useMutation({
     mutationFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -78,13 +94,16 @@ export default function IssuesPage() {
       setCreateOpen(false);
       setNewIssue({ title: "", description: "", priority: "medium" });
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: unknown) => toast.error(getErrorMessage(e)),
   });
 
   const updateStatus = useMutation({
     mutationFn: async ({ id, status, notes }: { id: string; status: string; notes?: string }) => {
       const { data: { user } } = await supabase.auth.getUser();
-      const update: any = { status, updated_at: new Date().toISOString() };
+      const update: Partial<Pick<Issue, "status" | "updated_at" | "resolved_at" | "resolved_by" | "resolution_notes">> = {
+        status,
+        updated_at: new Date().toISOString(),
+      };
       if (status === "resolved") {
         update.resolved_at = new Date().toISOString();
         update.resolved_by = user?.id;
@@ -99,7 +118,7 @@ export default function IssuesPage() {
       setResolveIssue(null);
       setResolutionNotes("");
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: unknown) => toast.error(getErrorMessage(e)),
   });
 
   const deleteMutation = useMutation({
@@ -111,7 +130,7 @@ export default function IssuesPage() {
       toast.success("Issue deleted");
       queryClient.invalidateQueries({ queryKey: ["admin-issues"] });
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: unknown) => toast.error(getErrorMessage(e)),
   });
 
   return (
@@ -149,6 +168,10 @@ export default function IssuesPage() {
                           {t("issues.reportedBy")} <span className="font-medium text-foreground">{issue.reporter_name}</span>
                         </p>
                         {issue.description && <p className="text-sm text-muted-foreground mt-1">{issue.description}</p>}
+                        <IssueMediaGrid
+                          attachments={getIssueMediaAttachments(issue.media_attachments)}
+                          signedUrls={signedMediaUrls}
+                        />
                         <div className="flex items-center gap-2 mt-2">
                           <Badge variant="outline" className={priorityStyles[issue.priority] || ""}>{issue.priority}</Badge>
                           <Badge variant="outline">{issue.status}</Badge>
@@ -228,6 +251,52 @@ export default function IssuesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function IssueMediaGrid({
+  attachments,
+  signedUrls,
+}: {
+  attachments: IssueMediaAttachment[];
+  signedUrls: Record<string, string>;
+}) {
+  if (attachments.length === 0) return null;
+
+  return (
+    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-w-4xl">
+      {attachments.map((attachment) => {
+        const signedUrl = signedUrls[attachment.path];
+        const isVideo = attachment.type === "video";
+        const MediaIcon = isVideo ? Video : ImageIcon;
+
+        return (
+          <div key={attachment.path} className="overflow-hidden rounded-lg border bg-muted/30">
+            {signedUrl && isVideo ? (
+              <video src={signedUrl} controls className="h-36 w-full bg-black object-cover" />
+            ) : signedUrl ? (
+              <a href={signedUrl} target="_blank" rel="noreferrer" className="block">
+                <img src={signedUrl} alt={attachment.name} className="h-36 w-full object-cover" />
+              </a>
+            ) : (
+              <div className="flex h-36 items-center justify-center bg-muted">
+                <MediaIcon className="h-6 w-6 text-muted-foreground" />
+              </div>
+            )}
+            <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground">
+              <MediaIcon className="h-3.5 w-3.5 shrink-0" />
+              <span className="min-w-0 flex-1 truncate">{attachment.name}</span>
+              <span className="shrink-0">{formatIssueMediaSize(attachment.size)}</span>
+              {signedUrl && (
+                <a href={signedUrl} target="_blank" rel="noreferrer" className="shrink-0 text-primary">
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
