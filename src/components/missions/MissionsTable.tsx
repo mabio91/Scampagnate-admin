@@ -43,27 +43,32 @@ export default function MissionsTable({ missions, onEdit, onDelete, onDuplicate,
   const [dragOverMissionId, setDragOverMissionId] = useState<string | null>(null);
 
   return (
-    <div className="overflow-x-auto">
-      <Table>
+    <div className="overflow-hidden">
+      <Table className="table-fixed text-xs sm:text-sm">
+        <colgroup>
+          <col className="w-[31%]" />
+          <col className="w-[12%]" />
+          <col className="w-[16%]" />
+          <col className="w-[12%]" />
+          <col className="w-[10%]" />
+          <col className="w-[12%]" />
+          <col className="w-[7%]" />
+        </colgroup>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-12" />
-            <TableHead>Missione</TableHead>
-            <TableHead>Stato</TableHead>
-            <TableHead>Tipo</TableHead>
-            <TableHead>Azione principale</TableHead>
-            <TableHead>Ricompensa</TableHead>
-            <TableHead>Date attive</TableHead>
-            <TableHead>Completamenti</TableHead>
-            <TableHead>Tasso</TableHead>
-            <TableHead>Ultimo aggiornamento</TableHead>
-            <TableHead className="w-28">Azioni</TableHead>
+            <TableHead className="px-2 py-3 sm:px-3">Missione</TableHead>
+            <TableHead className="px-2 py-3 sm:px-3">Stato</TableHead>
+            <TableHead className="px-2 py-3 sm:px-3">Regola</TableHead>
+            <TableHead className="px-2 py-3 sm:px-3">Ricompensa</TableHead>
+            <TableHead className="px-2 py-3 sm:px-3">Performance</TableHead>
+            <TableHead className="px-2 py-3 sm:px-3">Date</TableHead>
+            <TableHead className="px-1 py-3">Azioni</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {missions.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={11} className="py-12 text-center text-muted-foreground">
+              <TableCell colSpan={7} className="py-12 text-center text-muted-foreground">
                 <Target className="mx-auto mb-2 h-8 w-8 opacity-50" />
                 Nessuna missione. Creane una per iniziare.
               </TableCell>
@@ -101,30 +106,28 @@ export default function MissionsTable({ missions, onEdit, onDelete, onDuplicate,
                     setDragOverMissionId(null);
                   }}
                 >
-                  <TableCell>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="cursor-grab active:cursor-grabbing"
-                      draggable={!isReordering}
-                      disabled={isReordering}
-                      aria-label={`Riordina ${mission.title}`}
-                      onDragStart={(event) => {
-                        setDraggedMissionId(mission.id);
-                        setDragOverMissionId(mission.id);
-                        event.dataTransfer.effectAllowed = "move";
-                        event.dataTransfer.setData("text/plain", mission.id);
-                      }}
-                    >
-                      <GripVertical className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-start gap-3">
-                      <div className="mt-0.5 rounded-xl border border-border bg-muted/30 p-2">
+                  <TableCell className="px-2 py-3 sm:px-3">
+                    <div className="flex min-w-0 items-start gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0 cursor-grab active:cursor-grabbing"
+                        draggable={!isReordering}
+                        disabled={isReordering}
+                        aria-label={`Riordina ${mission.title}`}
+                        onDragStart={(event) => {
+                          setDraggedMissionId(mission.id);
+                          setDragOverMissionId(mission.id);
+                          event.dataTransfer.effectAllowed = "move";
+                          event.dataTransfer.setData("text/plain", mission.id);
+                        }}
+                      >
+                        <GripVertical className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                      <div className="mt-0.5 shrink-0 rounded-lg border border-border bg-muted/30 p-1.5">
                         <div
-                          className="rounded-lg p-1"
+                          className="rounded-md p-1"
                           style={{
                             background: mission.icon_background || undefined,
                             color: mission.icon_color || undefined,
@@ -133,56 +136,60 @@ export default function MissionsTable({ missions, onEdit, onDelete, onDuplicate,
                           <DynamicIcon value={mission.icon || "lucide:Target"} size={18} className={mission.icon_color ? "text-current" : ""} />
                         </div>
                       </div>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium">{mission.title}</p>
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <p className="break-words font-medium leading-snug">{mission.title}</p>
                           {mission.featured && <Badge variant="outline">Featured</Badge>}
                           {mission.visibility === "secret" && <Badge variant="secondary">Secret</Badge>}
-                          {(mission as any).campaign?.name && <Badge variant="secondary">{(mission as any).campaign.name}</Badge>}
+                          {mission.campaign?.name && <Badge variant="secondary">{mission.campaign.name}</Badge>}
                         </div>
-                        <p className="max-w-[260px] truncate text-xs text-muted-foreground">{mission.description}</p>
-                        {mission.internal_name && <p className="text-[11px] text-muted-foreground">ID admin: {mission.internal_name}</p>}
+                        <p className="break-words text-xs leading-snug text-muted-foreground">{mission.description}</p>
+                        {mission.internal_name && <p className="break-words text-[11px] leading-snug text-muted-foreground">ID admin: {mission.internal_name}</p>}
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={statusVariant[mission.status] || ""}>
-                      {mission.status}
-                    </Badge>
+                  <TableCell className="px-2 py-3 sm:px-3">
+                    <div className="space-y-1.5">
+                      <Badge variant="outline" className={`max-w-full whitespace-normal break-words text-center leading-tight ${statusVariant[mission.status] || ""}`}>
+                        {mission.status}
+                      </Badge>
+                      <Badge variant="secondary" className="max-w-full whitespace-normal break-words text-center leading-tight">{typeLabel(mission.type)}</Badge>
+                    </div>
                   </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{typeLabel(mission.type)}</Badge>
-                  </TableCell>
-                  <TableCell className="text-sm">
+                  <TableCell className="px-2 py-3 sm:px-3">
                     <div className="space-y-1">
-                      <div>{primaryCondition ? actionLabel(primaryCondition.target_action) : "—"}</div>
+                      <div className="break-words leading-snug">{primaryCondition ? actionLabel(primaryCondition.target_action) : "—"}</div>
                       <div className="text-xs text-muted-foreground">
                         {mission.conditions_logic === "all" ? "AND" : "OR"} · {mission.conditions.length} condizioni
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="text-sm">{rewardSummary(mission.rewards)}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    <div>{mission.starts_at ? new Date(mission.starts_at).toLocaleDateString("it-IT") : "Subito"}</div>
-                    <div>{mission.ends_at ? new Date(mission.ends_at).toLocaleDateString("it-IT") : "Senza scadenza"}</div>
+                  <TableCell className="break-words px-2 py-3 leading-snug sm:px-3">{rewardSummary(mission.rewards)}</TableCell>
+                  <TableCell className="px-2 py-3 sm:px-3">
+                    <div className="space-y-1 leading-snug">
+                      <div className="font-medium">{mission.analytics.completedUsers}</div>
+                      <div className="text-xs text-muted-foreground">{mission.analytics.completionRate}% tasso</div>
+                    </div>
                   </TableCell>
-                  <TableCell className="font-medium">{mission.analytics.completedUsers}</TableCell>
-                  <TableCell>{mission.analytics.completionRate}%</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {new Date(mission.updated_at).toLocaleString("it-IT")}
+                  <TableCell className="px-2 py-3 text-xs text-muted-foreground sm:px-3">
+                    <div className="space-y-1 leading-snug">
+                      <div>{mission.starts_at ? new Date(mission.starts_at).toLocaleDateString("it-IT") : "Subito"}</div>
+                      <div>{mission.ends_at ? new Date(mission.ends_at).toLocaleDateString("it-IT") : "Senza scadenza"}</div>
+                      <div className="pt-1 text-[11px]">Agg. {new Date(mission.updated_at).toLocaleString("it-IT")}</div>
+                    </div>
                   </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => onEdit(mission)}>
+                  <TableCell className="px-1 py-3">
+                    <div className="grid grid-cols-2 gap-1">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(mission)}>
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => onDuplicate(mission)}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onDuplicate(mission)}>
                         <Copy className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => onArchive(mission)}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onArchive(mission)}>
                         <Archive className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => onDelete(mission.id)}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onDelete(mission.id)}>
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </div>
