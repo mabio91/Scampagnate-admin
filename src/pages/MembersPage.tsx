@@ -20,8 +20,14 @@ import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { formatMembershipId } from "@/lib/membership";
+import { PrepaidMembershipImport } from "@/components/members/PrepaidMembershipImport";
 
 type Profile = Tables<"profiles">;
+type UserBadgeRow = {
+  user_id: string;
+  badge_id: string;
+  badges: { name: string | null; icon: string | null } | null;
+};
 
 export default function MembersPage() {
   const { t } = useLanguage();
@@ -72,7 +78,7 @@ export default function MembersPage() {
       const { data, error } = await supabase.from("user_badges").select("user_id, badge_id, badges(name, icon)");
       if (error) throw error;
       const map: Record<string, { badge_id: string; name: string; icon: string }[]> = {};
-      (data || []).forEach((ub: any) => {
+      ((data || []) as unknown as UserBadgeRow[]).forEach((ub) => {
         if (!map[ub.user_id]) map[ub.user_id] = [];
         map[ub.user_id].push({ badge_id: ub.badge_id, name: ub.badges?.name || "", icon: ub.badges?.icon || "" });
       });
@@ -129,7 +135,7 @@ export default function MembersPage() {
       setEditingFoundingLimit(false);
       toast.success("Limite founding member aggiornato");
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const savePriceMutation = useMutation({
@@ -153,7 +159,7 @@ export default function MembersPage() {
       setEditingPrice(false);
       toast.success("Prezzo tessera aggiornato");
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const updateMembership = useMutation({
@@ -188,7 +194,7 @@ export default function MembersPage() {
       queryClient.invalidateQueries({ queryKey: ["all-user-badges"] });
       setEditMember(null);
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const exportMembers = () => {
@@ -238,7 +244,7 @@ export default function MembersPage() {
       queryClient.invalidateQueries({ queryKey: ["admin-members"] });
       setShowBulkExpireDialog(false);
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const sendRenewalReminders = useMutation({
@@ -267,7 +273,7 @@ export default function MembersPage() {
       toast.success(`Renewal reminders sent to ${count} expired member(s)`);
       setShowRenewalDialog(false);
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const openEdit = (member: Profile) => {
@@ -299,7 +305,7 @@ export default function MembersPage() {
           <p className="text-muted-foreground mt-1">{t("members.subtitle")} ({members.length} {t("common.total").toLowerCase()})</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <RefreshButton queryKeys={[["admin-members"], ["all-badges"], ["all-user-badges"]]} />
+          <RefreshButton queryKeys={[["admin-members"], ["all-badges"], ["all-user-badges"], ["prepaid-memberships"]]} />
           <Button variant="destructive" className="gap-2" onClick={() => setShowBulkExpireDialog(true)}>
             <CalendarX className="h-4 w-4" /> {t("members.bulkExpire")}
           </Button>
@@ -416,6 +422,8 @@ export default function MembersPage() {
           </CardContent>
         </Card>
       </div>
+
+      <PrepaidMembershipImport members={members} />
 
       <Card>
         <CardHeader className="pb-3 text-2l font-bold">
