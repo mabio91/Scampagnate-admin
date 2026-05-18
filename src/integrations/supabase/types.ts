@@ -1805,10 +1805,11 @@ export type Database = {
           birth_place: string | null
           city_of_residence: string | null
           created_at: string
-          email: string
+          email: string | null
           error_message: string | null
           first_name: string
           id: string
+          identity_match_key: string | null
           import_batch_id: string
           import_batch_label: string | null
           imported_by: string | null
@@ -1832,10 +1833,11 @@ export type Database = {
           birth_place?: string | null
           city_of_residence?: string | null
           created_at?: string
-          email: string
+          email?: string | null
           error_message?: string | null
           first_name?: string
           id?: string
+          identity_match_key?: string | null
           import_batch_id?: string
           import_batch_label?: string | null
           imported_by?: string | null
@@ -1859,10 +1861,11 @@ export type Database = {
           birth_place?: string | null
           city_of_residence?: string | null
           created_at?: string
-          email?: string
+          email?: string | null
           error_message?: string | null
           first_name?: string
           id?: string
+          identity_match_key?: string | null
           import_batch_id?: string
           import_batch_label?: string | null
           imported_by?: string | null

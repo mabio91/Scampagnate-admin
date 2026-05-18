@@ -95,7 +95,7 @@ export function PrepaidMembershipImport({ members }: { members: Profile[] }) {
       queryClient.invalidateQueries({ queryKey: ["prepaid-memberships"] });
       queryClient.invalidateQueries({ queryKey: ["admin-members"] });
       queryClient.invalidateQueries({ queryKey: ["all-user-badges"] });
-      toast.success(`Import completato: ${summary.activated} attivate, ${summary.pending} in attesa.`);
+      toast.success(`Import completato: ${summary.activated} attivate, ${summary.already_activated} gia attive, ${summary.pending} in attesa.`);
     },
     onError: (error: Error) => toast.error(error.message || "Import non riuscito"),
   });
@@ -140,7 +140,7 @@ export function PrepaidMembershipImport({ members }: { members: Profile[] }) {
     if (!term) return true;
     const matchedProfile = row.matched_user_id ? membersById.get(row.matched_user_id) : null;
     return [
-      row.email,
+      row.email || "",
       row.first_name,
       row.last_name,
       row.status,
@@ -184,7 +184,7 @@ export function PrepaidMembershipImport({ members }: { members: Profile[] }) {
               Import membership prepagate
             </h2>
             <p className="text-sm text-muted-foreground mt-1">
-              Carica il CSV dei pagamenti offline: le email gia registrate vengono attivate, le altre restano in attesa.
+              Carica il CSV dei pagamenti offline: le righe con email o anagrafica univoca vengono allineate, le altre restano in attesa.
             </p>
           </div>
           <div className="grid grid-cols-3 gap-2 text-center text-xs">
@@ -209,8 +209,8 @@ export function PrepaidMembershipImport({ members }: { members: Profile[] }) {
             <Label htmlFor="prepaid-csv">CSV membership prepagate</Label>
             <Input id="prepaid-csv" type="file" accept=".csv,text/csv" onChange={handleCsvUpload} />
             <p className="text-xs text-muted-foreground">
-              Header riconosciuti: email, nome, cognome, telefono, data nascita, luogo nascita, provincia nascita,
-              indirizzo residenza, citta residenza, provincia residenza, data pagamento, anno tessera, note.
+              Puoi esportare l'Excel in CSV. Header riconosciuti: email opzionale, nome, cognome, data nascita,
+              luogo nascita, provincia nascita, indirizzo residenza, citta residenza, provincia residenza, data pagamento, anno tessera, note.
             </p>
           </div>
           <div className="space-y-2">
@@ -252,19 +252,20 @@ export function PrepaidMembershipImport({ members }: { members: Profile[] }) {
               className="h-24 font-mono text-xs"
               value={csvPreview
                 .slice(0, 4)
-                .map((row) => `${row.email}; ${compactName(row.first_name, row.last_name)}; ${row.birth_date || "-"}; ${row.city_of_residence || "-"}`)
+                .map((row) => `${row.email || "senza email"}; ${compactName(row.first_name, row.last_name)}; ${row.birth_date || "-"}; ${row.city_of_residence || "-"}`)
                 .join("\n")}
             />
           </div>
         )}
 
         {importSummary && (
-          <div className="grid grid-cols-2 gap-2 text-xs md:grid-cols-7">
+          <div className="grid grid-cols-2 gap-2 text-xs md:grid-cols-8">
             {[
               ["Totale", importSummary.total],
               ["Inserite", importSummary.inserted],
               ["Aggiornate", importSummary.updated],
               ["Attivate", importSummary.activated],
+              ["Gia attive", importSummary.already_activated],
               ["Pending", importSummary.pending],
               ["Review", importSummary.needs_review],
               ["Errori", importSummary.errors + importSummary.invalid],
@@ -307,7 +308,7 @@ export function PrepaidMembershipImport({ members }: { members: Profile[] }) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Email pagante</TableHead>
+              <TableHead>Match</TableHead>
                   <TableHead>Nome</TableHead>
                   <TableHead>Anno</TableHead>
                   <TableHead>Pagamento</TableHead>
@@ -323,7 +324,7 @@ export function PrepaidMembershipImport({ members }: { members: Profile[] }) {
                   const matchedProfile = row.matched_user_id ? membersById.get(row.matched_user_id) : null;
                   return (
                     <TableRow key={row.id}>
-                      <TableCell className="font-mono text-xs">{row.email}</TableCell>
+                      <TableCell className="font-mono text-xs">{row.email || "anagrafica"}</TableCell>
                       <TableCell>{compactName(row.first_name, row.last_name)}</TableCell>
                       <TableCell>{row.membership_year}</TableCell>
                       <TableCell>{formatDate(row.payment_date)}</TableCell>
@@ -356,7 +357,7 @@ export function PrepaidMembershipImport({ members }: { members: Profile[] }) {
                             className="gap-1"
                             onClick={() => {
                               setSelectedPrepaid(row);
-                              setUserSearch(row.email);
+                              setUserSearch(row.email || compactName(row.first_name, row.last_name));
                               setSelectedUserId("");
                             }}
                           >
@@ -393,7 +394,7 @@ export function PrepaidMembershipImport({ members }: { members: Profile[] }) {
             <div className="space-y-4">
               <div className="rounded-md border bg-muted/20 p-3 text-sm">
                 <div className="font-medium">{compactName(selectedPrepaid.first_name, selectedPrepaid.last_name)}</div>
-                <div className="text-muted-foreground">{selectedPrepaid.email}</div>
+                <div className="text-muted-foreground">{selectedPrepaid.email || "Match anagrafico senza email"}</div>
                 <div className="text-xs text-muted-foreground mt-1">
                   Tessera {selectedPrepaid.membership_year} · pagamento {formatDate(selectedPrepaid.payment_date)}
                 </div>

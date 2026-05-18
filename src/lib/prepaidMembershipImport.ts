@@ -1,5 +1,5 @@
 export type PrepaidMembershipImportRow = {
-  email: string;
+  email: string | null;
   first_name: string;
   last_name: string;
   phone: string | null;
@@ -14,6 +14,8 @@ export type PrepaidMembershipImportRow = {
   notes: string | null;
   source_row: Record<string, string>;
 };
+
+type ImportedCell = string | number | boolean | Date | null | undefined;
 
 export type PrepaidMembershipImportError = {
   row: number;
@@ -41,16 +43,21 @@ const headerMap: Record<string, keyof PrepaidMembershipImportRow> = {
   cellulare: "phone",
   phone: "phone",
   data_nascita: "birth_date",
+  data_di_nascita: "birth_date",
   datadinascita: "birth_date",
   birth_date: "birth_date",
   date_of_birth: "birth_date",
   luogo_nascita: "birth_place",
+  luogo_di_nascita: "birth_place",
   luogodinascita: "birth_place",
   birth_place: "birth_place",
   provincia_nascita: "province_of_birth",
+  provincia_di_nascita: "province_of_birth",
   prov_nascita: "province_of_birth",
   province_of_birth: "province_of_birth",
   indirizzo_residenza: "residential_address",
+  indirizzo_di_residenza: "residential_address",
+  indirizzo_di_residenza_via_e_numero_civico: "residential_address",
   indirizzodiresidenza: "residential_address",
   residential_address: "residential_address",
   address: "residential_address",
@@ -59,6 +66,7 @@ const headerMap: Record<string, keyof PrepaidMembershipImportRow> = {
   city_of_residence: "city_of_residence",
   city: "city_of_residence",
   provincia_residenza: "province_of_residence",
+  provincia_di_residenza: "province_of_residence",
   prov_residenza: "province_of_residence",
   province_of_residence: "province_of_residence",
   data_pagamento: "payment_date",
@@ -72,7 +80,8 @@ const headerMap: Record<string, keyof PrepaidMembershipImportRow> = {
 };
 
 const requiredMembershipFields: Array<keyof PrepaidMembershipImportRow> = [
-  "email",
+  "first_name",
+  "last_name",
   "birth_date",
   "birth_place",
   "province_of_birth",
@@ -82,7 +91,7 @@ const requiredMembershipFields: Array<keyof PrepaidMembershipImportRow> = [
 ];
 
 const emptyRow = (): PrepaidMembershipImportRow => ({
-  email: "",
+  email: null,
   first_name: "",
   last_name: "",
   phone: null,
@@ -107,20 +116,38 @@ const normalizeHeader = (value: string) =>
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
 
-const normalizeText = (value: string | undefined) => {
-  const trimmed = (value || "").trim();
+const stringifyCell = (value: ImportedCell) => {
+  if (value === null || value === undefined) return "";
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  return String(value);
+};
+
+const normalizeText = (value: ImportedCell) => {
+  const trimmed = stringifyCell(value).trim();
   return trimmed.length > 0 ? trimmed : null;
 };
 
-const normalizeProvince = (value: string | undefined) => {
+const normalizeProvince = (value: ImportedCell) => {
   const normalized = normalizeText(value);
   return normalized ? normalized.toUpperCase() : null;
 };
 
-export const normalizeImportedEmail = (value: string | undefined) =>
-  (value || "").trim().toLowerCase();
+export const normalizeImportedEmail = (value: ImportedCell) => {
+  const normalized = normalizeText(value);
+  return normalized ? normalized.toLowerCase() : null;
+};
 
-export const normalizeImportedDate = (value: string | undefined) => {
+const excelSerialDateToIso = (value: number) => {
+  if (!Number.isFinite(value) || value < 1) return null;
+  const utc = Date.UTC(1899, 11, 30) + Math.floor(value) * 24 * 60 * 60 * 1000;
+  const date = new Date(utc);
+  return date.toISOString().slice(0, 10);
+};
+
+export const normalizeImportedDate = (value: ImportedCell) => {
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  if (typeof value === "number") return excelSerialDateToIso(value);
+
   const trimmed = normalizeText(value);
   if (!trimmed) return null;
 
@@ -139,7 +166,7 @@ export const normalizeImportedDate = (value: string | undefined) => {
   return null;
 };
 
-const parseMembershipYear = (value: string | undefined) => {
+const parseMembershipYear = (value: ImportedCell) => {
   const normalized = normalizeText(value);
   if (!normalized || !/^\d{4}$/.test(normalized)) return null;
   const year = Number(normalized);
@@ -189,31 +216,26 @@ export const parseCsvText = (text: string): string[][] => {
   return rows;
 };
 
-export const parsePrepaidMembershipCsv = (text: string): PrepaidMembershipImportParseResult => {
-  const csvRows = parseCsvText(text);
+export const parsePrepaidMembershipRows = (importRows: ImportedCell[][]): PrepaidMembershipImportParseResult => {
   const errors: PrepaidMembershipImportError[] = [];
   const rows: PrepaidMembershipImportRow[] = [];
 
-  if (csvRows.length === 0) {
-    return { rows, errors: [{ row: 0, message: "Il CSV e vuoto." }] };
+  if (importRows.length === 0) {
+    return { rows, errors: [{ row: 0, message: "Il file e vuoto." }] };
   }
 
-  const headers = csvRows[0].map(normalizeHeader);
+  const headers = importRows[0].map((cell) => normalizeHeader(stringifyCell(cell)));
   const mappedHeaders = headers.map((header) => headerMap[header] || null);
 
-  if (!mappedHeaders.includes("email")) {
-    return { rows, errors: [{ row: 1, message: "Colonna email mancante." }] };
-  }
-
-  csvRows.slice(1).forEach((cells, rowIndex) => {
+  importRows.slice(1).forEach((cells, rowIndex) => {
     const displayRow = rowIndex + 2;
     const parsed = emptyRow();
     const sourceRow: Record<string, string> = {};
 
     cells.forEach((cell, cellIndex) => {
-      const rawHeader = csvRows[0][cellIndex]?.trim() || `column_${cellIndex + 1}`;
+      const rawHeader = stringifyCell(importRows[0][cellIndex]).trim() || `column_${cellIndex + 1}`;
       const target = mappedHeaders[cellIndex];
-      sourceRow[rawHeader] = cell.trim();
+      sourceRow[rawHeader] = stringifyCell(cell).trim();
       if (!target || target === "source_row") return;
 
       if (target === "email") parsed.email = normalizeImportedEmail(cell);
@@ -229,14 +251,16 @@ export const parsePrepaidMembershipCsv = (text: string): PrepaidMembershipImport
 
     parsed.source_row = sourceRow;
     const missing = requiredMembershipFields.filter((fieldName) => !parsed[fieldName]);
-    if (missing.includes("email")) {
-      errors.push({ row: displayRow, message: "Email mancante: riga ignorata." });
-      return;
-    }
     if (missing.length > 0) {
       errors.push({
         row: displayRow,
         message: `Dati tesseramento incompleti: ${missing.join(", ")}.`,
+      });
+    }
+    if (!parsed.email && (!parsed.first_name || !parsed.last_name || !parsed.birth_date)) {
+      errors.push({
+        row: displayRow,
+        message: "Senza email servono almeno nome, cognome e data di nascita per il matching automatico.",
       });
     }
 
@@ -245,3 +269,6 @@ export const parsePrepaidMembershipCsv = (text: string): PrepaidMembershipImport
 
   return { rows, errors };
 };
+
+export const parsePrepaidMembershipCsv = (text: string): PrepaidMembershipImportParseResult =>
+  parsePrepaidMembershipRows(parseCsvText(text));
