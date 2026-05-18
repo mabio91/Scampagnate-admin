@@ -592,7 +592,9 @@ export default function EventsPage() {
     const path = `${Math.random().toString(36).substring(2)}.${ext}`;
     setIsUploading(true);
     try {
-      const { error } = await supabase.storage.from("event-images").upload(path, file);
+      const { error } = await supabase.storage.from("event-images").upload(path, file, {
+        cacheControl: "31536000",
+      });
       if (error) throw error;
       const { data: { publicUrl } } = supabase.storage.from("event-images").getPublicUrl(path);
       if (type === "cover") {

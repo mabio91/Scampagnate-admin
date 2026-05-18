@@ -61,7 +61,7 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
 
     const { error } = await supabase.storage
       .from("event-images")
-      .upload(filePath, file, { upsert: true });
+      .upload(filePath, file, { cacheControl: "31536000", upsert: true });
 
     if (error) return;
 

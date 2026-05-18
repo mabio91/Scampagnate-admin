@@ -292,6 +292,7 @@ export default function MerchPage() {
     }
     const fileName = `merch/${crypto.randomUUID()}.${fileExt}`;
     const { error } = await supabase.storage.from("event-images").upload(fileName, file, {
+      cacheControl: "31536000",
       contentType: file.type,
       upsert: false,
     });
