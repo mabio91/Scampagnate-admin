@@ -1,6 +1,6 @@
 import { ChangeEvent, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle2, Clock, FileSpreadsheet, Link2, Search, Upload, UserCheck, XCircle } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown, CheckCircle2, Clock, FileSpreadsheet, Link2, Search, Upload, UserCheck, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -37,6 +37,10 @@ type ImportSummary = {
   errors: number;
 };
 
+type PrepaidSortKey = "match" | "name" | "membership_year" | "payment_date" | "status" | "matched_user";
+type SortDirection = "asc" | "desc";
+type SortValue = string | number | null;
+
 const statusConfig: Record<PrepaidMembershipStatus, { label: string; className: string; icon: typeof Clock }> = {
   pending_user: { label: "In attesa utente", className: "bg-amber-500/10 text-amber-700 border-amber-500/30", icon: Clock },
   activated: { label: "Attivata", className: "bg-green-500/10 text-green-700 border-green-500/30", icon: CheckCircle2 },
@@ -54,6 +58,23 @@ const formatDate = (value: string | null) => {
 const compactName = (firstName?: string | null, lastName?: string | null) =>
   [firstName, lastName].filter(Boolean).join(" ").trim() || "-";
 
+const sortCollator = new Intl.Collator("it", { numeric: true, sensitivity: "base" });
+
+const compareSortValues = (left: SortValue, right: SortValue) => {
+  const leftEmpty = left === null || left === "";
+  const rightEmpty = right === null || right === "";
+  if (leftEmpty && rightEmpty) return 0;
+  if (leftEmpty) return 1;
+  if (rightEmpty) return -1;
+  if (typeof left === "number" && typeof right === "number") return left - right;
+  return sortCollator.compare(String(left), String(right));
+};
+
+const nextSortDirection = (currentKey: PrepaidSortKey, currentDirection: SortDirection, nextKey: PrepaidSortKey): SortDirection => {
+  if (currentKey === nextKey) return currentDirection === "asc" ? "desc" : "asc";
+  return nextKey === "membership_year" || nextKey === "payment_date" ? "desc" : "asc";
+};
+
 export function PrepaidMembershipImport({ members }: { members: Profile[] }) {
   const queryClient = useQueryClient();
   const [batchLabel, setBatchLabel] = useState("");
@@ -65,6 +86,8 @@ export function PrepaidMembershipImport({ members }: { members: Profile[] }) {
   const [selectedPrepaid, setSelectedPrepaid] = useState<PrepaidMembership | null>(null);
   const [userSearch, setUserSearch] = useState("");
   const [selectedUserId, setSelectedUserId] = useState("");
+  const [sortKey, setSortKey] = useState<PrepaidSortKey>("name");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
   const membersById = useMemo(() => new Map(members.map((member) => [member.id, member])), [members]);
 
@@ -135,7 +158,7 @@ export function PrepaidMembershipImport({ members }: { members: Profile[] }) {
     event.target.value = "";
   };
 
-  const filteredPrepaid = prepaidMemberships.filter((row) => {
+  const filteredPrepaid = useMemo(() => prepaidMemberships.filter((row) => {
     const term = search.trim().toLowerCase();
     if (!term) return true;
     const matchedProfile = row.matched_user_id ? membersById.get(row.matched_user_id) : null;
@@ -149,7 +172,45 @@ export function PrepaidMembershipImport({ members }: { members: Profile[] }) {
       matchedProfile?.last_name || "",
       matchedProfile?.email || "",
     ].some((value) => value.toLowerCase().includes(term));
-  });
+  }), [membersById, prepaidMemberships, search]);
+
+  const sortedPrepaid = useMemo(() => {
+    const sortValueFor = (row: PrepaidMembership, key: PrepaidSortKey): SortValue => {
+      const matchedProfile = row.matched_user_id ? membersById.get(row.matched_user_id) : null;
+      if (key === "match") return row.email || "anagrafica";
+      if (key === "name") return compactName(row.first_name, row.last_name);
+      if (key === "membership_year") return row.membership_year;
+      if (key === "payment_date") return row.payment_date;
+      if (key === "status") return statusConfig[row.status]?.label || row.status;
+      return matchedProfile ? compactName(matchedProfile.first_name, matchedProfile.last_name) : null;
+    };
+
+    return [...filteredPrepaid].sort((left, right) => {
+      const primary = compareSortValues(sortValueFor(left, sortKey), sortValueFor(right, sortKey));
+      const nameFallback = compareSortValues(compactName(left.first_name, left.last_name), compactName(right.first_name, right.last_name));
+      const createdFallback = compareSortValues(left.created_at, right.created_at);
+      const result = primary || nameFallback || createdFallback;
+      return sortDirection === "asc" ? result : -result;
+    });
+  }, [filteredPrepaid, membersById, sortDirection, sortKey]);
+
+  const handleSort = (nextKey: PrepaidSortKey) => {
+    setSortDirection((currentDirection) => nextSortDirection(sortKey, currentDirection, nextKey));
+    setSortKey(nextKey);
+  };
+
+  const SortableHead = ({ children, field, className }: { children: string; field: PrepaidSortKey; className?: string }) => {
+    const active = sortKey === field;
+    const Icon = active ? (sortDirection === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;
+    return (
+      <TableHead className={className}>
+        <Button variant="ghost" size="sm" className="-ml-2 h-8 gap-1 px-2 text-xs font-medium" onClick={() => handleSort(field)}>
+          {children}
+          <Icon className={`h-3.5 w-3.5 ${active ? "text-primary" : "text-muted-foreground"}`} />
+        </Button>
+      </TableHead>
+    );
+  };
 
   const userCandidates = useMemo(() => {
     const term = userSearch.trim().toLowerCase();
@@ -308,17 +369,17 @@ export function PrepaidMembershipImport({ members }: { members: Profile[] }) {
             <Table>
               <TableHeader>
                 <TableRow>
-              <TableHead>Match</TableHead>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Anno</TableHead>
-                  <TableHead>Pagamento</TableHead>
-                  <TableHead>Stato</TableHead>
-                  <TableHead>Utente associato</TableHead>
+                  <SortableHead field="match">Match</SortableHead>
+                  <SortableHead field="name">Nome</SortableHead>
+                  <SortableHead field="membership_year">Anno</SortableHead>
+                  <SortableHead field="payment_date">Pagamento</SortableHead>
+                  <SortableHead field="status">Stato</SortableHead>
+                  <SortableHead field="matched_user">Utente associato</SortableHead>
                   <TableHead className="w-28" />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredPrepaid.map((row) => {
+                {sortedPrepaid.map((row) => {
                   const config = statusConfig[row.status] || statusConfig.error;
                   const Icon = config.icon;
                   const matchedProfile = row.matched_user_id ? membersById.get(row.matched_user_id) : null;
@@ -369,7 +430,7 @@ export function PrepaidMembershipImport({ members }: { members: Profile[] }) {
                     </TableRow>
                   );
                 })}
-                {filteredPrepaid.length === 0 && (
+                {sortedPrepaid.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
                       Nessuna membership prepagata trovata.

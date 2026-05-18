@@ -423,8 +423,6 @@ export default function MembersPage() {
         </Card>
       </div>
 
-      <PrepaidMembershipImport members={members} />
-
       <Card>
         <CardHeader className="pb-3 text-2l font-bold">
           <div className="relative max-w-sm">
@@ -527,6 +525,8 @@ export default function MembersPage() {
           )}
         </CardContent>
       </Card>
+
+      <PrepaidMembershipImport members={members} />
 
       {/* Edit Membership Dialog */}
       <Dialog open={!!editMember} onOpenChange={(o) => !o && setEditMember(null)}>
