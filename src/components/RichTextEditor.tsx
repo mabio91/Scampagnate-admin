@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { compressImageForUpload, imageFileExtension } from "@/lib/imageCompression";
 
 interface RichTextEditorProps {
   content: string;
@@ -56,12 +57,17 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const ext = file.name.split(".").pop();
+    const compressedFile = await compressImageForUpload(file, { maxDimension: 1600, quality: 0.8 });
+    const ext = imageFileExtension(compressedFile);
     const filePath = `content/${Date.now()}.${ext}`;
 
     const { error } = await supabase.storage
       .from("event-images")
-      .upload(filePath, file, { cacheControl: "31536000", upsert: true });
+      .upload(filePath, compressedFile, {
+        cacheControl: "31536000",
+        contentType: compressedFile.type,
+        upsert: true,
+      });
 
     if (error) return;
 

@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { compressImageForUpload, imageFileExtension } from "@/lib/imageCompression";
 import { cn } from "@/lib/utils";
 
 type MerchProduct = Tables<"merch_products">;
@@ -286,14 +287,12 @@ export default function MerchPage() {
   });
 
   const uploadImage = async (file: File): Promise<string> => {
-    const fileExt = file.name.split(".").pop()?.toLowerCase();
-    if (!fileExt || !["png", "jpg", "jpeg"].includes(fileExt)) {
-      throw new Error("Only PNG and JPG files are supported");
-    }
+    const compressedFile = await compressImageForUpload(file, { maxDimension: 1600, quality: 0.8 });
+    const fileExt = imageFileExtension(compressedFile);
     const fileName = `merch/${crypto.randomUUID()}.${fileExt}`;
-    const { error } = await supabase.storage.from("event-images").upload(fileName, file, {
+    const { error } = await supabase.storage.from("event-images").upload(fileName, compressedFile, {
       cacheControl: "31536000",
-      contentType: file.type,
+      contentType: compressedFile.type,
       upsert: false,
     });
     if (error) throw error;
@@ -302,9 +301,8 @@ export default function MerchPage() {
   };
 
   const validateFile = (file: File): string | null => {
-    const validTypes = ["image/png", "image/jpeg", "image/jpg"];
-    if (!validTypes.includes(file.type)) return `${file.name}: Only PNG and JPG files are supported`;
-    if (file.size > 5 * 1024 * 1024) return `${file.name}: File size must be less than 5MB`;
+    const validTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
+    if (!validTypes.includes(file.type)) return `${file.name}: sono supportati PNG, JPG e WebP`;
     return null;
   };
 

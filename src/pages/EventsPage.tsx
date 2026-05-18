@@ -578,8 +578,8 @@ export default function EventsPage() {
       toast.error("Seleziona un file immagine");
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("L'immagine deve essere inferiore a 5MB");
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error("L'immagine originale deve essere inferiore a 25MB");
       return;
     }
     setImageCropTarget({ file, type });
@@ -594,6 +594,7 @@ export default function EventsPage() {
     try {
       const { error } = await supabase.storage.from("event-images").upload(path, file, {
         cacheControl: "31536000",
+        contentType: file.type,
       });
       if (error) throw error;
       const { data: { publicUrl } } = supabase.storage.from("event-images").getPublicUrl(path);

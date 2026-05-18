@@ -141,8 +141,8 @@ export default function ProfilePage() {
       toast({ title: "Invalid file", description: "Please upload a JPG, PNG, or WebP image.", variant: "destructive" });
       return;
     }
-    if (file.size > 2 * 1024 * 1024) {
-      toast({ title: "File too large", description: "Maximum file size is 2MB.", variant: "destructive" });
+    if (file.size > 15 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Maximum original file size is 15MB; images are optimized automatically.", variant: "destructive" });
       return;
     }
 
@@ -158,7 +158,11 @@ export default function ProfilePage() {
 
       const { error: uploadError } = await supabase.storage
         .from("avatars")
-        .upload(filePath, file, { cacheControl: "31536000", upsert: true });
+        .upload(filePath, file, {
+          cacheControl: "31536000",
+          contentType: file.type,
+          upsert: true,
+        });
       if (uploadError) throw uploadError;
 
       const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(filePath);
@@ -197,8 +201,8 @@ export default function ProfilePage() {
         file={avatarCropFile}
         title="Crop profile picture"
         aspect={{ width: 1, height: 1 }}
-        outputWidth={900}
-        outputHeight={900}
+        outputWidth={512}
+        outputHeight={512}
         onCancel={() => setAvatarCropFile(null)}
         onCropped={(croppedFile) => {
           setAvatarCropFile(null);
