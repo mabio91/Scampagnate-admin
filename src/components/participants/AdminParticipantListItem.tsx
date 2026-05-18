@@ -2,7 +2,7 @@ import { LevelBadgeAvatar, useUserLevel } from "@/components/gamification/LevelB
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CheckCircle2, CreditCard, Instagram, Shield, Target, UserCircle, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, CreditCard, Instagram, Pill, Shield, ShieldCheck, Target, UserCircle, XCircle } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import { instagramProfileUrl } from "@/lib/instagram";
 import { Link } from "react-router-dom";
@@ -55,8 +55,13 @@ interface AdminParticipantListItemProps {
   balanceDueAmount?: number | null;
   balancePaymentMode?: string | null;
   refundStatus?: string | null;
-  refundAmount?: number | null;
-  showLevel?: boolean;
+	  refundAmount?: number | null;
+	  healthStatus?: string | null;
+	  healthNotes?: string | null;
+	  emergencyMedicationHas?: boolean | null;
+	  emergencyMedicationNotes?: string | null;
+	  healthHelpNotes?: string | null;
+	  showLevel?: boolean;
   isUpdating?: boolean;
   onUpdate?: (updates: EventRegistrationUpdate) => void;
   className?: string;
@@ -68,6 +73,12 @@ function getReliabilityLabel(attended: number, total: number, noShows: number): 
   if (score >= 80) return { label: "Ottima", color: "text-success" };
   if (score >= 50) return { label: "Buona", color: "text-warning" };
   return { label: "Da migliorare", color: "text-destructive" };
+}
+
+function getHealthSafetyLabel(status?: string | null) {
+  if (status === "none") return "Nessuna da segnalare";
+  if (status === "has_info") return "Informazioni da leggere";
+  return "Non compilato";
 }
 
 export function AdminParticipantListItem({
@@ -92,9 +103,14 @@ export function AdminParticipantListItem({
   depositAmount,
   balanceDueAmount,
   balancePaymentMode,
-  refundStatus,
-  refundAmount,
-  showLevel = true,
+	  refundStatus,
+	  refundAmount,
+	  healthStatus,
+	  healthNotes,
+	  emergencyMedicationHas,
+	  emergencyMedicationNotes,
+	  healthHelpNotes,
+	  showLevel = true,
   isUpdating = false,
   onUpdate,
   className,
@@ -185,7 +201,7 @@ export function AdminParticipantListItem({
             <span>Opzione: <span className="font-medium text-foreground">{priceOptionName}</span></span>
           )}
         </div>
-        {hasPaymentDetails && (
+	        {hasPaymentDetails && (
           <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
             {amountPaid != null ? (
               <span className="flex items-center gap-1">
@@ -204,8 +220,37 @@ export function AdminParticipantListItem({
               </span>
             ) : null}
           </div>
-        )}
-        {onUpdate && (
+	        )}
+	        {healthStatus && (
+	          <div className={cn(
+	            "mt-2 rounded-md border p-2.5 text-xs",
+	            healthStatus === "has_info"
+	              ? "border-yellow-500/30 bg-yellow-500/5"
+	              : "border-green-500/20 bg-green-500/5"
+	          )}>
+	            <div className="flex items-start gap-2">
+	              {healthStatus === "has_info" ? (
+	                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-yellow-600" />
+	              ) : (
+	                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
+	              )}
+	              <div className="min-w-0 space-y-1">
+	                <p className="font-semibold text-foreground">Salute e sicurezza: {getHealthSafetyLabel(healthStatus)}</p>
+	                {healthStatus === "has_info" && healthNotes && <p className="text-muted-foreground whitespace-pre-wrap">{healthNotes}</p>}
+	                {healthStatus === "has_info" && emergencyMedicationHas && emergencyMedicationNotes && (
+	                  <p className="flex items-start gap-1 text-muted-foreground">
+	                    <Pill className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+	                    <span>Farmaci/dispositivi: {emergencyMedicationNotes}</span>
+	                  </p>
+	                )}
+	                {healthStatus === "has_info" && healthHelpNotes && (
+	                  <p className="text-muted-foreground whitespace-pre-wrap">Indicazioni: {healthHelpNotes}</p>
+	                )}
+	              </div>
+	            </div>
+	          </div>
+	        )}
+	        {onUpdate && (
           <div className="grid gap-2 pt-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
             <Select
               value={status || "registered"}

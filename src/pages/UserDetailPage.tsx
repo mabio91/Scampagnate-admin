@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Instagram, Landmark, Car, Target, Activity, TrendingUp, Calendar, MapPin, ChevronRight, Gamepad2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Instagram, Landmark, Car, Target, Activity, TrendingUp, Calendar, MapPin, ChevronRight, Gamepad2, Pill, ShieldCheck } from "lucide-react";
 import { UserGamificationSection } from "@/components/gamification/UserGamificationSection";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -239,9 +239,48 @@ export default function UserDetailPage() {
                   </div>
                 )}
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+	            </CardContent>
+	          </Card>
+
+	          <Card>
+	            <CardHeader><CardTitle className="text-lg">Salute e sicurezza</CardTitle></CardHeader>
+	            <CardContent className="space-y-4">
+	              <div className="flex items-start gap-3 rounded-lg border bg-muted/20 p-4">
+	                {user.health_safety_status === "has_info" ? (
+	                  <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-yellow-600" />
+	                ) : (
+	                  <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-green-600" />
+	                )}
+	                <div className="min-w-0 flex-1 space-y-1">
+	                  <p className="font-semibold">{getHealthSafetyLabel(user.health_safety_status)}</p>
+	                  <p className="text-sm text-muted-foreground">
+	                    Visibile solo ad admin/staff e agli organizzatori degli eventi dell'utente. Non influenza fit score, suggerimenti o blocchi.
+	                  </p>
+	                </div>
+	              </div>
+
+	              {user.health_safety_status === "has_info" && (
+	                <div className="grid gap-4 md:grid-cols-2">
+	                  <HealthInfoBlock label="Informazioni utili" value={user.health_safety_notes} />
+	                  <div className="space-y-2 rounded-md border bg-muted/20 p-3">
+	                    <p className="text-sm text-muted-foreground">Farmaci o dispositivi</p>
+	                    <div className="flex items-start gap-2">
+	                      <Pill className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+	                      <p className="text-sm font-medium whitespace-pre-wrap">
+	                        {user.emergency_medication_has ? user.emergency_medication_notes || "Si, dettaglio non indicato" : "No"}
+	                      </p>
+	                    </div>
+	                  </div>
+	                  <HealthInfoBlock label="Indicazioni operative" value={user.health_safety_help_notes} />
+	                  <InfoField
+	                    label="Ultimo aggiornamento"
+	                    value={user.health_safety_updated_at ? new Date(user.health_safety_updated_at).toLocaleString() : "—"}
+	                  />
+	                </div>
+	              )}
+	            </CardContent>
+	          </Card>
+	        </TabsContent>
 
         <TabsContent value="activity" className="space-y-6 mt-6">
           {/* Summary cards */}
@@ -387,6 +426,21 @@ function InstagramField({ handle }: { handle?: string | null }) {
       ) : (
         <p className="font-medium">—</p>
       )}
+    </div>
+  );
+}
+
+function getHealthSafetyLabel(status?: string | null) {
+  if (status === "none") return "Nessuna informazione da segnalare";
+  if (status === "has_info") return "Informazioni da leggere";
+  return "Non ancora compilato";
+}
+
+function HealthInfoBlock({ label, value }: { label: string; value?: string | null }) {
+  return (
+    <div className="space-y-2 rounded-md border bg-muted/20 p-3">
+      <p className="text-sm text-muted-foreground">{label}</p>
+      <p className="text-sm font-medium whitespace-pre-wrap">{value || "—"}</p>
     </div>
   );
 }

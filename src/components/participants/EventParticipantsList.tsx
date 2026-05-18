@@ -38,14 +38,19 @@ interface ParticipantData {
     balance_amount: number | null;
     balance_payment_mode: string | null;
   } | null;
-  profiles: {
-    first_name: string;
-    last_name: string;
-    instagram_handle: string | null;
-    avatar_url: string | null;
-    total_points: number;
-  } | null;
-}
+	  profiles: {
+	    first_name: string;
+	    last_name: string;
+	    instagram_handle: string | null;
+	    avatar_url: string | null;
+	    total_points: number;
+	    health_safety_status: string | null;
+	    health_safety_notes: string | null;
+	    emergency_medication_has: boolean | null;
+	    emergency_medication_notes: string | null;
+	    health_safety_help_notes: string | null;
+	  } | null;
+	}
 
 type EventRegistrationUpdate = Database["public"]["Tables"]["event_registrations"]["Update"];
 type UserRegistrationStatsRow = {
@@ -107,10 +112,15 @@ export function EventParticipantsList({ eventId, isAdmin = false }: EventPartici
           profiles:user_id (
             first_name,
             last_name,
-            instagram_handle,
-            avatar_url,
-            total_points
-          )
+	            instagram_handle,
+	            avatar_url,
+	            total_points,
+	            health_safety_status,
+	            health_safety_notes,
+	            emergency_medication_has,
+	            emergency_medication_notes,
+	            health_safety_help_notes
+	          )
         `)
         .eq("event_id", eventId)
         .in("status", ["registered", "paid", "deposit_paid", "attended", "no_show", "waitlist", "pending_approval", "pending_payment", "cancelled"]);
@@ -258,8 +268,13 @@ export function EventParticipantsList({ eventId, isAdmin = false }: EventPartici
               firstName={firstName}
               lastName={lastName}
               totalPoints={totalPoints}
-              instagramHandle={isConfirmedParticipant(p) ? profile?.instagram_handle || null : null}
-              showLevel={showLevel}
+	              instagramHandle={isConfirmedParticipant(p) ? profile?.instagram_handle || null : null}
+	              healthStatus={manualName ? null : profile?.health_safety_status || null}
+	              healthNotes={manualName ? null : profile?.health_safety_notes || null}
+	              emergencyMedicationHas={manualName ? null : (profile?.emergency_medication_has ?? null)}
+	              emergencyMedicationNotes={manualName ? null : profile?.emergency_medication_notes || null}
+	              healthHelpNotes={manualName ? null : profile?.health_safety_help_notes || null}
+	              showLevel={showLevel}
               completedEventsCount={stats.completed}
               totalRegistrations={stats.total}
               noShowCount={stats.noShows}
