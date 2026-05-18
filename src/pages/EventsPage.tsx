@@ -34,6 +34,17 @@ type EventWithCategory = Event & {
 };
 type PaymentType = "free" | "paid" | "deposit" | "location";
 type BalancePaymentMode = "online" | "on_site";
+type EventPeriodFilter = "upcoming" | "all" | "past";
+
+const EVENT_PERIOD_FILTERS: EventPeriodFilter[] = ["upcoming", "all", "past"];
+
+const getLocalDateString = () => {
+  const today = new Date();
+  const timezoneOffset = today.getTimezoneOffset() * 60 * 1000;
+  return new Date(today.getTime() - timezoneOffset).toISOString().slice(0, 10);
+};
+
+const isEventPast = (event: Event, today = getLocalDateString()) => event.date < today;
 
 const statusColors: Record<string, string> = {
   available: "text-success border-success/30 bg-success/10",
@@ -313,14 +324,16 @@ const priceOptionToRule = (option: any, fallbackPaymentType: PaymentType): Prici
 
 export default function EventsPage() {
   type SortField = "date" | "organizer";
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useLanguage();
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const [sortField, setSortField] = useState<SortField>("date");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const dashboardFilter = searchParams.get("filter");
+  const periodParam = searchParams.get("period") as EventPeriodFilter | null;
+  const eventPeriod = periodParam && EVENT_PERIOD_FILTERS.includes(periodParam) ? periodParam : "upcoming";
   const [editEvent, setEditEvent] = useState<(Record<string, any> & { isNew?: boolean }) | null>(null);
   const [localMeetingPoints, setLocalMeetingPoints] = useState<LocalMeetingPoint[]>([]);
   const [localPriceOptions, setLocalPriceOptions] = useState<PricingRule[]>([]);
@@ -361,7 +374,7 @@ export default function EventsPage() {
   const { data: events = [], isLoading } = useQuery({
     queryKey: ["admin-events"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("events").select("*, event_categories(name, icon), event_price_options(id)").order("date", { ascending: false });
+      const { data, error } = await supabase.from("events").select("*, event_categories(name, icon), event_price_options(id)").order("date", { ascending: true });
       if (error) throw error;
       return (data || []) as EventWithCategory[];
     },
@@ -850,10 +863,13 @@ export default function EventsPage() {
   });
 
   /* ── Filtering ── */
+  const today = getLocalDateString();
   const filtered = events.filter(e => {
     if (!e.title.toLowerCase().includes(search.toLowerCase())) return false;
+    const pastEvent = isEventPast(e, today);
+    if (eventPeriod === "upcoming" && pastEvent) return false;
+    if (eventPeriod === "past" && !pastEvent) return false;
     if (dashboardFilter === "empty") {
-      const today = new Date().toISOString().slice(0, 10);
       return e.date >= today && ["published", "available", "open"].includes(e.status) && e.spots_taken === 0;
     }
     if (dashboardFilter === "pending") return pendingEventIds.includes(e.id);
@@ -885,7 +901,16 @@ export default function EventsPage() {
       return;
     }
     setSortField(field);
-    setSortDirection(field === "date" ? "desc" : "asc");
+    setSortDirection("asc");
+  };
+  const setEventPeriod = (value: EventPeriodFilter) => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (value === "upcoming") {
+      nextParams.delete("period");
+    } else {
+      nextParams.set("period", value);
+    }
+    setSearchParams(nextParams, { replace: true });
   };
   const renderSortIcon = (field: SortField) => {
     if (sortField !== field) return <ArrowDown className="h-3.5 w-3.5 opacity-40" />;
@@ -938,68 +963,98 @@ export default function EventsPage() {
       {/* ═══ TABLE ═══ */}
       <Card>
         <CardHeader className="pb-3">
-          <div className="relative max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder={t("events.searchPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="relative max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input placeholder={t("events.searchPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+            </div>
+            <div className="inline-flex w-full rounded-md border bg-muted p-1 sm:w-auto">
+              {EVENT_PERIOD_FILTERS.map((filter) => (
+                <Button
+                  key={filter}
+                  type="button"
+                  variant={eventPeriod === filter ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-8 flex-1 px-3 text-xs sm:flex-initial"
+                  onClick={() => setEventPeriod(filter)}
+                >
+                  {t(`events.period.${filter}`)}
+                </Button>
+              ))}
+            </div>
           </div>
         </CardHeader>
-        <CardContent className="overflow-x-auto">
+        <CardContent className="overflow-hidden px-2 sm:px-6">
           {isLoading ? (
             <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16" />)}</div>
           ) : (
-            <Table>
+            <Table className="table-fixed text-xs sm:text-sm">
+              <colgroup>
+                <col className="w-[30%]" />
+                <col className="w-[16%]" />
+                <col className="w-[13%]" />
+                <col className="w-[11%]" />
+                <col className="w-[8%]" />
+                <col className="w-[9%]" />
+                <col className="w-[9%]" />
+                <col className="w-[4%]" />
+              </colgroup>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{t("events.event")}</TableHead>
-                  <TableHead>
+                  <TableHead className="px-2 py-3 sm:px-3">{t("events.event")}</TableHead>
+                  <TableHead className="px-2 py-3 sm:px-3">
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="-ml-3 h-8 gap-1 px-3 font-medium"
+                      className="-ml-2 h-auto min-h-8 gap-1 whitespace-normal px-2 text-left text-xs font-medium leading-tight sm:text-sm"
                       onClick={() => toggleSort("organizer")}
                     >
                       {t("events.organizer")}
                       {renderSortIcon("organizer")}
                     </Button>
                   </TableHead>
-                  <TableHead>{t("events.category")}</TableHead>
-                  <TableHead>
+                  <TableHead className="px-2 py-3 sm:px-3">{t("events.category")}</TableHead>
+                  <TableHead className="px-2 py-3 sm:px-3">
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="-ml-3 h-8 gap-1 px-3 font-medium"
+                      className="-ml-2 h-auto min-h-8 gap-1 whitespace-normal px-2 text-left text-xs font-medium leading-tight sm:text-sm"
                       onClick={() => toggleSort("date")}
                     >
                       {t("common.date")}
                       {renderSortIcon("date")}
                     </Button>
                   </TableHead>
-                  <TableHead>{t("events.spots")}</TableHead>
-                  <TableHead>{t("common.status")}</TableHead>
-                  <TableHead>{t("events.visibility")}</TableHead>
-                  <TableHead className="w-10" />
+                  <TableHead className="px-2 py-3 sm:px-3">{t("events.spots")}</TableHead>
+                  <TableHead className="px-2 py-3 sm:px-3">{t("common.status")}</TableHead>
+                  <TableHead className="px-2 py-3 sm:px-3">{t("events.visibility")}</TableHead>
+                  <TableHead className="px-1 py-3" />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {sortedEvents.map(event => (
                   <TableRow key={event.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/events/${event.id}`)}>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-1.5">
-                        {hasAnyAccessRule(event) && <Shield className="h-3.5 w-3.5 text-primary shrink-0" />}
-                        {(event.event_price_options?.length || 0) > 0 && <DollarSign className="h-3.5 w-3.5 text-accent-foreground shrink-0" />}
-                        <span className="truncate">{event.title}</span>
-                        <EventBadgePills event={event} className="ml-1" />
+                    <TableCell className="px-2 py-3 font-medium sm:px-3">
+                      <div className="flex min-w-0 items-start gap-1.5">
+                        <div className="mt-0.5 flex shrink-0 items-center gap-1">
+                          {hasAnyAccessRule(event) && <Shield className="h-3.5 w-3.5 text-primary shrink-0" />}
+                          {(event.event_price_options?.length || 0) > 0 && <DollarSign className="h-3.5 w-3.5 text-accent-foreground shrink-0" />}
+                        </div>
+                        <div className="min-w-0 space-y-1">
+                          <span className="block whitespace-normal break-words leading-snug">{event.title}</span>
+                          <EventBadgePills event={event} className="flex-wrap" />
+                        </div>
                       </div>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{event.organizer_name}</TableCell>
-                    <TableCell><Badge variant="secondary">{getCategoryName(event.category_id)}</Badge></TableCell>
-                    <TableCell className="text-muted-foreground">{event.date}</TableCell>
-                    <TableCell>{event.spots_taken}/{event.spots_total}</TableCell>
-                    <TableCell><Badge variant="outline" className={statusColors[event.status] || ""}>{event.status}</Badge></TableCell>
-                    <TableCell><Badge variant="outline" className={visibilityColors[event.visibility] || ""}>{event.visibility}</Badge></TableCell>
-                    <TableCell onClick={e => e.stopPropagation()}>
+                    <TableCell className="break-words px-2 py-3 text-muted-foreground sm:px-3">{event.organizer_name}</TableCell>
+                    <TableCell className="px-2 py-3 sm:px-3"><Badge variant="secondary" className="max-w-full whitespace-normal break-words text-center leading-tight">{getCategoryName(event.category_id)}</Badge></TableCell>
+                    <TableCell className="break-words px-2 py-3 text-muted-foreground sm:px-3">{event.date}</TableCell>
+                    <TableCell className="px-2 py-3 sm:px-3">{event.spots_taken}/{event.spots_total}</TableCell>
+                    <TableCell className="px-2 py-3 sm:px-3"><Badge variant="outline" className={`max-w-full whitespace-normal break-words text-center leading-tight ${statusColors[event.status] || ""}`}>{event.status}</Badge></TableCell>
+                    <TableCell className="px-2 py-3 sm:px-3"><Badge variant="outline" className={`max-w-full whitespace-normal break-words text-center leading-tight ${visibilityColors[event.visibility] || ""}`}>{event.visibility}</Badge></TableCell>
+                    <TableCell className="px-1 py-3" onClick={e => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
