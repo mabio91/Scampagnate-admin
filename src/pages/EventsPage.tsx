@@ -12,6 +12,7 @@ import { Search, MoreHorizontal, Eye, Edit2, Trash2, Plus, Upload, X, ArrowUp, A
 import { MANUAL_BADGE_OPTIONS, EventBadgePills, computeAutoBadgesForStorage } from "@/components/EventBadges";
 import { RichTextEditor } from "@/components/RichTextEditor";
 import RefreshButton from "@/components/RefreshButton";
+import { RowActionButton, RowActionCell } from "@/components/RowActions";
 import { useTrekkingDifficultyLevels } from "@/hooks/useTrekkingDifficultyLevels";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -1057,9 +1058,13 @@ export default function EventsPage() {
                     <TableCell className="px-2 py-3 sm:px-3">{event.spots_taken}/{event.spots_total}</TableCell>
                     <TableCell className="px-2 py-3 sm:px-3"><Badge variant="outline" className={`max-w-full whitespace-normal break-words text-center leading-tight ${statusColors[event.status] || ""}`}>{event.status}</Badge></TableCell>
                     <TableCell className="px-2 py-3 sm:px-3"><Badge variant="outline" className={`max-w-full whitespace-normal break-words text-center leading-tight ${visibilityColors[event.visibility] || ""}`}>{event.visibility}</Badge></TableCell>
-                    <TableCell className="px-1 py-3" onClick={e => e.stopPropagation()}>
+                    <RowActionCell className="px-1 py-1 sm:py-3">
                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                        <DropdownMenuTrigger asChild>
+                          <RowActionButton aria-label="Azioni evento">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </RowActionButton>
+                        </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => navigate(`/events/${event.id}`)}><Eye className="h-4 w-4 mr-2" /> Visualizza</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleOpenEdit(event)}><Edit2 className="h-4 w-4 mr-2" /> Modifica</DropdownMenuItem>
@@ -1070,7 +1075,7 @@ export default function EventsPage() {
                           <DropdownMenuItem className="text-destructive" onClick={() => { if (confirm("Eliminare questo evento?")) deleteMutation.mutate(event.id); }}><Trash2 className="h-4 w-4 mr-2" /> Elimina</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    </TableCell>
+                    </RowActionCell>
                   </TableRow>
                 ))}
                 {sortedEvents.length === 0 && (

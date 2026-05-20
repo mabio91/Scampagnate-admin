@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { RowActionButton, RowActionCell } from "@/components/RowActions";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, MoreHorizontal, Eye, CalendarPlus, Archive, Trash2, Mail, Lightbulb, CheckCircle } from "lucide-react";
@@ -245,12 +246,12 @@ export default function ProposalsPage() {
                       <TableCell className="text-muted-foreground text-xs">
                         {formatDate(proposal.created_at)}
                       </TableCell>
-                      <TableCell onClick={(e) => e.stopPropagation()}>
+                      <RowActionCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <RowActionButton aria-label="Azioni proposta">
                               <MoreHorizontal className="h-4 w-4" />
-                            </Button>
+                            </RowActionButton>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => setViewProposal(proposal)}>
@@ -282,7 +283,7 @@ export default function ProposalsPage() {
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
-                      </TableCell>
+                      </RowActionCell>
                     </TableRow>
                   ))}
                 </TableBody>

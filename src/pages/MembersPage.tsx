@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, MoreHorizontal, Edit2, Download, CreditCard, AlertTriangle, Bell, CalendarX, Award, Shield, Euro, Save, Pencil } from "lucide-react";
 import RefreshButton from "@/components/RefreshButton";
+import { RowActionButton, RowActionCell } from "@/components/RowActions";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -498,12 +499,12 @@ export default function MembersPage() {
                         {member.membership_status}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <RowActionCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <RowActionButton aria-label="Azioni tesserato">
                             <MoreHorizontal className="h-4 w-4" />
-                          </Button>
+                          </RowActionButton>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => openEdit(member)}>
@@ -511,7 +512,7 @@ export default function MembersPage() {
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    </TableCell>
+                    </RowActionCell>
                   </TableRow>
                 ))}
                 {filtered.length === 0 && (

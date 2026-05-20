@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, MoreHorizontal, Trash2, Edit2, UserPlus, Download, Info } from "lucide-react";
 import RefreshButton from "@/components/RefreshButton";
+import { RowActionButton, RowActionCell } from "@/components/RowActions";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -360,10 +361,12 @@ export default function UsersPage() {
                     <TableCell>{regCounts[user.id] || 0}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">{new Date(user.created_at).toLocaleDateString()}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">{user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString() : t("users.never")}</TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
+                    <RowActionCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
+                          <RowActionButton aria-label="Azioni utente">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </RowActionButton>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => navigate(`/users/${user.id}`)}>
@@ -392,7 +395,7 @@ export default function UsersPage() {
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    </TableCell>
+                    </RowActionCell>
                   </TableRow>
                 ))}
                 {filtered.length === 0 && (
