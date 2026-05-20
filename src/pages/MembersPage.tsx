@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { FOUNDING_MEMBER_BADGE_NAME, countMembersWithFoundingMemberBadge, hasFoundingMemberBadge } from "@/lib/foundingMember";
 import { formatMembershipId } from "@/lib/membership";
 import { PrepaidMembershipImport } from "@/components/members/PrepaidMembershipImport";
 
@@ -178,9 +179,9 @@ export default function MembersPage() {
       if (error) throw error;
 
       // Handle Founding Member badge sync
-      const foundingBadge = allBadges.find(b => b.name === "Founding Member");
+      const foundingBadge = allBadges.find((b) => b.name === FOUNDING_MEMBER_BADGE_NAME);
       if (foundingBadge) {
-        const hasBadge = (userBadgesMap[editMember.id] || []).some(b => b.name === "Founding Member");
+        const hasBadge = hasFoundingMemberBadge(userBadgesMap[editMember.id]);
         if (editForm.is_founding_member && !hasBadge) {
           await supabase.from("user_badges").insert({ user_id: editMember.id, badge_id: foundingBadge.id });
         } else if (!editForm.is_founding_member && hasBadge) {
@@ -295,7 +296,7 @@ export default function MembersPage() {
   const activeCount = members.filter((m) => m.membership_status === "Active").length;
   const expiredCount = members.filter((m) => m.membership_status === "Expired").length;
   const currentYearCount = members.filter((m) => m.membership_year === currentYear && m.membership_status === "Active").length;
-  const foundingCount = members.filter((m) => m.is_founding_member).length;
+  const foundingCount = countMembersWithFoundingMemberBadge(members, userBadgesMap);
 
   return (
     <div className="space-y-6">
