@@ -20,6 +20,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import type { Tables, TablesInsert } from "@/integrations/supabase/types";
 
 type DiscountCode = Tables<"discount_codes">;
+type DiscountCodeUsage = Tables<"discount_code_usage"> & {
+  profiles: Pick<Tables<"profiles">, "first_name" | "last_name" | "email"> | null;
+  events: Pick<Tables<"events">, "title"> | null;
+};
+
+const getErrorMessage = (error: unknown) => {
+  return error instanceof Error ? error.message : "Unexpected error";
+};
 
 const DiscountCodesPage = () => {
   const { toast } = useToast();
@@ -43,6 +51,7 @@ const DiscountCodesPage = () => {
     expires_at: "",
     is_active: true,
     is_single_use: false,
+    waives_service_fee: false,
     assigned_user_id: "" as string,
   });
 
@@ -91,13 +100,13 @@ const DiscountCodesPage = () => {
         .select("*, profiles:user_id(first_name, last_name, email), events:event_id(title)")
         .eq("discount_code_id", selectedCodeId!);
       if (error) throw error;
-      return data;
+      return data as DiscountCodeUsage[];
     },
   });
 
   const saveMutation = useMutation({
     mutationFn: async (values: typeof form) => {
-      const payload: any = {
+      const payload: TablesInsert<"discount_codes"> = {
         code: values.code.toUpperCase().trim(),
         description: values.description,
         discount_type: values.discount_type,
@@ -109,6 +118,7 @@ const DiscountCodesPage = () => {
         expires_at: values.expires_at || null,
         is_active: values.is_active,
         is_single_use: values.is_single_use,
+        waives_service_fee: values.waives_service_fee,
         assigned_user_id: values.assigned_user_id || null,
       };
 
@@ -130,8 +140,8 @@ const DiscountCodesPage = () => {
       toast({ title: editingCode ? "Discount code updated" : "Discount code created" });
       closeDialog();
     },
-    onError: (err: any) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    onError: (err: unknown) => {
+      toast({ title: "Error", description: getErrorMessage(err), variant: "destructive" });
     },
   });
 
@@ -159,7 +169,7 @@ const DiscountCodesPage = () => {
   const defaultForm = {
     code: "", description: "", discount_type: "percentage" as string, discount_value: 0,
     applies_to_all: true, event_ids: [] as string[], max_uses: null as number | null,
-    starts_at: "", expires_at: "", is_active: true, is_single_use: false, assigned_user_id: "",
+    starts_at: "", expires_at: "", is_active: true, is_single_use: false, waives_service_fee: false, assigned_user_id: "",
   };
 
   const closeDialog = () => {
@@ -182,6 +192,7 @@ const DiscountCodesPage = () => {
       expires_at: code.expires_at ? code.expires_at.split("T")[0] : "",
       is_active: code.is_active,
       is_single_use: code.is_single_use,
+      waives_service_fee: code.waives_service_fee,
       assigned_user_id: code.assigned_user_id || "",
     });
     setDialogOpen(true);
@@ -206,6 +217,7 @@ const DiscountCodesPage = () => {
       expires_at: code.expires_at ? code.expires_at.split("T")[0] : "",
       is_active: true,
       is_single_use: code.is_single_use,
+      waives_service_fee: code.waives_service_fee,
       assigned_user_id: code.assigned_user_id || "",
     });
     setDialogOpen(true);
@@ -302,6 +314,7 @@ const DiscountCodesPage = () => {
                           </Button>
                         </div>
                         {code.is_single_use && <Badge variant="outline" className="text-xs">Single-use</Badge>}
+                        {code.waives_service_fee && <Badge variant="outline" className="text-xs">No fixed service fee</Badge>}
                         {code.assigned_user_id && <Badge variant="outline" className="text-xs"><User className="h-3 w-3 mr-1" />Personal</Badge>}
                       </TableCell>
                       <TableCell className="text-muted-foreground max-w-[200px] truncate">{code.description}</TableCell>
@@ -526,6 +539,16 @@ const DiscountCodesPage = () => {
                   <p className="text-xs text-muted-foreground">Each user can only use this code once across all events</p>
                 </div>
               </div>
+              <label className="flex items-start gap-3 rounded-md border border-border p-3">
+                <Checkbox
+                  checked={form.waives_service_fee}
+                  onCheckedChange={(checked) => setForm({ ...form, waives_service_fee: checked === true })}
+                />
+                <div className="space-y-1 leading-none">
+                  <Label>Waive fixed service fee</Label>
+                  <p className="text-xs text-muted-foreground">Sets the fixed service fee to €0 when this code is used</p>
+                </div>
+              </label>
               <div>
                 <Label>Assign to specific user (optional)</Label>
                 <Select
@@ -587,7 +610,7 @@ const DiscountCodesPage = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {usageData.map((u: any) => (
+                {usageData.map((u) => (
                   <TableRow key={u.id}>
                     <TableCell>{u.profiles?.first_name} {u.profiles?.last_name}</TableCell>
                     <TableCell className="max-w-[120px] truncate">{u.events?.title}</TableCell>
