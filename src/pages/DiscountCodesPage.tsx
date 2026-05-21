@@ -305,17 +305,23 @@ const DiscountCodesPage = () => {
                   return (
                     <TableRow key={code.id}>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <code className="font-mono font-bold text-foreground bg-muted px-2 py-1 rounded text-sm">
-                            {code.code}
-                          </code>
-                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => copyCode(code.code)} title="Copy code">
-                            <ClipboardCopy className="h-3 w-3" />
-                          </Button>
+                        <div className="flex flex-col items-start gap-1">
+                          <div className="flex items-center gap-2">
+                            <code className="font-mono font-bold text-foreground bg-muted px-2 py-1 rounded text-sm">
+                              {code.code}
+                            </code>
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => copyCode(code.code)} title="Copy code">
+                              <ClipboardCopy className="h-3 w-3" />
+                            </Button>
+                          </div>
+                          {(code.is_single_use || code.waives_service_fee || code.assigned_user_id) && (
+                            <div className="flex flex-wrap items-center gap-1">
+                              {code.is_single_use && <Badge variant="outline" className="text-xs whitespace-nowrap">Single-use</Badge>}
+                              {code.waives_service_fee && <Badge variant="outline" className="text-xs whitespace-nowrap">No fixed service fee</Badge>}
+                              {code.assigned_user_id && <Badge variant="outline" className="text-xs whitespace-nowrap"><User className="h-3 w-3 mr-1" />Personal</Badge>}
+                            </div>
+                          )}
                         </div>
-                        {code.is_single_use && <Badge variant="outline" className="text-xs">Single-use</Badge>}
-                        {code.waives_service_fee && <Badge variant="outline" className="text-xs">No fixed service fee</Badge>}
-                        {code.assigned_user_id && <Badge variant="outline" className="text-xs"><User className="h-3 w-3 mr-1" />Personal</Badge>}
                       </TableCell>
                       <TableCell className="text-muted-foreground max-w-[200px] truncate">{code.description}</TableCell>
                       <TableCell className="font-semibold text-foreground">
