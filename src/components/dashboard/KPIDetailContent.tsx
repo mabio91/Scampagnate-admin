@@ -1,12 +1,14 @@
+import { useMemo, useState, type Key, type ReactNode } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, differenceInDays, differenceInHours, subMonths, startOfMonth } from "date-fns";
-import { Ruler, TrendingUp, Calendar, Star, Users, CreditCard, ClipboardList, FolderOpen, User, Medal, Trophy, BarChart3, CheckCircle2, XCircle, Wrench, Landmark } from "lucide-react";
+import { Ruler, TrendingUp, Calendar, Star, Users, CreditCard, ClipboardList, FolderOpen, User, Medal, Trophy, BarChart3, CheckCircle2, XCircle, Wrench, Landmark, ArrowUp, ArrowDown } from "lucide-react";
 import type { DashboardFilterValues } from "./DashboardFilters";
 import { formatMembershipId } from "@/lib/membership";
 
@@ -90,8 +92,129 @@ function FormulaBox({ formula, description }: { formula: string; description?: s
   );
 }
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
+function SectionTitle({ children }: { children: ReactNode }) {
   return <h4 className="text-sm font-semibold text-foreground mt-2">{children}</h4>;
+}
+
+type SortDirection = "asc" | "desc";
+type SortValue = string | number | boolean | Date | null | undefined;
+
+type SortableColumn<T> = {
+  id: string;
+  label: ReactNode;
+  sortValue: (row: T, originalIndex: number) => SortValue;
+  className?: string;
+  ariaLabel?: string;
+};
+
+type SortState = {
+  columnId: string;
+  direction: SortDirection;
+} | null;
+
+function compareSortValues(a: SortValue, b: SortValue, direction: SortDirection) {
+  const emptyA = a == null || a === "";
+  const emptyB = b == null || b === "";
+  if (emptyA && emptyB) return 0;
+  if (emptyA) return 1;
+  if (emptyB) return -1;
+
+  let comparison = 0;
+  if (a instanceof Date || b instanceof Date) {
+    comparison = new Date(a as string | number | Date).getTime() - new Date(b as string | number | Date).getTime();
+  } else if (typeof a === "number" || typeof b === "number") {
+    comparison = Number(a) - Number(b);
+  } else if (typeof a === "boolean" || typeof b === "boolean") {
+    comparison = Number(a) - Number(b);
+  } else {
+    comparison = String(a).localeCompare(String(b), "it", { sensitivity: "base", numeric: true });
+  }
+
+  return direction === "asc" ? comparison : -comparison;
+}
+
+function SortableDataTable<T>({
+  rows,
+  columns,
+  getRowKey,
+  renderRow,
+  emptyMessage = "Nessun dato trovato.",
+}: {
+  rows: T[];
+  columns: SortableColumn<T>[];
+  getRowKey: (row: T, index: number) => Key;
+  renderRow: (row: T, index: number) => ReactNode;
+  emptyMessage?: string;
+}) {
+  const [sort, setSort] = useState<SortState>(null);
+  const sortedRows = useMemo(() => {
+    if (!sort) return rows;
+    const column = columns.find((item) => item.id === sort.columnId);
+    if (!column) return rows;
+
+    return rows
+      .map((row, originalIndex) => ({ row, originalIndex }))
+      .sort((a, b) => {
+        const comparison = compareSortValues(
+          column.sortValue(a.row, a.originalIndex),
+          column.sortValue(b.row, b.originalIndex),
+          sort.direction,
+        );
+        return comparison || a.originalIndex - b.originalIndex;
+      })
+      .map((item) => item.row);
+  }, [columns, rows, sort]);
+
+  const toggleSort = (columnId: string) => {
+    setSort((current) => (
+      current?.columnId === columnId
+        ? { columnId, direction: current.direction === "asc" ? "desc" : "asc" }
+        : { columnId, direction: "asc" }
+    ));
+  };
+
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          {columns.map((column) => (
+            <TableHead key={column.id} className={column.className}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="-ml-3 h-8 gap-1 px-2 text-xs font-medium"
+                onClick={() => toggleSort(column.id)}
+                aria-label={column.ariaLabel || `Ordina per ${String(column.label)}`}
+              >
+                {column.label}
+                {sort?.columnId === column.id
+                  ? sort.direction === "asc"
+                    ? <ArrowUp className="h-3.5 w-3.5" />
+                    : <ArrowDown className="h-3.5 w-3.5" />
+                  : <ArrowDown className="h-3.5 w-3.5 opacity-40" />}
+              </Button>
+            </TableHead>
+          ))}
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {sortedRows.length > 0 ? (
+          sortedRows.map((row, index) => (
+            <TableRow key={getRowKey(row, index)}>
+              {renderRow(row, index)}
+            </TableRow>
+          ))
+        ) : (
+          <TableRow>
+            <TableCell colSpan={columns.length} className="text-center text-muted-foreground py-8">
+              {emptyMessage}
+            </TableCell>
+          </TableRow>
+        )}
+      </TableBody>
+    </Table>
+  );
 }
 
 function HealthMetric({ label, value, good, warn }: { label: string; value: string; good: boolean; warn: boolean }) {
@@ -202,40 +325,36 @@ function TotalUsersDetail({ filters }: { filters: DashboardFilterValues }) {
         {["all", "active", "suspended", "banned"].map(tab => (
           <TabsContent key={tab} value={tab}>
             <div className="rounded-xl border overflow-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Telefono</TableHead>
-                    <TableHead>Stato</TableHead>
-                    <TableHead>Ruoli</TableHead>
-                    <TableHead>Tessera</TableHead>
-                    <TableHead>Punti</TableHead>
-                    <TableHead>Livello</TableHead>
-                    <TableHead>Onboarding</TableHead>
-                    <TableHead>Iscritto</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {users
-                    .filter(u => tab === "all" || (tab === "active" && u.account_status === "Active") || (tab === "suspended" && u.account_status === "Suspended") || (tab === "banned" && u.account_status === "Banned"))
-                    .map(u => (
-                      <TableRow key={u.id}>
-                        <TableCell className="font-medium whitespace-nowrap">{u.first_name} {u.last_name}</TableCell>
-                        <TableCell className="text-xs">{u.email || "—"}</TableCell>
-                        <TableCell className="text-xs">{u.phone || "—"}</TableCell>
-                        <TableCell>{statusBadge(u.account_status || "Active")}</TableCell>
-                        <TableCell className="text-xs">{(data?.roleMap[u.id] || ["user"]).join(", ")}</TableCell>
-                        <TableCell><Badge variant="outline">{u.membership_status || "Inactive"}</Badge></TableCell>
-                        <TableCell>{u.total_points}</TableCell>
-                        <TableCell className="text-xs">{u.self_level || "—"}</TableCell>
-                        <TableCell>{u.onboarding_completed ? <CheckCircle2 className="h-4 w-4 text-success" /> : <XCircle className="h-4 w-4 text-destructive" />}</TableCell>
-                        <TableCell className="text-xs whitespace-nowrap">{format(new Date(u.created_at), "dd/MM/yyyy HH:mm")}</TableCell>
-                      </TableRow>
-                    ))}
-                </TableBody>
-              </Table>
+              <SortableDataTable
+                rows={users.filter(u => tab === "all" || (tab === "active" && u.account_status === "Active") || (tab === "suspended" && u.account_status === "Suspended") || (tab === "banned" && u.account_status === "Banned"))}
+                getRowKey={(u) => u.id}
+                columns={[
+                  { id: "name", label: "Nome", sortValue: (u) => `${u.first_name} ${u.last_name}` },
+                  { id: "email", label: "Email", sortValue: (u) => u.email },
+                  { id: "phone", label: "Telefono", sortValue: (u) => u.phone },
+                  { id: "status", label: "Stato", sortValue: (u) => u.account_status || "Active" },
+                  { id: "roles", label: "Ruoli", sortValue: (u) => (data?.roleMap[u.id] || ["user"]).join(", ") },
+                  { id: "membership", label: "Tessera", sortValue: (u) => u.membership_status || "Inactive" },
+                  { id: "points", label: "Punti", sortValue: (u) => u.total_points },
+                  { id: "level", label: "Livello", sortValue: (u) => u.self_level },
+                  { id: "onboarding", label: "Onboarding", sortValue: (u) => Boolean(u.onboarding_completed) },
+                  { id: "created", label: "Iscritto", sortValue: (u) => u.created_at },
+                ]}
+                renderRow={(u) => (
+                  <>
+                    <TableCell className="font-medium whitespace-nowrap">{u.first_name} {u.last_name}</TableCell>
+                    <TableCell className="text-xs">{u.email || "—"}</TableCell>
+                    <TableCell className="text-xs">{u.phone || "—"}</TableCell>
+                    <TableCell>{statusBadge(u.account_status || "Active")}</TableCell>
+                    <TableCell className="text-xs">{(data?.roleMap[u.id] || ["user"]).join(", ")}</TableCell>
+                    <TableCell><Badge variant="outline">{u.membership_status || "Inactive"}</Badge></TableCell>
+                    <TableCell>{u.total_points}</TableCell>
+                    <TableCell className="text-xs">{u.self_level || "—"}</TableCell>
+                    <TableCell>{u.onboarding_completed ? <CheckCircle2 className="h-4 w-4 text-success" /> : <XCircle className="h-4 w-4 text-destructive" />}</TableCell>
+                    <TableCell className="text-xs whitespace-nowrap">{format(new Date(u.created_at), "dd/MM/yyyy HH:mm")}</TableCell>
+                  </>
+                )}
+              />
             </div>
           </TabsContent>
         ))}
@@ -306,34 +425,32 @@ function ActiveMembersDetail({ filters }: { filters: DashboardFilterValues }) {
         ].map(({ key, list }) => (
           <TabsContent key={key} value={key}>
             <div className="rounded-xl border overflow-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>ID Tessera</TableHead>
-                    <TableHead>Anno</TableHead>
-                    <TableHead>Stato tessera</TableHead>
-                    <TableHead>Stato account</TableHead>
-                    <TableHead>Fondatore</TableHead>
-                    <TableHead>Data tessera</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {list.map(m => (
-                    <TableRow key={m.id}>
-                      <TableCell className="font-medium whitespace-nowrap">{m.first_name} {m.last_name}</TableCell>
-                      <TableCell className="text-xs">{m.email || "—"}</TableCell>
-                      <TableCell className="font-mono text-xs">{formatMembershipId(m.membership_id)}</TableCell>
-                      <TableCell>{m.membership_year || "—"}</TableCell>
-                      <TableCell>{statusBadge(m.membership_status || "Inactive")}</TableCell>
-                      <TableCell>{statusBadge(m.account_status || "Active")}</TableCell>
-                      <TableCell>{m.is_founding_member ? <span className="flex items-center gap-1"><Star className="h-3.5 w-3.5 text-warning" /> Si</span> : "—"}</TableCell>
-                      <TableCell className="text-xs whitespace-nowrap">{m.membership_registration_date ? format(new Date(m.membership_registration_date), "dd/MM/yyyy") : "—"}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <SortableDataTable
+                rows={list}
+                getRowKey={(m) => m.id}
+                columns={[
+                  { id: "name", label: "Nome", sortValue: (m) => `${m.first_name} ${m.last_name}` },
+                  { id: "email", label: "Email", sortValue: (m) => m.email },
+                  { id: "membershipId", label: "ID Tessera", sortValue: (m) => m.membership_id },
+                  { id: "year", label: "Anno", sortValue: (m) => m.membership_year },
+                  { id: "membershipStatus", label: "Stato tessera", sortValue: (m) => m.membership_status || "Inactive" },
+                  { id: "accountStatus", label: "Stato account", sortValue: (m) => m.account_status || "Active" },
+                  { id: "founder", label: "Fondatore", sortValue: (m) => m.is_founding_member },
+                  { id: "membershipDate", label: "Data tessera", sortValue: (m) => m.membership_registration_date },
+                ]}
+                renderRow={(m) => (
+                  <>
+                    <TableCell className="font-medium whitespace-nowrap">{m.first_name} {m.last_name}</TableCell>
+                    <TableCell className="text-xs">{m.email || "—"}</TableCell>
+                    <TableCell className="font-mono text-xs">{formatMembershipId(m.membership_id)}</TableCell>
+                    <TableCell>{m.membership_year || "—"}</TableCell>
+                    <TableCell>{statusBadge(m.membership_status || "Inactive")}</TableCell>
+                    <TableCell>{statusBadge(m.account_status || "Active")}</TableCell>
+                    <TableCell>{m.is_founding_member ? <span className="flex items-center gap-1"><Star className="h-3.5 w-3.5 text-warning" /> Si</span> : "—"}</TableCell>
+                    <TableCell className="text-xs whitespace-nowrap">{m.membership_registration_date ? format(new Date(m.membership_registration_date), "dd/MM/yyyy") : "—"}</TableCell>
+                  </>
+                )}
+              />
             </div>
           </TabsContent>
         ))}
@@ -409,40 +526,38 @@ function ParticipatingUsersDetail({ filters }: { filters: DashboardFilterValues 
 
       <SectionTitle><Users className="h-4 w-4 inline-block mr-1" /> Lista utenti partecipanti</SectionTitle>
       <div className="rounded-xl border overflow-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>#</TableHead>
-              <TableHead>Nome</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Eventi iscritti</TableHead>
-              <TableHead>Presenze (check-in)</TableHead>
-              <TableHead>No-show</TableHead>
-              <TableHead>Cancellazioni</TableHead>
-              <TableHead>Tessera</TableHead>
-              <TableHead>Ultimo evento</TableHead>
-              <TableHead>Data ultimo</TableHead>
-              <TableHead>Data primo</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.users.map((u, i) => (
-              <TableRow key={i}>
-                <TableCell className="font-bold text-muted-foreground">{i + 1}</TableCell>
-                <TableCell className="font-medium whitespace-nowrap">{u.name}</TableCell>
-                <TableCell className="text-xs">{u.email}</TableCell>
-                <TableCell>{u.eventsJoined}</TableCell>
-                <TableCell className="text-success font-semibold">{u.eventsAttended}</TableCell>
-                <TableCell className={u.noShows > 0 ? "text-destructive font-semibold" : ""}>{u.noShows}</TableCell>
-                <TableCell className={u.cancelled > 0 ? "text-warning" : ""}>{u.cancelled}</TableCell>
-                <TableCell>{statusBadge(u.membership)}</TableCell>
-                <TableCell className="text-xs max-w-[150px] truncate">{u.lastEvent}</TableCell>
-                <TableCell className="text-xs whitespace-nowrap">{u.lastDate ? format(new Date(u.lastDate), "dd/MM/yyyy") : "—"}</TableCell>
-                <TableCell className="text-xs whitespace-nowrap">{u.firstDate ? format(new Date(u.firstDate), "dd/MM/yyyy") : "—"}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <SortableDataTable
+          rows={data.users}
+          getRowKey={(u, i) => `${u.userId}-${i}`}
+          columns={[
+            { id: "rank", label: "#", sortValue: (_u, i) => i + 1 },
+            { id: "name", label: "Nome", sortValue: (u) => u.name },
+            { id: "email", label: "Email", sortValue: (u) => u.email },
+            { id: "eventsJoined", label: "Eventi iscritti", sortValue: (u) => u.eventsJoined },
+            { id: "eventsAttended", label: "Presenze (check-in)", sortValue: (u) => u.eventsAttended },
+            { id: "noShows", label: "No-show", sortValue: (u) => u.noShows },
+            { id: "cancelled", label: "Cancellazioni", sortValue: (u) => u.cancelled },
+            { id: "membership", label: "Tessera", sortValue: (u) => u.membership },
+            { id: "lastEvent", label: "Ultimo evento", sortValue: (u) => u.lastEvent },
+            { id: "lastDate", label: "Data ultimo", sortValue: (u) => u.lastDate },
+            { id: "firstDate", label: "Data primo", sortValue: (u) => u.firstDate },
+          ]}
+          renderRow={(u, i) => (
+            <>
+              <TableCell className="font-bold text-muted-foreground">{i + 1}</TableCell>
+              <TableCell className="font-medium whitespace-nowrap">{u.name}</TableCell>
+              <TableCell className="text-xs">{u.email}</TableCell>
+              <TableCell>{u.eventsJoined}</TableCell>
+              <TableCell className="text-success font-semibold">{u.eventsAttended}</TableCell>
+              <TableCell className={u.noShows > 0 ? "text-destructive font-semibold" : ""}>{u.noShows}</TableCell>
+              <TableCell className={u.cancelled > 0 ? "text-warning" : ""}>{u.cancelled}</TableCell>
+              <TableCell>{statusBadge(u.membership)}</TableCell>
+              <TableCell className="text-xs max-w-[150px] truncate">{u.lastEvent}</TableCell>
+              <TableCell className="text-xs whitespace-nowrap">{u.lastDate ? format(new Date(u.lastDate), "dd/MM/yyyy") : "—"}</TableCell>
+              <TableCell className="text-xs whitespace-nowrap">{u.firstDate ? format(new Date(u.firstDate), "dd/MM/yyyy") : "—"}</TableCell>
+            </>
+          )}
+        />
       </div>
     </div>
   );
@@ -519,52 +634,50 @@ function EventsCreatedDetail({ filters }: { filters: DashboardFilterValues }) {
 
       <SectionTitle><ClipboardList className="h-4 w-4 inline-block mr-1" /> Dettaglio eventi</SectionTitle>
       <div className="rounded-xl border overflow-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Evento</TableHead>
-              <TableHead>Data</TableHead>
-              <TableHead>Luogo</TableHead>
-              <TableHead>Organizzatore</TableHead>
-              <TableHead>Categoria</TableHead>
-              <TableHead>Stato</TableHead>
-              <TableHead>Tipo</TableHead>
-              <TableHead>Prezzo</TableHead>
-              <TableHead>Difficoltà</TableHead>
-              <TableHead>Capacità</TableHead>
-              <TableHead>Iscritti</TableHead>
-              <TableHead>Check-in</TableHead>
-              <TableHead>Waitlist</TableHead>
-              <TableHead>Riempimento</TableHead>
-              <TableHead>Creato</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {events.map(e => {
-              const rc = data?.regCountMap[e.id] || { total: 0, checkedIn: 0, waitlist: 0, cancelled: 0 };
-              const fill = e.spots_total > 0 ? Math.round((e.spots_taken / e.spots_total) * 100) : 0;
-              return (
-                <TableRow key={e.id}>
-                  <TableCell className="font-medium max-w-[180px] truncate">{e.title}</TableCell>
-                  <TableCell className="text-xs whitespace-nowrap">{format(new Date(e.date), "dd/MM/yyyy")}</TableCell>
-                  <TableCell className="text-xs max-w-[120px] truncate">{e.location}</TableCell>
-                  <TableCell className="text-xs">{e.organizer_name}</TableCell>
-                  <TableCell className="text-xs">{data?.catMap[e.category_id] || "—"}</TableCell>
-                  <TableCell>{statusBadge(e.status)}</TableCell>
-                  <TableCell className="text-xs">{e.payment_type}</TableCell>
-                  <TableCell className="text-xs">{e.payment_type === "free" ? "Gratis" : `€${e.price}`}</TableCell>
-                  <TableCell className="text-xs">{e.difficulty || "—"}</TableCell>
-                  <TableCell>{e.spots_total}</TableCell>
-                  <TableCell>{rc.total}</TableCell>
-                  <TableCell className="text-success">{rc.checkedIn}</TableCell>
-                  <TableCell className={rc.waitlist > 0 ? "text-warning font-semibold" : ""}>{rc.waitlist}</TableCell>
-                  <TableCell><span className={fill >= 80 ? "text-success font-bold" : fill >= 50 ? "text-warning" : "text-muted-foreground"}>{fill}%</span></TableCell>
-                  <TableCell className="text-xs whitespace-nowrap">{format(new Date(e.created_at), "dd/MM/yyyy")}</TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+        <SortableDataTable
+          rows={events}
+          getRowKey={(e) => e.id}
+          columns={[
+            { id: "title", label: "Evento", sortValue: (e) => e.title },
+            { id: "date", label: "Data", sortValue: (e) => e.date },
+            { id: "location", label: "Luogo", sortValue: (e) => e.location },
+            { id: "organizer", label: "Organizzatore", sortValue: (e) => e.organizer_name },
+            { id: "category", label: "Categoria", sortValue: (e) => data?.catMap[e.category_id] || "—" },
+            { id: "status", label: "Stato", sortValue: (e) => e.status },
+            { id: "type", label: "Tipo", sortValue: (e) => e.payment_type },
+            { id: "price", label: "Prezzo", sortValue: (e) => e.payment_type === "free" ? 0 : e.price },
+            { id: "difficulty", label: "Difficoltà", sortValue: (e) => e.difficulty },
+            { id: "capacity", label: "Capacità", sortValue: (e) => e.spots_total },
+            { id: "registrations", label: "Iscritti", sortValue: (e) => (data?.regCountMap[e.id] || { total: 0 }).total },
+            { id: "checkin", label: "Check-in", sortValue: (e) => (data?.regCountMap[e.id] || { checkedIn: 0 }).checkedIn },
+            { id: "waitlist", label: "Waitlist", sortValue: (e) => (data?.regCountMap[e.id] || { waitlist: 0 }).waitlist },
+            { id: "fill", label: "Riempimento", sortValue: (e) => e.spots_total > 0 ? Math.round((e.spots_taken / e.spots_total) * 100) : 0 },
+            { id: "created", label: "Creato", sortValue: (e) => e.created_at },
+          ]}
+          renderRow={(e) => {
+            const rc = data?.regCountMap[e.id] || { total: 0, checkedIn: 0, waitlist: 0, cancelled: 0 };
+            const fill = e.spots_total > 0 ? Math.round((e.spots_taken / e.spots_total) * 100) : 0;
+            return (
+              <>
+                <TableCell className="font-medium max-w-[180px] truncate">{e.title}</TableCell>
+                <TableCell className="text-xs whitespace-nowrap">{format(new Date(e.date), "dd/MM/yyyy")}</TableCell>
+                <TableCell className="text-xs max-w-[120px] truncate">{e.location}</TableCell>
+                <TableCell className="text-xs">{e.organizer_name}</TableCell>
+                <TableCell className="text-xs">{data?.catMap[e.category_id] || "—"}</TableCell>
+                <TableCell>{statusBadge(e.status)}</TableCell>
+                <TableCell className="text-xs">{e.payment_type}</TableCell>
+                <TableCell className="text-xs">{e.payment_type === "free" ? "Gratis" : `€${e.price}`}</TableCell>
+                <TableCell className="text-xs">{e.difficulty || "—"}</TableCell>
+                <TableCell>{e.spots_total}</TableCell>
+                <TableCell>{rc.total}</TableCell>
+                <TableCell className="text-success">{rc.checkedIn}</TableCell>
+                <TableCell className={rc.waitlist > 0 ? "text-warning font-semibold" : ""}>{rc.waitlist}</TableCell>
+                <TableCell><span className={fill >= 80 ? "text-success font-bold" : fill >= 50 ? "text-warning" : "text-muted-foreground"}>{fill}%</span></TableCell>
+                <TableCell className="text-xs whitespace-nowrap">{format(new Date(e.created_at), "dd/MM/yyyy")}</TableCell>
+              </>
+            );
+          }}
+        />
       </div>
     </div>
   );
@@ -668,33 +781,40 @@ function ParticipationRateDetail({ filters }: { filters: DashboardFilterValues }
 
       <SectionTitle><FolderOpen className="h-4 w-4 inline-block mr-1" /> Per categoria</SectionTitle>
       <div className="rounded-xl border overflow-auto">
-        <Table>
-          <TableHeader><TableRow><TableHead>Categoria</TableHead><TableHead>Utenti unici</TableHead><TableHead>% su totale utenti</TableHead></TableRow></TableHeader>
-          <TableBody>
-            {data.byCategory.map(c => (
-              <TableRow key={c.name}>
-                <TableCell className="font-medium">{c.name}</TableCell>
-                <TableCell className="font-semibold">{c.count}</TableCell>
-                <TableCell>{c.pct}%</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <SortableDataTable
+          rows={data.byCategory}
+          getRowKey={(c) => c.name}
+          columns={[
+            { id: "category", label: "Categoria", sortValue: (c) => c.name },
+            { id: "users", label: "Utenti unici", sortValue: (c) => c.count },
+            { id: "pct", label: "% su totale utenti", sortValue: (c) => c.pct },
+          ]}
+          renderRow={(c) => (
+            <>
+              <TableCell className="font-medium">{c.name}</TableCell>
+              <TableCell className="font-semibold">{c.count}</TableCell>
+              <TableCell>{c.pct}%</TableCell>
+            </>
+          )}
+        />
       </div>
 
       <SectionTitle><User className="h-4 w-4 inline-block mr-1" /> Per organizzatore</SectionTitle>
       <div className="rounded-xl border overflow-auto">
-        <Table>
-          <TableHeader><TableRow><TableHead>Organizzatore</TableHead><TableHead>Utenti unici</TableHead></TableRow></TableHeader>
-          <TableBody>
-            {data.byOrganizer.map(o => (
-              <TableRow key={o.name}>
-                <TableCell className="font-medium">{o.name}</TableCell>
-                <TableCell className="font-semibold">{o.count}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <SortableDataTable
+          rows={data.byOrganizer}
+          getRowKey={(o) => o.name}
+          columns={[
+            { id: "organizer", label: "Organizzatore", sortValue: (o) => o.name },
+            { id: "users", label: "Utenti unici", sortValue: (o) => o.count },
+          ]}
+          renderRow={(o) => (
+            <>
+              <TableCell className="font-medium">{o.name}</TableCell>
+              <TableCell className="font-semibold">{o.count}</TableCell>
+            </>
+          )}
+        />
       </div>
     </div>
   );
@@ -794,58 +914,78 @@ function AttendanceRateDetail({ filters }: { filters: DashboardFilterValues }) {
         </TabsList>
         <TabsContent value="events">
           <div className="rounded-xl border overflow-auto">
-            <Table>
-              <TableHeader><TableRow><TableHead>Evento</TableHead><TableHead>Data</TableHead><TableHead>Organizzatore</TableHead><TableHead>Categoria</TableHead><TableHead>Iscritti</TableHead><TableHead>Check-in</TableHead><TableHead>Tasso</TableHead><TableHead>No-show</TableHead><TableHead>Cancellati</TableHead></TableRow></TableHeader>
-              <TableBody>
-                {data.byEvent.map((e, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="font-medium max-w-[180px] truncate">{e.title}</TableCell>
-                    <TableCell className="text-xs whitespace-nowrap">{format(new Date(e.date), "dd/MM/yyyy")}</TableCell>
-                    <TableCell className="text-xs">{e.organizer}</TableCell>
-                    <TableCell className="text-xs">{e.category}</TableCell>
-                    <TableCell>{e.regs}</TableCell>
-                    <TableCell className="text-success">{e.checkedIn}</TableCell>
-                    <TableCell className="font-semibold">{e.regs > 0 ? Math.round((e.checkedIn / e.regs) * 100) : 0}%</TableCell>
-                    <TableCell className={e.noShows > 0 ? "text-destructive" : ""}>{e.noShows}</TableCell>
-                    <TableCell className={e.cancelled > 0 ? "text-warning" : ""}>{e.cancelled}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <SortableDataTable
+              rows={data.byEvent}
+              getRowKey={(e, i) => `${e.title}-${e.date}-${i}`}
+              columns={[
+                { id: "event", label: "Evento", sortValue: (e) => e.title },
+                { id: "date", label: "Data", sortValue: (e) => e.date },
+                { id: "organizer", label: "Organizzatore", sortValue: (e) => e.organizer },
+                { id: "category", label: "Categoria", sortValue: (e) => e.category },
+                { id: "regs", label: "Iscritti", sortValue: (e) => e.regs },
+                { id: "checkedIn", label: "Check-in", sortValue: (e) => e.checkedIn },
+                { id: "rate", label: "Tasso", sortValue: (e) => e.regs > 0 ? Math.round((e.checkedIn / e.regs) * 100) : 0 },
+                { id: "noShows", label: "No-show", sortValue: (e) => e.noShows },
+                { id: "cancelled", label: "Cancellati", sortValue: (e) => e.cancelled },
+              ]}
+              renderRow={(e) => (
+                <>
+                  <TableCell className="font-medium max-w-[180px] truncate">{e.title}</TableCell>
+                  <TableCell className="text-xs whitespace-nowrap">{format(new Date(e.date), "dd/MM/yyyy")}</TableCell>
+                  <TableCell className="text-xs">{e.organizer}</TableCell>
+                  <TableCell className="text-xs">{e.category}</TableCell>
+                  <TableCell>{e.regs}</TableCell>
+                  <TableCell className="text-success">{e.checkedIn}</TableCell>
+                  <TableCell className="font-semibold">{e.regs > 0 ? Math.round((e.checkedIn / e.regs) * 100) : 0}%</TableCell>
+                  <TableCell className={e.noShows > 0 ? "text-destructive" : ""}>{e.noShows}</TableCell>
+                  <TableCell className={e.cancelled > 0 ? "text-warning" : ""}>{e.cancelled}</TableCell>
+                </>
+              )}
+            />
           </div>
         </TabsContent>
         <TabsContent value="categories">
           <div className="rounded-xl border overflow-auto">
-            <Table>
-              <TableHeader><TableRow><TableHead>Categoria</TableHead><TableHead>Iscrizioni</TableHead><TableHead>Check-in</TableHead><TableHead>Tasso presenza</TableHead></TableRow></TableHeader>
-              <TableBody>
-                {data.byCategory.map(c => (
-                  <TableRow key={c.name}>
-                    <TableCell className="font-medium">{c.name}</TableCell>
-                    <TableCell>{c.regs}</TableCell>
-                    <TableCell className="text-success">{c.checkedIn}</TableCell>
-                    <TableCell className="font-semibold">{c.rate}%</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <SortableDataTable
+              rows={data.byCategory}
+              getRowKey={(c) => c.name}
+              columns={[
+                { id: "category", label: "Categoria", sortValue: (c) => c.name },
+                { id: "regs", label: "Iscrizioni", sortValue: (c) => c.regs },
+                { id: "checkedIn", label: "Check-in", sortValue: (c) => c.checkedIn },
+                { id: "rate", label: "Tasso presenza", sortValue: (c) => c.rate },
+              ]}
+              renderRow={(c) => (
+                <>
+                  <TableCell className="font-medium">{c.name}</TableCell>
+                  <TableCell>{c.regs}</TableCell>
+                  <TableCell className="text-success">{c.checkedIn}</TableCell>
+                  <TableCell className="font-semibold">{c.rate}%</TableCell>
+                </>
+              )}
+            />
           </div>
         </TabsContent>
         <TabsContent value="organizers">
           <div className="rounded-xl border overflow-auto">
-            <Table>
-              <TableHeader><TableRow><TableHead>Organizzatore</TableHead><TableHead>Iscrizioni</TableHead><TableHead>Check-in</TableHead><TableHead>Tasso presenza</TableHead></TableRow></TableHeader>
-              <TableBody>
-                {data.byOrganizer.map(o => (
-                  <TableRow key={o.name}>
-                    <TableCell className="font-medium">{o.name}</TableCell>
-                    <TableCell>{o.regs}</TableCell>
-                    <TableCell className="text-success">{o.checkedIn}</TableCell>
-                    <TableCell className="font-semibold">{o.rate}%</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <SortableDataTable
+              rows={data.byOrganizer}
+              getRowKey={(o) => o.name}
+              columns={[
+                { id: "organizer", label: "Organizzatore", sortValue: (o) => o.name },
+                { id: "regs", label: "Iscrizioni", sortValue: (o) => o.regs },
+                { id: "checkedIn", label: "Check-in", sortValue: (o) => o.checkedIn },
+                { id: "rate", label: "Tasso presenza", sortValue: (o) => o.rate },
+              ]}
+              renderRow={(o) => (
+                <>
+                  <TableCell className="font-medium">{o.name}</TableCell>
+                  <TableCell>{o.regs}</TableCell>
+                  <TableCell className="text-success">{o.checkedIn}</TableCell>
+                  <TableCell className="font-semibold">{o.rate}%</TableCell>
+                </>
+              )}
+            />
           </div>
         </TabsContent>
       </Tabs>
@@ -942,59 +1082,80 @@ function FillRateDetail({ filters }: { filters: DashboardFilterValues }) {
         </TabsList>
         <TabsContent value="events">
           <div className="rounded-xl border overflow-auto">
-            <Table>
-              <TableHeader><TableRow><TableHead>Evento</TableHead><TableHead>Data</TableHead><TableHead>Organizzatore</TableHead><TableHead>Categoria</TableHead><TableHead>Stato</TableHead><TableHead>Capacità</TableHead><TableHead>Iscritti</TableHead><TableHead>Riempimento</TableHead></TableRow></TableHeader>
-              <TableBody>
-                {data.events.map(e => (
-                  <TableRow key={e.id}>
-                    <TableCell className="font-medium max-w-[180px] truncate">{e.title}</TableCell>
-                    <TableCell className="text-xs whitespace-nowrap">{format(new Date(e.date), "dd/MM/yyyy")}</TableCell>
-                    <TableCell className="text-xs">{e.organizer_name}</TableCell>
-                    <TableCell className="text-xs">{e.category}</TableCell>
-                    <TableCell>{statusBadge(e.status)}</TableCell>
-                    <TableCell>{e.spots_total}</TableCell>
-                    <TableCell>{e.spots_taken}</TableCell>
-                    <TableCell><span className={e.fillRate >= 80 ? "text-success font-bold" : e.fillRate >= 50 ? "text-warning font-semibold" : "text-destructive"}>{e.fillRate}%</span></TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <SortableDataTable
+              rows={data.events}
+              getRowKey={(e) => e.id}
+              columns={[
+                { id: "event", label: "Evento", sortValue: (e) => e.title },
+                { id: "date", label: "Data", sortValue: (e) => e.date },
+                { id: "organizer", label: "Organizzatore", sortValue: (e) => e.organizer_name },
+                { id: "category", label: "Categoria", sortValue: (e) => e.category },
+                { id: "status", label: "Stato", sortValue: (e) => e.status },
+                { id: "capacity", label: "Capacità", sortValue: (e) => e.spots_total },
+                { id: "taken", label: "Iscritti", sortValue: (e) => e.spots_taken },
+                { id: "fill", label: "Riempimento", sortValue: (e) => e.fillRate },
+              ]}
+              renderRow={(e) => (
+                <>
+                  <TableCell className="font-medium max-w-[180px] truncate">{e.title}</TableCell>
+                  <TableCell className="text-xs whitespace-nowrap">{format(new Date(e.date), "dd/MM/yyyy")}</TableCell>
+                  <TableCell className="text-xs">{e.organizer_name}</TableCell>
+                  <TableCell className="text-xs">{e.category}</TableCell>
+                  <TableCell>{statusBadge(e.status)}</TableCell>
+                  <TableCell>{e.spots_total}</TableCell>
+                  <TableCell>{e.spots_taken}</TableCell>
+                  <TableCell><span className={e.fillRate >= 80 ? "text-success font-bold" : e.fillRate >= 50 ? "text-warning font-semibold" : "text-destructive"}>{e.fillRate}%</span></TableCell>
+                </>
+              )}
+            />
           </div>
         </TabsContent>
         <TabsContent value="categories">
           <div className="rounded-xl border overflow-auto">
-            <Table>
-              <TableHeader><TableRow><TableHead>Categoria</TableHead><TableHead>Eventi</TableHead><TableHead>Capacità</TableHead><TableHead>Iscritti</TableHead><TableHead>Riempimento</TableHead></TableRow></TableHeader>
-              <TableBody>
-                {data.byCategory.map(c => (
-                  <TableRow key={c.name}>
-                    <TableCell className="font-medium">{c.name}</TableCell>
-                    <TableCell>{c.events}</TableCell>
-                    <TableCell>{c.capacity}</TableCell>
-                    <TableCell>{c.taken}</TableCell>
-                    <TableCell className="font-semibold">{c.fill}%</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <SortableDataTable
+              rows={data.byCategory}
+              getRowKey={(c) => c.name}
+              columns={[
+                { id: "category", label: "Categoria", sortValue: (c) => c.name },
+                { id: "events", label: "Eventi", sortValue: (c) => c.events },
+                { id: "capacity", label: "Capacità", sortValue: (c) => c.capacity },
+                { id: "taken", label: "Iscritti", sortValue: (c) => c.taken },
+                { id: "fill", label: "Riempimento", sortValue: (c) => c.fill },
+              ]}
+              renderRow={(c) => (
+                <>
+                  <TableCell className="font-medium">{c.name}</TableCell>
+                  <TableCell>{c.events}</TableCell>
+                  <TableCell>{c.capacity}</TableCell>
+                  <TableCell>{c.taken}</TableCell>
+                  <TableCell className="font-semibold">{c.fill}%</TableCell>
+                </>
+              )}
+            />
           </div>
         </TabsContent>
         <TabsContent value="organizers">
           <div className="rounded-xl border overflow-auto">
-            <Table>
-              <TableHeader><TableRow><TableHead>Organizzatore</TableHead><TableHead>Eventi</TableHead><TableHead>Capacità</TableHead><TableHead>Iscritti</TableHead><TableHead>Riempimento</TableHead></TableRow></TableHeader>
-              <TableBody>
-                {data.byOrganizer.map(o => (
-                  <TableRow key={o.name}>
-                    <TableCell className="font-medium">{o.name}</TableCell>
-                    <TableCell>{o.events}</TableCell>
-                    <TableCell>{o.capacity}</TableCell>
-                    <TableCell>{o.taken}</TableCell>
-                    <TableCell className="font-semibold">{o.fill}%</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <SortableDataTable
+              rows={data.byOrganizer}
+              getRowKey={(o) => o.name}
+              columns={[
+                { id: "organizer", label: "Organizzatore", sortValue: (o) => o.name },
+                { id: "events", label: "Eventi", sortValue: (o) => o.events },
+                { id: "capacity", label: "Capacità", sortValue: (o) => o.capacity },
+                { id: "taken", label: "Iscritti", sortValue: (o) => o.taken },
+                { id: "fill", label: "Riempimento", sortValue: (o) => o.fill },
+              ]}
+              renderRow={(o) => (
+                <>
+                  <TableCell className="font-medium">{o.name}</TableCell>
+                  <TableCell>{o.events}</TableCell>
+                  <TableCell>{o.capacity}</TableCell>
+                  <TableCell>{o.taken}</TableCell>
+                  <TableCell className="font-semibold">{o.fill}%</TableCell>
+                </>
+              )}
+            />
           </div>
         </TabsContent>
       </Tabs>
@@ -1082,40 +1243,54 @@ function WaitlistDetail({ filters }: { filters: DashboardFilterValues }) {
         </TabsList>
         <TabsContent value="events">
           <div className="rounded-xl border overflow-auto">
-            <Table>
-              <TableHeader><TableRow><TableHead>Evento</TableHead><TableHead>Data</TableHead><TableHead>Organizzatore</TableHead><TableHead>Categoria</TableHead><TableHead>Capacità</TableHead><TableHead>Iscritti</TableHead><TableHead>In attesa</TableHead></TableRow></TableHeader>
-              <TableBody>
-                {data.events.map((e, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="font-medium max-w-[180px] truncate">{e.title}</TableCell>
-                    <TableCell className="text-xs whitespace-nowrap">{format(new Date(e.date), "dd/MM/yyyy")}</TableCell>
-                    <TableCell className="text-xs">{e.organizer}</TableCell>
-                    <TableCell className="text-xs">{e.category}</TableCell>
-                    <TableCell>{e.spotsTotal}</TableCell>
-                    <TableCell>{e.registeredCount}</TableCell>
-                    <TableCell className="font-semibold text-warning">{e.waitlistCount}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <SortableDataTable
+              rows={data.events}
+              getRowKey={(e, i) => `${e.title}-${e.date}-${i}`}
+              columns={[
+                { id: "event", label: "Evento", sortValue: (e) => e.title },
+                { id: "date", label: "Data", sortValue: (e) => e.date },
+                { id: "organizer", label: "Organizzatore", sortValue: (e) => e.organizer },
+                { id: "category", label: "Categoria", sortValue: (e) => e.category },
+                { id: "capacity", label: "Capacità", sortValue: (e) => e.spotsTotal },
+                { id: "registered", label: "Iscritti", sortValue: (e) => e.registeredCount },
+                { id: "waitlist", label: "In attesa", sortValue: (e) => e.waitlistCount },
+              ]}
+              renderRow={(e) => (
+                <>
+                  <TableCell className="font-medium max-w-[180px] truncate">{e.title}</TableCell>
+                  <TableCell className="text-xs whitespace-nowrap">{format(new Date(e.date), "dd/MM/yyyy")}</TableCell>
+                  <TableCell className="text-xs">{e.organizer}</TableCell>
+                  <TableCell className="text-xs">{e.category}</TableCell>
+                  <TableCell>{e.spotsTotal}</TableCell>
+                  <TableCell>{e.registeredCount}</TableCell>
+                  <TableCell className="font-semibold text-warning">{e.waitlistCount}</TableCell>
+                </>
+              )}
+            />
           </div>
         </TabsContent>
         <TabsContent value="users">
           <div className="rounded-xl border overflow-auto">
-            <Table>
-              <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Email</TableHead><TableHead>Evento</TableHead><TableHead>Data evento</TableHead><TableHead>Aggiunto il</TableHead></TableRow></TableHeader>
-              <TableBody>
-                {data.waitlistUsers.map((u, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="font-medium whitespace-nowrap">{u.name}</TableCell>
-                    <TableCell className="text-xs">{u.email}</TableCell>
-                    <TableCell className="text-xs max-w-[150px] truncate">{u.event}</TableCell>
-                    <TableCell className="text-xs whitespace-nowrap">{format(new Date(u.eventDate), "dd/MM/yyyy")}</TableCell>
-                    <TableCell className="text-xs whitespace-nowrap">{format(new Date(u.addedAt), "dd/MM/yyyy HH:mm")}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <SortableDataTable
+              rows={data.waitlistUsers}
+              getRowKey={(u, i) => `${u.email}-${u.event}-${i}`}
+              columns={[
+                { id: "name", label: "Nome", sortValue: (u) => u.name },
+                { id: "email", label: "Email", sortValue: (u) => u.email },
+                { id: "event", label: "Evento", sortValue: (u) => u.event },
+                { id: "eventDate", label: "Data evento", sortValue: (u) => u.eventDate },
+                { id: "addedAt", label: "Aggiunto il", sortValue: (u) => u.addedAt },
+              ]}
+              renderRow={(u) => (
+                <>
+                  <TableCell className="font-medium whitespace-nowrap">{u.name}</TableCell>
+                  <TableCell className="text-xs">{u.email}</TableCell>
+                  <TableCell className="text-xs max-w-[150px] truncate">{u.event}</TableCell>
+                  <TableCell className="text-xs whitespace-nowrap">{format(new Date(u.eventDate), "dd/MM/yyyy")}</TableCell>
+                  <TableCell className="text-xs whitespace-nowrap">{format(new Date(u.addedAt), "dd/MM/yyyy HH:mm")}</TableCell>
+                </>
+              )}
+            />
           </div>
         </TabsContent>
       </Tabs>
@@ -1201,38 +1376,36 @@ function RepeatParticipantsDetail({ filters }: { filters: DashboardFilterValues 
 
       <SectionTitle><Trophy className="h-4 w-4 inline-block mr-1" /> Classifica partecipanti abituali</SectionTitle>
       <div className="rounded-xl border overflow-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>#</TableHead>
-              <TableHead>Nome</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Eventi</TableHead>
-              <TableHead>Badge</TableHead>
-              <TableHead>Punti</TableHead>
-              <TableHead>Tessera</TableHead>
-              <TableHead>Ultimo evento</TableHead>
-              <TableHead>Ultima presenza</TableHead>
-              <TableHead>Prima presenza</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.users.map((u, i) => (
-              <TableRow key={i}>
-                <TableCell className="font-bold text-muted-foreground">{i + 1}</TableCell>
-                <TableCell className="font-medium whitespace-nowrap">{u.name}</TableCell>
-                <TableCell className="text-xs">{u.email}</TableCell>
-                <TableCell className="font-semibold text-primary">{u.eventsAttended}</TableCell>
-                <TableCell>{u.badges > 0 ? <span className="flex items-center gap-1"><Medal className="h-3.5 w-3.5 text-warning" /> {u.badges}</span> : "—"}</TableCell>
-                <TableCell>{u.points}</TableCell>
-                <TableCell>{statusBadge(u.membership)}</TableCell>
-                <TableCell className="text-xs max-w-[150px] truncate">{u.lastEvent}</TableCell>
-                <TableCell className="text-xs whitespace-nowrap">{u.lastDate ? format(new Date(u.lastDate), "dd/MM/yyyy") : "—"}</TableCell>
-                <TableCell className="text-xs whitespace-nowrap">{u.firstDate ? format(new Date(u.firstDate), "dd/MM/yyyy") : "—"}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <SortableDataTable
+          rows={data.users}
+          getRowKey={(u, i) => `${u.email}-${i}`}
+          columns={[
+            { id: "rank", label: "#", sortValue: (_u, i) => i + 1 },
+            { id: "name", label: "Nome", sortValue: (u) => u.name },
+            { id: "email", label: "Email", sortValue: (u) => u.email },
+            { id: "events", label: "Eventi", sortValue: (u) => u.eventsAttended },
+            { id: "badges", label: "Badge", sortValue: (u) => u.badges },
+            { id: "points", label: "Punti", sortValue: (u) => u.points },
+            { id: "membership", label: "Tessera", sortValue: (u) => u.membership },
+            { id: "lastEvent", label: "Ultimo evento", sortValue: (u) => u.lastEvent },
+            { id: "lastDate", label: "Ultima presenza", sortValue: (u) => u.lastDate },
+            { id: "firstDate", label: "Prima presenza", sortValue: (u) => u.firstDate },
+          ]}
+          renderRow={(u, i) => (
+            <>
+              <TableCell className="font-bold text-muted-foreground">{i + 1}</TableCell>
+              <TableCell className="font-medium whitespace-nowrap">{u.name}</TableCell>
+              <TableCell className="text-xs">{u.email}</TableCell>
+              <TableCell className="font-semibold text-primary">{u.eventsAttended}</TableCell>
+              <TableCell>{u.badges > 0 ? <span className="flex items-center gap-1"><Medal className="h-3.5 w-3.5 text-warning" /> {u.badges}</span> : "—"}</TableCell>
+              <TableCell>{u.points}</TableCell>
+              <TableCell>{statusBadge(u.membership)}</TableCell>
+              <TableCell className="text-xs max-w-[150px] truncate">{u.lastEvent}</TableCell>
+              <TableCell className="text-xs whitespace-nowrap">{u.lastDate ? format(new Date(u.lastDate), "dd/MM/yyyy") : "—"}</TableCell>
+              <TableCell className="text-xs whitespace-nowrap">{u.firstDate ? format(new Date(u.firstDate), "dd/MM/yyyy") : "—"}</TableCell>
+            </>
+          )}
+        />
       </div>
     </div>
   );
@@ -1295,40 +1468,38 @@ function TopCategoryDetail({ filters }: { filters: DashboardFilterValues }) {
     <div className="space-y-6">
       <SectionTitle><Trophy className="h-4 w-4 inline-block mr-1" /> Classifica categorie</SectionTitle>
       <div className="rounded-xl border overflow-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>#</TableHead>
-              <TableHead>Categoria</TableHead>
-              <TableHead>Eventi</TableHead>
-              <TableHead>Iscrizioni</TableHead>
-              <TableHead>Utenti unici</TableHead>
-              <TableHead>Organizzatori</TableHead>
-              <TableHead>Capacità</TableHead>
-              <TableHead>Riempimento</TableHead>
-              <TableHead>Tasso presenza</TableHead>
-              <TableHead>No-show</TableHead>
-              <TableHead>Media eventi/utente</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.map((c, i) => (
-              <TableRow key={i}>
-                <TableCell className="font-bold text-muted-foreground">{i + 1}</TableCell>
-                <TableCell className="font-medium whitespace-nowrap">{c.icon} {c.name}</TableCell>
-                <TableCell className="font-semibold">{c.events}</TableCell>
-                <TableCell>{c.registrations}</TableCell>
-                <TableCell>{c.uniqueUsers}</TableCell>
-                <TableCell>{c.uniqueOrganizers}</TableCell>
-                <TableCell>{c.totalCapacity}</TableCell>
-                <TableCell><span className={c.fillRate >= 80 ? "text-success font-bold" : c.fillRate >= 50 ? "text-warning" : "text-muted-foreground"}>{c.fillRate}%</span></TableCell>
-                <TableCell><span className={c.attendanceRate >= 70 ? "text-success font-bold" : c.attendanceRate >= 40 ? "text-warning" : "text-destructive"}>{c.attendanceRate}%</span></TableCell>
-                <TableCell className={c.noShows > 0 ? "text-destructive" : ""}>{c.noShows} ({c.noShowRate}%)</TableCell>
-                <TableCell>{c.avgEventsPerUser}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <SortableDataTable
+          rows={data}
+          getRowKey={(c, i) => `${c.name}-${i}`}
+          columns={[
+            { id: "rank", label: "#", sortValue: (_c, i) => i + 1 },
+            { id: "category", label: "Categoria", sortValue: (c) => c.name },
+            { id: "events", label: "Eventi", sortValue: (c) => c.events },
+            { id: "registrations", label: "Iscrizioni", sortValue: (c) => c.registrations },
+            { id: "uniqueUsers", label: "Utenti unici", sortValue: (c) => c.uniqueUsers },
+            { id: "organizers", label: "Organizzatori", sortValue: (c) => c.uniqueOrganizers },
+            { id: "capacity", label: "Capacità", sortValue: (c) => c.totalCapacity },
+            { id: "fill", label: "Riempimento", sortValue: (c) => c.fillRate },
+            { id: "attendance", label: "Tasso presenza", sortValue: (c) => c.attendanceRate },
+            { id: "noShows", label: "No-show", sortValue: (c) => c.noShows },
+            { id: "avgEvents", label: "Media eventi/utente", sortValue: (c) => c.avgEventsPerUser },
+          ]}
+          renderRow={(c, i) => (
+            <>
+              <TableCell className="font-bold text-muted-foreground">{i + 1}</TableCell>
+              <TableCell className="font-medium whitespace-nowrap">{c.icon} {c.name}</TableCell>
+              <TableCell className="font-semibold">{c.events}</TableCell>
+              <TableCell>{c.registrations}</TableCell>
+              <TableCell>{c.uniqueUsers}</TableCell>
+              <TableCell>{c.uniqueOrganizers}</TableCell>
+              <TableCell>{c.totalCapacity}</TableCell>
+              <TableCell><span className={c.fillRate >= 80 ? "text-success font-bold" : c.fillRate >= 50 ? "text-warning" : "text-muted-foreground"}>{c.fillRate}%</span></TableCell>
+              <TableCell><span className={c.attendanceRate >= 70 ? "text-success font-bold" : c.attendanceRate >= 40 ? "text-warning" : "text-destructive"}>{c.attendanceRate}%</span></TableCell>
+              <TableCell className={c.noShows > 0 ? "text-destructive" : ""}>{c.noShows} ({c.noShowRate}%)</TableCell>
+              <TableCell>{c.avgEventsPerUser}</TableCell>
+            </>
+          )}
+        />
       </div>
 
       <SectionTitle><BarChart3 className="h-4 w-4 inline-block mr-1" /> Dettaglio per categoria</SectionTitle>
@@ -1419,41 +1590,37 @@ function OpenIssuesDetail() {
         {["all", "open", "in_progress", "resolved"].map(tab => (
           <TabsContent key={tab} value={tab}>
             <div className="rounded-xl border overflow-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Titolo</TableHead>
-                    <TableHead>Descrizione</TableHead>
-                    <TableHead>Segnalato da</TableHead>
-                    <TableHead>Priorità</TableHead>
-                    <TableHead>Stato</TableHead>
-                    <TableHead>Data apertura</TableHead>
-                    <TableHead>Data risoluzione</TableHead>
-                    <TableHead>Tempo risoluzione</TableHead>
-                    <TableHead>Note risoluzione</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.issues
-                    .filter(i => tab === "all" || i.status === tab)
-                    .map(issue => {
-                      const resTime = issue.resolved_at ? differenceInDays(new Date(issue.resolved_at), new Date(issue.created_at)) : null;
-                      return (
-                        <TableRow key={issue.id}>
-                          <TableCell className="font-medium max-w-[180px] truncate">{issue.title}</TableCell>
-                          <TableCell className="text-xs max-w-[200px] truncate">{issue.description || "—"}</TableCell>
-                          <TableCell className="text-xs">{issue.reporter_name || "—"}</TableCell>
-                          <TableCell>{statusBadge(issue.priority)}</TableCell>
-                          <TableCell>{statusBadge(issue.status)}</TableCell>
-                          <TableCell className="text-xs whitespace-nowrap">{format(new Date(issue.created_at), "dd/MM/yyyy HH:mm")}</TableCell>
-                          <TableCell className="text-xs whitespace-nowrap">{issue.resolved_at ? format(new Date(issue.resolved_at), "dd/MM/yyyy HH:mm") : "—"}</TableCell>
-                          <TableCell className="text-xs">{resTime !== null ? `${resTime} giorni` : "—"}</TableCell>
-                          <TableCell className="text-xs max-w-[150px] truncate">{issue.resolution_notes || "—"}</TableCell>
-                        </TableRow>
-                      );
-                    })}
-                </TableBody>
-              </Table>
+              <SortableDataTable
+                rows={data.issues.filter(i => tab === "all" || i.status === tab)}
+                getRowKey={(issue) => issue.id}
+                columns={[
+                  { id: "title", label: "Titolo", sortValue: (issue) => issue.title },
+                  { id: "description", label: "Descrizione", sortValue: (issue) => issue.description },
+                  { id: "reporter", label: "Segnalato da", sortValue: (issue) => issue.reporter_name },
+                  { id: "priority", label: "Priorità", sortValue: (issue) => issue.priority },
+                  { id: "status", label: "Stato", sortValue: (issue) => issue.status },
+                  { id: "created", label: "Data apertura", sortValue: (issue) => issue.created_at },
+                  { id: "resolved", label: "Data risoluzione", sortValue: (issue) => issue.resolved_at },
+                  { id: "resolutionTime", label: "Tempo risoluzione", sortValue: (issue) => issue.resolved_at ? differenceInDays(new Date(issue.resolved_at), new Date(issue.created_at)) : null },
+                  { id: "notes", label: "Note risoluzione", sortValue: (issue) => issue.resolution_notes },
+                ]}
+                renderRow={(issue) => {
+                  const resTime = issue.resolved_at ? differenceInDays(new Date(issue.resolved_at), new Date(issue.created_at)) : null;
+                  return (
+                    <>
+                      <TableCell className="font-medium max-w-[180px] truncate">{issue.title}</TableCell>
+                      <TableCell className="text-xs max-w-[200px] truncate">{issue.description || "—"}</TableCell>
+                      <TableCell className="text-xs">{issue.reporter_name || "—"}</TableCell>
+                      <TableCell>{statusBadge(issue.priority)}</TableCell>
+                      <TableCell>{statusBadge(issue.status)}</TableCell>
+                      <TableCell className="text-xs whitespace-nowrap">{format(new Date(issue.created_at), "dd/MM/yyyy HH:mm")}</TableCell>
+                      <TableCell className="text-xs whitespace-nowrap">{issue.resolved_at ? format(new Date(issue.resolved_at), "dd/MM/yyyy HH:mm") : "—"}</TableCell>
+                      <TableCell className="text-xs">{resTime !== null ? `${resTime} giorni` : "—"}</TableCell>
+                      <TableCell className="text-xs max-w-[150px] truncate">{issue.resolution_notes || "—"}</TableCell>
+                    </>
+                  );
+                }}
+              />
             </div>
           </TabsContent>
         ))}
