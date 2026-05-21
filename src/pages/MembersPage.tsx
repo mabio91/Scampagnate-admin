@@ -25,7 +25,9 @@ import { formatMembershipId } from "@/lib/membership";
 import { PrepaidMembershipImport } from "@/components/members/PrepaidMembershipImport";
 
 type Profile = Tables<"profiles">;
-type NameSortDirection = "asc" | "desc" | null;
+type SortDirection = "asc" | "desc";
+type MemberSortField = "membershipId" | "name" | "phone" | "year" | "badges" | "accountStatus" | "membershipStatus";
+type MemberSort = { field: MemberSortField; direction: SortDirection } | null;
 type UserBadgeRow = {
   user_id: string;
   badge_id: string;
@@ -35,7 +37,7 @@ type UserBadgeRow = {
 export default function MembersPage() {
   const { t } = useLanguage();
   const [search, setSearch] = useState("");
-  const [nameSortDirection, setNameSortDirection] = useState<NameSortDirection>(null);
+  const [sort, setSort] = useState<MemberSort>(null);
   const [editMember, setEditMember] = useState<Profile | null>(null);
   const [editForm, setEditForm] = useState({
     membership_id: "",
@@ -296,25 +298,76 @@ export default function MembersPage() {
     (m.membership_id?.toString() || "").includes(search)
   );
 
-  const sortedMembers = nameSortDirection
+  const getMemberName = (member: Profile) => `${member.first_name ?? ""} ${member.last_name ?? ""}`.trim();
+  const getMemberBadgeText = (memberId: string) => (userBadgesMap[memberId] || []).map((badge) => badge.name).join(", ");
+
+  const compareText = (a: string | null | undefined, b: string | null | undefined) => {
+    const valueA = (a || "").trim();
+    const valueB = (b || "").trim();
+    if (!valueA && !valueB) return 0;
+    if (!valueA) return 1;
+    if (!valueB) return -1;
+    return valueA.localeCompare(valueB, "it", { sensitivity: "base" });
+  };
+
+  const compareNumber = (a: number | null | undefined, b: number | null | undefined) => {
+    if (a == null && b == null) return 0;
+    if (a == null) return 1;
+    if (b == null) return -1;
+    return a - b;
+  };
+
+  const applySortDirection = (comparison: number, direction: SortDirection) => {
+    if (comparison === 0) return 0;
+    return direction === "asc" ? comparison : -comparison;
+  };
+
+  const sortedMembers = sort
     ? [...filtered].sort((a, b) => {
-        const nameA = `${a.first_name ?? ""} ${a.last_name ?? ""}`.trim();
-        const nameB = `${b.first_name ?? ""} ${b.last_name ?? ""}`.trim();
-        const comparison = nameA.localeCompare(nameB, "it", { sensitivity: "base" });
-        return nameSortDirection === "asc" ? comparison : -comparison;
+        let comparison = 0;
+        if (sort.field === "membershipId") comparison = compareNumber(a.membership_id, b.membership_id);
+        else if (sort.field === "name") comparison = compareText(getMemberName(a), getMemberName(b));
+        else if (sort.field === "phone") comparison = compareText(a.phone, b.phone);
+        else if (sort.field === "year") comparison = compareNumber(a.membership_year, b.membership_year);
+        else if (sort.field === "badges") comparison = compareText(getMemberBadgeText(a.id), getMemberBadgeText(b.id));
+        else if (sort.field === "accountStatus") comparison = compareText(a.account_status || "Active", b.account_status || "Active");
+        else if (sort.field === "membershipStatus") comparison = compareText(a.membership_status || "Inactive", b.membership_status || "Inactive");
+
+        const directedComparison = applySortDirection(comparison, sort.direction);
+        return directedComparison || compareText(getMemberName(a), getMemberName(b));
       })
     : filtered;
 
-  const toggleNameSort = () => {
-    setNameSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+  const toggleSort = (field: MemberSortField) => {
+    setSort((current) => (
+      current?.field === field
+        ? { field, direction: current.direction === "asc" ? "desc" : "asc" }
+        : { field, direction: "asc" }
+    ));
   };
 
-  const renderNameSortIcon = () => {
-    if (!nameSortDirection) return <ArrowDown className="h-3.5 w-3.5 opacity-40" />;
-    return nameSortDirection === "asc"
+  const renderSortIcon = (field: MemberSortField) => {
+    if (sort?.field !== field) return <ArrowDown className="h-3.5 w-3.5 opacity-40" />;
+    return sort.direction === "asc"
       ? <ArrowUp className="h-3.5 w-3.5" />
       : <ArrowDown className="h-3.5 w-3.5" />;
   };
+
+  const renderSortableHead = (field: MemberSortField, label: string, ariaLabel: string) => (
+    <TableHead>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="-ml-3 h-8 gap-1 px-2"
+        onClick={() => toggleSort(field)}
+        aria-label={ariaLabel}
+      >
+        {label}
+        {renderSortIcon(field)}
+      </Button>
+    </TableHead>
+  );
 
   const activeCount = members.filter((m) => m.membership_status === "Active").length;
   const expiredCount = members.filter((m) => m.membership_status === "Expired").length;
@@ -470,25 +523,13 @@ export default function MembersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{t("members.membershipId")}</TableHead>
-                  <TableHead>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="-ml-3 h-8 gap-1 px-2"
-                      onClick={toggleNameSort}
-                      aria-label="Ordina tesserati per nome"
-                    >
-                      {t("common.name")}
-                      {renderNameSortIcon()}
-                    </Button>
-                  </TableHead>
-                  <TableHead>{t("common.phone")}</TableHead>
-                  <TableHead>{t("members.year")}</TableHead>
-                  <TableHead>{t("members.badges")}</TableHead>
-                  <TableHead>{t("users.accountStatus")}</TableHead>
-                  <TableHead>{t("members.membershipStatus")}</TableHead>
+                  {renderSortableHead("membershipId", t("members.membershipId"), "Ordina tesserati per ID tessera")}
+                  {renderSortableHead("name", t("common.name"), "Ordina tesserati per nome")}
+                  {renderSortableHead("phone", t("common.phone"), "Ordina tesserati per telefono")}
+                  {renderSortableHead("year", t("members.year"), "Ordina tesserati per anno")}
+                  {renderSortableHead("badges", t("members.badges"), "Ordina tesserati per badge")}
+                  {renderSortableHead("accountStatus", t("users.accountStatus"), "Ordina tesserati per stato account")}
+                  {renderSortableHead("membershipStatus", t("members.membershipStatus"), "Ordina tesserati per stato tessera")}
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>

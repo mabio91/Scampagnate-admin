@@ -24,7 +24,9 @@ import { exportToCsv } from "@/lib/exportUtils";
 import { instagramProfileUrl, isValidInstagramHandle, normalizeInstagramHandle } from "@/lib/instagram";
 
 type Profile = Tables<"profiles">;
-type NameSortDirection = "asc" | "desc" | null;
+type SortDirection = "asc" | "desc";
+type UserSortField = "name" | "email" | "phone" | "instagram" | "role" | "status" | "events" | "joined" | "lastLogin";
+type UserSort = { field: UserSortField; direction: SortDirection } | null;
 
 const membershipFieldTooltips = {
   birth_place: "Comune o Stato estero di nascita, come riportato sul documento.",
@@ -59,7 +61,7 @@ export default function UsersPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
   const [segment, setSegment] = useState<string>("all");
-  const [nameSortDirection, setNameSortDirection] = useState<NameSortDirection>(null);
+  const [sort, setSort] = useState<UserSort>(null);
   const [editUser, setEditUser] = useState<(Profile & { roles: string[] }) | null>(null);
   const [editForm, setEditForm] = useState({
     first_name: "", last_name: "", phone: "", instagram_handle: "", bio: "",
@@ -234,25 +236,84 @@ export default function UsersPage() {
     return matchesSearch && matchesStatus && matchesSegment;
   });
 
-  const sortedUsers = nameSortDirection
+  const getUserName = (user: Profile) => `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim();
+
+  const compareText = (a: string | null | undefined, b: string | null | undefined) => {
+    const valueA = (a || "").trim();
+    const valueB = (b || "").trim();
+    if (!valueA && !valueB) return 0;
+    if (!valueA) return 1;
+    if (!valueB) return -1;
+    return valueA.localeCompare(valueB, "it", { sensitivity: "base" });
+  };
+
+  const compareNumber = (a: number | null | undefined, b: number | null | undefined) => {
+    if (a == null && b == null) return 0;
+    if (a == null) return 1;
+    if (b == null) return -1;
+    return a - b;
+  };
+
+  const compareDate = (a: string | null | undefined, b: string | null | undefined) => {
+    if (!a && !b) return 0;
+    if (!a) return 1;
+    if (!b) return -1;
+    return new Date(a).getTime() - new Date(b).getTime();
+  };
+
+  const applySortDirection = (comparison: number, direction: SortDirection) => {
+    if (comparison === 0) return 0;
+    return direction === "asc" ? comparison : -comparison;
+  };
+
+  const sortedUsers = sort
     ? [...filtered].sort((a, b) => {
-        const nameA = `${a.first_name ?? ""} ${a.last_name ?? ""}`.trim();
-        const nameB = `${b.first_name ?? ""} ${b.last_name ?? ""}`.trim();
-        const comparison = nameA.localeCompare(nameB, "it", { sensitivity: "base" });
-        return nameSortDirection === "asc" ? comparison : -comparison;
+        let comparison = 0;
+        if (sort.field === "name") comparison = compareText(getUserName(a), getUserName(b));
+        else if (sort.field === "email") comparison = compareText(a.email, b.email);
+        else if (sort.field === "phone") comparison = compareText(a.phone, b.phone);
+        else if (sort.field === "instagram") comparison = compareText(a.instagram_handle, b.instagram_handle);
+        else if (sort.field === "role") comparison = compareText(a.roles.join(", "), b.roles.join(", "));
+        else if (sort.field === "status") comparison = compareText(a.account_status || "Active", b.account_status || "Active");
+        else if (sort.field === "events") comparison = compareNumber(regCounts[a.id] || 0, regCounts[b.id] || 0);
+        else if (sort.field === "joined") comparison = compareDate(a.created_at, b.created_at);
+        else if (sort.field === "lastLogin") comparison = compareDate(a.last_sign_in_at, b.last_sign_in_at);
+
+        const directedComparison = applySortDirection(comparison, sort.direction);
+        return directedComparison || compareText(getUserName(a), getUserName(b));
       })
     : filtered;
 
-  const toggleNameSort = () => {
-    setNameSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+  const toggleSort = (field: UserSortField) => {
+    setSort((current) => (
+      current?.field === field
+        ? { field, direction: current.direction === "asc" ? "desc" : "asc" }
+        : { field, direction: "asc" }
+    ));
   };
 
-  const renderNameSortIcon = () => {
-    if (!nameSortDirection) return <ArrowDown className="h-3.5 w-3.5 opacity-40" />;
-    return nameSortDirection === "asc"
+  const renderSortIcon = (field: UserSortField) => {
+    if (sort?.field !== field) return <ArrowDown className="h-3.5 w-3.5 opacity-40" />;
+    return sort.direction === "asc"
       ? <ArrowUp className="h-3.5 w-3.5" />
       : <ArrowDown className="h-3.5 w-3.5" />;
   };
+
+  const renderSortableHead = (field: UserSortField, label: string, ariaLabel: string) => (
+    <TableHead>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="-ml-3 h-8 gap-1 px-2"
+        onClick={() => toggleSort(field)}
+        aria-label={ariaLabel}
+      >
+        {label}
+        {renderSortIcon(field)}
+      </Button>
+    </TableHead>
+  );
 
   const handleExport = () => {
     exportToCsv("users", [t("common.name"), t("common.email"), t("common.phone"), "Instagram", t("users.role"), t("common.status"), t("users.events"), t("users.joined")],
@@ -330,27 +391,15 @@ export default function UsersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="-ml-3 h-8 gap-1 px-2"
-                      onClick={toggleNameSort}
-                      aria-label="Ordina utenti per nome"
-                    >
-                      {t("common.name")}
-                      {renderNameSortIcon()}
-                    </Button>
-                  </TableHead>
-                  <TableHead>{t("common.email")}</TableHead>
-                  <TableHead>{t("common.phone")}</TableHead>
-                  <TableHead>Instagram</TableHead>
-                  <TableHead>{t("users.role")}</TableHead>
-                  <TableHead>{t("common.status")}</TableHead>
-                  <TableHead>{t("users.events")}</TableHead>
-                  <TableHead>{t("users.joined")}</TableHead>
-                  <TableHead>{t("users.lastLogin")}</TableHead>
+                  {renderSortableHead("name", t("common.name"), "Ordina utenti per nome")}
+                  {renderSortableHead("email", t("common.email"), "Ordina utenti per email")}
+                  {renderSortableHead("phone", t("common.phone"), "Ordina utenti per telefono")}
+                  {renderSortableHead("instagram", "Instagram", "Ordina utenti per Instagram")}
+                  {renderSortableHead("role", t("users.role"), "Ordina utenti per ruolo")}
+                  {renderSortableHead("status", t("common.status"), "Ordina utenti per stato")}
+                  {renderSortableHead("events", t("users.events"), "Ordina utenti per eventi")}
+                  {renderSortableHead("joined", t("users.joined"), "Ordina utenti per data iscrizione")}
+                  {renderSortableHead("lastLogin", t("users.lastLogin"), "Ordina utenti per ultimo login")}
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
