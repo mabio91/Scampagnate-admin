@@ -128,9 +128,17 @@ const normalizeText = (value: ImportedCell) => {
   return trimmed.length > 0 ? trimmed : null;
 };
 
+const provinceAliases: Record<string, string> = {
+  lazio: "RM",
+  milano: "MI",
+  roma: "RM",
+};
+
 const normalizeProvince = (value: ImportedCell) => {
   const normalized = normalizeText(value);
-  return normalized ? normalized.toUpperCase() : null;
+  if (!normalized) return null;
+  const alias = normalizeHeader(normalized);
+  return provinceAliases[alias] || normalized.toUpperCase();
 };
 
 export const normalizeImportedEmail = (value: ImportedCell) => {
@@ -151,16 +159,29 @@ export const normalizeImportedDate = (value: ImportedCell) => {
 
   const trimmed = normalizeText(value);
   if (!trimmed) return null;
+  const datePart = trimmed.split(/\s+/)[0];
 
-  const iso = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  const normalizeYear = (year: string) => {
+    if (year.length === 2) {
+      const numericYear = Number(year);
+      return String(numericYear >= 70 ? 1900 + numericYear : 2000 + numericYear);
+    }
+    return year;
+  };
+
+  const iso = datePart.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
   if (iso) {
     const [, year, month, day] = iso;
     return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
   }
 
-  const italian = trimmed.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/);
-  if (italian) {
-    const [, day, month, year] = italian;
+  const numeric = datePart.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2}|\d{4})$/);
+  if (numeric) {
+    const [, first, second, rawYear] = numeric;
+    const year = normalizeYear(rawYear);
+    const firstNumber = Number(first);
+    const secondNumber = Number(second);
+    const [day, month] = secondNumber > 12 && firstNumber <= 12 ? [second, first] : [first, second];
     return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
   }
 
@@ -174,7 +195,14 @@ const parseMembershipYear = (value: ImportedCell) => {
   return year >= 2020 && year <= 2100 ? year : null;
 };
 
-export const parseCsvText = (text: string): string[][] => {
+const detectCsvDelimiter = (text: string) => {
+  const firstDataLine = text.split(/\r?\n/).find((line) => line.trim().length > 0) || "";
+  const commaCount = firstDataLine.split(",").length - 1;
+  const semicolonCount = firstDataLine.split(";").length - 1;
+  return semicolonCount > commaCount ? ";" : ",";
+};
+
+export const parseCsvText = (text: string, delimiter = detectCsvDelimiter(text)): string[][] => {
   const rows: string[][] = [];
   let row: string[] = [];
   let field = "";
@@ -194,7 +222,7 @@ export const parseCsvText = (text: string): string[][] => {
       continue;
     }
 
-    if (char === "," && !inQuotes) {
+    if (char === delimiter && !inQuotes) {
       row.push(field);
       field = "";
       continue;

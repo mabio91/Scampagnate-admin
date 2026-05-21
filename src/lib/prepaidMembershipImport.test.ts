@@ -12,6 +12,7 @@ describe("prepaid membership CSV import", () => {
   it("normalizes Italian dates to ISO format", () => {
     expect(normalizeImportedDate("03/05/1990")).toBe("1990-05-03");
     expect(normalizeImportedDate("1990-5-3")).toBe("1990-05-03");
+    expect(normalizeImportedDate("5/21/26 16:33:38")).toBe("2026-05-21");
     expect(normalizeImportedDate(25569)).toBe("1970-01-01");
   });
 
@@ -54,6 +55,29 @@ describe("prepaid membership CSV import", () => {
         last_name: "Rossi",
         birth_date: "1991-02-01",
         province_of_birth: "RM",
+      })
+    );
+  });
+
+  it("accepts semicolon-separated CSV files from spreadsheet apps", () => {
+    const result = parsePrepaidMembershipCsv(
+      [
+        "email;first_name;last_name;phone;birth_date;birth_place;province_of_birth;residential_address;city_of_residence;province_of_residence;payment_date;membership_year;notes;",
+        ";Natalia;David;;4/12/1996;Roma;Roma;Piazza Fonteiana n.14;Roma;Roma;5/21/26 16:33:38;2026;;",
+      ].join("\n")
+    );
+
+    expect(result.errors).toEqual([]);
+    expect(result.rows[0]).toEqual(
+      expect.objectContaining({
+        email: null,
+        first_name: "Natalia",
+        last_name: "David",
+        birth_date: "1996-12-04",
+        province_of_birth: "RM",
+        province_of_residence: "RM",
+        payment_date: "2026-05-21",
+        membership_year: 2026,
       })
     );
   });
