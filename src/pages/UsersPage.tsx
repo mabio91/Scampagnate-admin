@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, MoreHorizontal, Trash2, Edit2, UserPlus, Download, Info } from "lucide-react";
+import { Search, MoreHorizontal, Trash2, Edit2, UserPlus, Download, Info, ArrowUp, ArrowDown } from "lucide-react";
 import RefreshButton from "@/components/RefreshButton";
 import { RowActionButton, RowActionCell } from "@/components/RowActions";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -24,6 +24,7 @@ import { exportToCsv } from "@/lib/exportUtils";
 import { instagramProfileUrl, isValidInstagramHandle, normalizeInstagramHandle } from "@/lib/instagram";
 
 type Profile = Tables<"profiles">;
+type NameSortDirection = "asc" | "desc" | null;
 
 const membershipFieldTooltips = {
   birth_place: "Comune o Stato estero di nascita, come riportato sul documento.",
@@ -58,6 +59,7 @@ export default function UsersPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
   const [segment, setSegment] = useState<string>("all");
+  const [nameSortDirection, setNameSortDirection] = useState<NameSortDirection>(null);
   const [editUser, setEditUser] = useState<(Profile & { roles: string[] }) | null>(null);
   const [editForm, setEditForm] = useState({
     first_name: "", last_name: "", phone: "", instagram_handle: "", bio: "",
@@ -232,9 +234,29 @@ export default function UsersPage() {
     return matchesSearch && matchesStatus && matchesSegment;
   });
 
+  const sortedUsers = nameSortDirection
+    ? [...filtered].sort((a, b) => {
+        const nameA = `${a.first_name ?? ""} ${a.last_name ?? ""}`.trim();
+        const nameB = `${b.first_name ?? ""} ${b.last_name ?? ""}`.trim();
+        const comparison = nameA.localeCompare(nameB, "it", { sensitivity: "base" });
+        return nameSortDirection === "asc" ? comparison : -comparison;
+      })
+    : filtered;
+
+  const toggleNameSort = () => {
+    setNameSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+  };
+
+  const renderNameSortIcon = () => {
+    if (!nameSortDirection) return <ArrowDown className="h-3.5 w-3.5 opacity-40" />;
+    return nameSortDirection === "asc"
+      ? <ArrowUp className="h-3.5 w-3.5" />
+      : <ArrowDown className="h-3.5 w-3.5" />;
+  };
+
   const handleExport = () => {
     exportToCsv("users", [t("common.name"), t("common.email"), t("common.phone"), "Instagram", t("users.role"), t("common.status"), t("users.events"), t("users.joined")],
-      filtered.map((u) => [
+      sortedUsers.map((u) => [
         `${u.first_name} ${u.last_name}`, u.email || "", u.phone || "", u.instagram_handle ? `@${u.instagram_handle}` : "",
         u.roles.join(", "), u.account_status || "Active",
         String(regCounts[u.id] || 0), new Date(u.created_at).toLocaleDateString(),
@@ -308,7 +330,19 @@ export default function UsersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{t("common.name")}</TableHead>
+                  <TableHead>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="-ml-3 h-8 gap-1 px-2"
+                      onClick={toggleNameSort}
+                      aria-label="Ordina utenti per nome"
+                    >
+                      {t("common.name")}
+                      {renderNameSortIcon()}
+                    </Button>
+                  </TableHead>
                   <TableHead>{t("common.email")}</TableHead>
                   <TableHead>{t("common.phone")}</TableHead>
                   <TableHead>Instagram</TableHead>
@@ -321,7 +355,7 @@ export default function UsersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((user) => (
+                {sortedUsers.map((user) => (
                   <TableRow key={user.id} className="cursor-pointer" onClick={() => navigate(`/users/${user.id}`)}>
                     <TableCell className="font-medium">{user.first_name} {user.last_name}</TableCell>
                     <TableCell className="text-muted-foreground">{user.email || "—"}</TableCell>
@@ -398,7 +432,7 @@ export default function UsersPage() {
                     </RowActionCell>
                   </TableRow>
                 ))}
-                {filtered.length === 0 && (
+                {sortedUsers.length === 0 && (
                   <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">{t("users.noUsersFound")}</TableCell></TableRow>
                 )}
               </TableBody>

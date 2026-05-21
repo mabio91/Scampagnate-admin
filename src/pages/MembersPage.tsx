@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, MoreHorizontal, Edit2, Download, CreditCard, AlertTriangle, Bell, CalendarX, Award, Shield, Euro, Save, Pencil } from "lucide-react";
+import { Search, MoreHorizontal, Edit2, Download, CreditCard, AlertTriangle, Bell, CalendarX, Award, Shield, Euro, Save, Pencil, ArrowUp, ArrowDown } from "lucide-react";
 import RefreshButton from "@/components/RefreshButton";
 import { RowActionButton, RowActionCell } from "@/components/RowActions";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -25,6 +25,7 @@ import { formatMembershipId } from "@/lib/membership";
 import { PrepaidMembershipImport } from "@/components/members/PrepaidMembershipImport";
 
 type Profile = Tables<"profiles">;
+type NameSortDirection = "asc" | "desc" | null;
 type UserBadgeRow = {
   user_id: string;
   badge_id: string;
@@ -34,6 +35,7 @@ type UserBadgeRow = {
 export default function MembersPage() {
   const { t } = useLanguage();
   const [search, setSearch] = useState("");
+  const [nameSortDirection, setNameSortDirection] = useState<NameSortDirection>(null);
   const [editMember, setEditMember] = useState<Profile | null>(null);
   const [editForm, setEditForm] = useState({
     membership_id: "",
@@ -294,6 +296,26 @@ export default function MembersPage() {
     (m.membership_id?.toString() || "").includes(search)
   );
 
+  const sortedMembers = nameSortDirection
+    ? [...filtered].sort((a, b) => {
+        const nameA = `${a.first_name ?? ""} ${a.last_name ?? ""}`.trim();
+        const nameB = `${b.first_name ?? ""} ${b.last_name ?? ""}`.trim();
+        const comparison = nameA.localeCompare(nameB, "it", { sensitivity: "base" });
+        return nameSortDirection === "asc" ? comparison : -comparison;
+      })
+    : filtered;
+
+  const toggleNameSort = () => {
+    setNameSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+  };
+
+  const renderNameSortIcon = () => {
+    if (!nameSortDirection) return <ArrowDown className="h-3.5 w-3.5 opacity-40" />;
+    return nameSortDirection === "asc"
+      ? <ArrowUp className="h-3.5 w-3.5" />
+      : <ArrowDown className="h-3.5 w-3.5" />;
+  };
+
   const activeCount = members.filter((m) => m.membership_status === "Active").length;
   const expiredCount = members.filter((m) => m.membership_status === "Expired").length;
   const currentYearCount = members.filter((m) => m.membership_year === currentYear && m.membership_status === "Active").length;
@@ -449,7 +471,19 @@ export default function MembersPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>{t("members.membershipId")}</TableHead>
-                  <TableHead>{t("common.name")}</TableHead>
+                  <TableHead>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="-ml-3 h-8 gap-1 px-2"
+                      onClick={toggleNameSort}
+                      aria-label="Ordina tesserati per nome"
+                    >
+                      {t("common.name")}
+                      {renderNameSortIcon()}
+                    </Button>
+                  </TableHead>
                   <TableHead>{t("common.phone")}</TableHead>
                   <TableHead>{t("members.year")}</TableHead>
                   <TableHead>{t("members.badges")}</TableHead>
@@ -459,7 +493,7 @@ export default function MembersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((member) => (
+                {sortedMembers.map((member) => (
                   <TableRow key={member.id}>
                     <TableCell className="font-mono">
                       {formatMembershipId(member.membership_id)}
@@ -515,7 +549,7 @@ export default function MembersPage() {
                     </RowActionCell>
                   </TableRow>
                 ))}
-                {filtered.length === 0 && (
+                {sortedMembers.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                       {t("members.noMembersFound")}
