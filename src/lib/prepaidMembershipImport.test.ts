@@ -58,6 +58,24 @@ describe("prepaid membership CSV import", () => {
     );
   });
 
+  it("accepts updated Excel exports with Nome2 header", () => {
+    const result = parsePrepaidMembershipCsv(
+      [
+        "Ora di completamento,Nome2,Cognome,Data di nascita,Luogo di Nascita,Provincia di nascita,Indirizzo di residenza (via e numero civico),Città di residenza,Provincia di residenza",
+        "2026-05-18 12:16:01,Giulia,Paoletti,26/02/1987,Roma,rm,Piazza Test 6,Roma,rm",
+      ].join("\n")
+    );
+
+    expect(result.errors).toEqual([]);
+    expect(result.rows[0]).toEqual(
+      expect.objectContaining({
+        first_name: "Giulia",
+        last_name: "Paoletti",
+        birth_date: "1987-02-26",
+      })
+    );
+  });
+
   it("maps Excel-style table rows from the membership form", () => {
     const result = parsePrepaidMembershipRows([
       [

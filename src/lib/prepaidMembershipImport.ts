@@ -32,6 +32,7 @@ const headerMap: Record<string, keyof PrepaidMembershipImportRow> = {
   e_mail: "email",
   mail: "email",
   nome: "first_name",
+  nome2: "first_name",
   name: "first_name",
   first_name: "first_name",
   firstname: "first_name",
