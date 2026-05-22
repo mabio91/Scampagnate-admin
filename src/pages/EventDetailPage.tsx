@@ -13,6 +13,7 @@ import { useTrekkingDifficultyLevels, getDifficultyByValue } from "@/hooks/useTr
 import {
   ArrowLeft, MapPin, Calendar, Clock, Users, DollarSign,
   Eye, Shield, Image as ImageIcon, ChevronRight,
+  UserRound,
 } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -108,6 +109,20 @@ export default function EventDetailPage() {
         .select("*")
         .eq("event_id", id!)
         .order("sort_order");
+      return data || [];
+    },
+  });
+
+  const { data: eventStaff = [] } = useQuery({
+    queryKey: ["event-staff", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("event_staff" as any)
+        .select("id, display_name, role_label, avatar_url, profile_id, is_public, sort_order")
+        .eq("event_id", id!)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true });
       return data || [];
     },
   });
@@ -326,6 +341,42 @@ export default function EventDetailPage() {
 
           {/* Share Links */}
           <EventShareLinks eventId={event.id} eventTitle={event.title} visibility={event.visibility} />
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <UserRound className="h-5 w-5 text-primary" />
+                Staff evento ({eventStaff.length + 1})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center gap-3">
+                <span className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold">
+                  {event.organizer_name?.[0] || "O"}
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{event.organizer_name}</p>
+                  <p className="text-xs text-muted-foreground">Organizzatore</p>
+                </div>
+              </div>
+              {eventStaff.map((member: any) => (
+                <div key={member.id} className="flex items-center gap-3">
+                  {member.avatar_url ? (
+                    <img src={member.avatar_url} alt="" className="h-10 w-10 rounded-full object-cover" />
+                  ) : (
+                    <span className="h-10 w-10 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-sm font-bold">
+                      {member.display_name?.[0] || "S"}
+                    </span>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">{member.display_name}</p>
+                    <p className="text-xs text-muted-foreground">{member.role_label || "Staff"}</p>
+                  </div>
+                  {!member.is_public && <Badge variant="outline">Nascosto</Badge>}
+                </div>
+              ))}
+            </CardContent>
+          </Card>
 
           {/* Participants List */}
           <Card>
