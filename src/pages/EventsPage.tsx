@@ -971,12 +971,12 @@ export default function EventsPage() {
         imageCropTarget?.type === "coverHome"
           ? "Scegli la porzione quadrata mostrata nelle card della home."
           : imageCropTarget?.type === "cover"
-            ? "Scegli il ritaglio 16:9 usato nel dettaglio evento."
+            ? "Scegli il ritaglio 1:1 usato nel dettaglio evento."
             : undefined
       }
-      aspect={imageCropTarget?.type === "cover" ? { width: 16, height: 9 } : { width: 1, height: 1 }}
-      outputWidth={imageCropTarget?.type === "cover" ? 1600 : 1200}
-      outputHeight={imageCropTarget?.type === "cover" ? 900 : 1200}
+      aspect={{ width: 1, height: 1 }}
+      outputWidth={1200}
+      outputHeight={1200}
       onCancel={() => {
         const target = imageCropTarget;
         setImageCropTarget(null);
@@ -1341,10 +1341,10 @@ export default function EventsPage() {
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">Immagine di copertina <span className="text-destructive font-bold">*</span></Label>
                   <div className="flex items-start gap-4">
-                    <div className="relative h-24 w-36 bg-muted rounded-md border border-dashed overflow-hidden flex items-center justify-center">
+                    <div className="relative h-24 w-24 bg-muted rounded-md border border-dashed overflow-hidden flex items-center justify-center">
                       {editEvent.image_url ? (
                         <>
-                          <img src={editEvent.image_url} alt="Copertina" className="w-full h-full object-contain" />
+                          <img src={editEvent.image_url} alt="Copertina" className="w-full h-full object-cover" />
                           <button
                             type="button"
                             onClick={() => {
