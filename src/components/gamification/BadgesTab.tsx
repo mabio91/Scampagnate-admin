@@ -22,7 +22,6 @@ interface BadgeForm {
   icon: string;
   category: string;
   requirement_type: string;
-  requirement_value: number;
   required_events: number;
 }
 
@@ -32,7 +31,6 @@ const emptyBadge: BadgeForm = {
   icon: "🏆",
   category: "",
   requirement_type: "events_attended",
-  requirement_value: 1,
   required_events: 1,
 };
 
@@ -51,6 +49,25 @@ const getBadgeCategoryLabel = (category: string | null | undefined) => {
   if (category === "general") return "Generale";
   if (category === "special") return "Speciale";
   return category || "—";
+};
+
+const getRequirementLabel = (requirementType: string | null | undefined) => {
+  switch (requirementType) {
+    case "events_attended":
+      return "Eventi partecipati";
+    case "points_earned":
+      return "Punti guadagnati";
+    case "category_events":
+      return "Eventi categoria";
+    case "manual":
+      return "Manuale";
+    case "membership_first_150":
+      return "Primi 150 soci";
+    case "mission_reward":
+      return "Ricompensa missione";
+    default:
+      return "—";
+  }
 };
 
 export default function BadgesTab() {
@@ -87,7 +104,6 @@ export default function BadgesTab() {
         icon: form.icon,
         category: form.category || null,
         requirement_type: form.requirement_type || null,
-        requirement_value: form.requirement_value,
         required_events: form.required_events,
       };
       if (editingId) {
@@ -173,7 +189,6 @@ export default function BadgesTab() {
       icon: badge.icon,
       category: badge.category || "",
       requirement_type: badge.requirement_type || "events_attended",
-      requirement_value: badge.requirement_value,
       required_events: badge.required_events,
     });
     setDialogOpen(true);
@@ -239,34 +254,24 @@ export default function BadgesTab() {
                       : form.category === "general"
                       ? "Generale: usalo per badge di progressione o traguardi trasversali della piattaforma."
                       : form.category
-                      ? `Categoria evento: usala quando il badge riguarda progressi nella categoria \"${form.category}\".`
+                      ? `Categoria evento: usala quando il badge riguarda progressi nella categoria "${form.category}".`
                       : "Scegli Generale per badge di progressione, Speciale per badge evento/manuali, oppure una categoria evento specifica."}
                   </p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Tipo requisito</Label>
-                  <Select value={form.requirement_type} onValueChange={(v) => setForm((p) => ({ ...p, requirement_type: v }))}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="events_attended">Eventi partecipati</SelectItem>
-                      <SelectItem value="points_earned">Punti guadagnati</SelectItem>
-                      <SelectItem value="category_events">Eventi per categoria</SelectItem>
-                      <SelectItem value="manual">Assegnazione manuale</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Valore requisito</Label>
-                  <Input
-                    type="number"
-                    value={form.requirement_value}
-                    onChange={(e) => setForm((p) => ({ ...p, requirement_value: parseInt(e.target.value) || 1 }))}
-                  />
-                </div>
+              <div>
+                <Label>Tipo requisito</Label>
+                <Select value={form.requirement_type} onValueChange={(v) => setForm((p) => ({ ...p, requirement_type: v }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="events_attended">Eventi partecipati</SelectItem>
+                    <SelectItem value="points_earned">Punti guadagnati</SelectItem>
+                    <SelectItem value="category_events">Eventi per categoria</SelectItem>
+                    <SelectItem value="manual">Assegnazione manuale</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label>Eventi richiesti</Label>
@@ -312,14 +317,7 @@ export default function BadgesTab() {
                     <span className="text-xs text-muted-foreground">—</span>
                   )}
                 </TableCell>
-                <TableCell className="text-sm">
-                  {b.requirement_type === "events_attended" && "Eventi partecipati"}
-                  {b.requirement_type === "points_earned" && "Punti guadagnati"}
-                  {b.requirement_type === "category_events" && "Eventi categoria"}
-                  {b.requirement_type === "manual" && "Manuale"}
-                  {!b.requirement_type && "—"}
-                  {b.requirement_type && b.requirement_type !== "manual" && ` ≥ ${b.requirement_value}`}
-                </TableCell>
+                <TableCell className="text-sm">{getRequirementLabel(b.requirement_type)}</TableCell>
                 <TableCell className="text-center">{b.required_events}</TableCell>
                 <TableCell>
                   <div className="flex gap-1">
