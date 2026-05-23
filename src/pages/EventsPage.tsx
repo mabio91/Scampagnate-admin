@@ -27,6 +27,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { GoogleAddressInput } from "@/components/GoogleAddressInput";
 import ImageCropDialog from "@/components/ImageCropDialog";
+import { HOME_CARD_IMAGE_FIELD, getEventHomeCardImageUrl } from "@/lib/eventImages";
 
 type Event = Tables<"events">;
 type EventWithCategory = Event & {
@@ -120,6 +121,7 @@ type AdditionalFields = {
   waiting_list_enabled?: boolean;
   weather_override?: { weather_condition?: string; temp_min?: number | null; temp_max?: number | null; temp_avg?: number | null };
   show_car_availability?: boolean;
+  home_card_image_url?: string | null;
   custom_fields?: { label: string; type: string; required: boolean }[];
   duration_unit?: string;
 };
@@ -339,7 +341,7 @@ export default function EventsPage() {
   const [localMeetingPoints, setLocalMeetingPoints] = useState<LocalMeetingPoint[]>([]);
   const [localPriceOptions, setLocalPriceOptions] = useState<PricingRule[]>([]);
   const [isUploading, setIsUploading] = useState(false);
-  const [imageCropTarget, setImageCropTarget] = useState<{ file: File; type: "cover" | "gallery" } | null>(null);
+  const [imageCropTarget, setImageCropTarget] = useState<{ file: File; type: "cover" | "coverHome" | "gallery"; coverFile?: File } | null>(null);
   const [convertProposalId, setConvertProposalId] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { data: difficultyLevels = [] } = useTrekkingDifficultyLevels();
@@ -586,27 +588,56 @@ export default function EventsPage() {
     setImageCropTarget({ file, type });
   };
 
-  const uploadCroppedImage = async (file: File, type: "cover" | "gallery") => {
+  const uploadEventImageFile = async (file: File): Promise<string> => {
+    const ext = file.name.split(".").pop() || "jpg";
+    const path = `${Date.now()}-${crypto.randomUUID()}.${ext}`;
+    const { error } = await supabase.storage.from("event-images").upload(path, file, {
+      cacheControl: "31536000",
+      contentType: file.type,
+    });
+    if (error) throw error;
+    const { data: { publicUrl } } = supabase.storage.from("event-images").getPublicUrl(path);
+    return publicUrl;
+  };
+
+  const uploadCoverImages = async (coverFile: File, homeCardFile?: File) => {
     if (!editEvent) return;
-    const currentGallery = normalizeGalleryImages(editEvent.gallery_images);
-    const ext = file.name.split(".").pop();
-    const path = `${Math.random().toString(36).substring(2)}.${ext}`;
     setIsUploading(true);
     try {
-      const { error } = await supabase.storage.from("event-images").upload(path, file, {
-        cacheControl: "31536000",
-        contentType: file.type,
+      const coverUrl = await uploadEventImageFile(coverFile);
+      const homeCardUrl = homeCardFile ? await uploadEventImageFile(homeCardFile) : null;
+      setEditEvent((current) => {
+        if (!current) return current;
+        const af = { ...getAF(current) };
+        if (homeCardUrl) {
+          af[HOME_CARD_IMAGE_FIELD] = homeCardUrl;
+        } else {
+          delete af[HOME_CARD_IMAGE_FIELD];
+        }
+        return {
+          ...current,
+          image_url: coverUrl,
+          additional_fields: af,
+        };
       });
-      if (error) throw error;
-      const { data: { publicUrl } } = supabase.storage.from("event-images").getPublicUrl(path);
-      if (type === "cover") {
-        setEditEvent({ ...editEvent, image_url: publicUrl });
-      } else {
-        setEditEvent({
-          ...editEvent,
-          gallery_images: [...currentGallery, { url: publicUrl, order: currentGallery.length }],
-        });
-      }
+      toast.success("Immagine caricata");
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const uploadCroppedImage = async (file: File, type: "gallery") => {
+    if (!editEvent) return;
+    const currentGallery = normalizeGalleryImages(editEvent.gallery_images);
+    setIsUploading(true);
+    try {
+      const publicUrl = await uploadEventImageFile(file);
+      setEditEvent({
+        ...editEvent,
+        gallery_images: [...currentGallery, { url: publicUrl, order: currentGallery.length }],
+      });
       toast.success("Immagine caricata");
     } catch (err: any) { toast.error(err.message); }
     finally { setIsUploading(false); }
@@ -929,15 +960,43 @@ export default function EventsPage() {
     <ImageCropDialog
       open={!!imageCropTarget}
       file={imageCropTarget?.file || null}
-      title={imageCropTarget?.type === "gallery" ? "Ritaglia immagine galleria" : "Ritaglia copertina"}
-      aspect={imageCropTarget?.type === "gallery" ? { width: 1, height: 1 } : { width: 16, height: 9 }}
-      outputWidth={imageCropTarget?.type === "gallery" ? 1200 : 1600}
-      outputHeight={imageCropTarget?.type === "gallery" ? 1200 : 900}
-      onCancel={() => setImageCropTarget(null)}
-      onCropped={(croppedFile) => {
-        const targetType = imageCropTarget?.type;
+      title={
+        imageCropTarget?.type === "gallery"
+          ? "Ritaglia immagine galleria"
+          : imageCropTarget?.type === "coverHome"
+            ? "Ritaglia anteprima home"
+            : "Ritaglia copertina"
+      }
+      description={
+        imageCropTarget?.type === "coverHome"
+          ? "Scegli la porzione quadrata mostrata nelle card della home."
+          : imageCropTarget?.type === "cover"
+            ? "Scegli il ritaglio 16:9 usato nel dettaglio evento."
+            : undefined
+      }
+      aspect={imageCropTarget?.type === "cover" ? { width: 16, height: 9 } : { width: 1, height: 1 }}
+      outputWidth={imageCropTarget?.type === "cover" ? 1600 : 1200}
+      outputHeight={imageCropTarget?.type === "cover" ? 900 : 1200}
+      onCancel={() => {
+        const target = imageCropTarget;
         setImageCropTarget(null);
-        if (targetType) void uploadCroppedImage(croppedFile, targetType);
+        if (target?.type === "coverHome" && target.coverFile) {
+          void uploadCoverImages(target.coverFile);
+        }
+      }}
+      onCropped={(croppedFile) => {
+        const target = imageCropTarget;
+        setImageCropTarget(null);
+        if (!target) return;
+        if (target.type === "cover") {
+          setImageCropTarget({ file: target.file, type: "coverHome", coverFile: croppedFile });
+          return;
+        }
+        if (target.type === "coverHome" && target.coverFile) {
+          void uploadCoverImages(target.coverFile, croppedFile);
+          return;
+        }
+        if (target.type === "gallery") void uploadCroppedImage(croppedFile, "gallery");
       }}
     />
     <div className="space-y-6">
@@ -1282,14 +1341,36 @@ export default function EventsPage() {
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">Immagine di copertina <span className="text-destructive font-bold">*</span></Label>
                   <div className="flex items-start gap-4">
-                    <div className="relative w-32 h-24 bg-muted rounded-md border border-dashed overflow-hidden flex items-center justify-center">
+                    <div className="relative h-24 w-36 bg-muted rounded-md border border-dashed overflow-hidden flex items-center justify-center">
                       {editEvent.image_url ? (
                         <>
-                          <img src={editEvent.image_url} alt="Copertina" className="w-full h-full object-cover" />
-                          <button type="button" onClick={() => setEditEvent({ ...editEvent, image_url: "" })} className="absolute top-1 right-1 p-1 bg-destructive text-destructive-foreground rounded-full"><X className="h-3 w-3" /></button>
+                          <img src={editEvent.image_url} alt="Copertina" className="w-full h-full object-contain" />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const nextAdditionalFields = { ...getAF(editEvent) };
+                              delete nextAdditionalFields[HOME_CARD_IMAGE_FIELD];
+                              setEditEvent({ ...editEvent, image_url: "", additional_fields: nextAdditionalFields });
+                            }}
+                            className="absolute top-1 right-1 p-1 bg-destructive text-destructive-foreground rounded-full"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
                         </>
                       ) : <ImageIcon className="h-6 w-6 text-muted-foreground" />}
                     </div>
+                    {editEvent.image_url && (
+                      <div className="space-y-1">
+                        <div className="relative h-24 w-24 overflow-hidden rounded-md border bg-muted">
+                          <img
+                            src={getEventHomeCardImageUrl(editEvent) || editEvent.image_url}
+                            alt="Anteprima home"
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">Anteprima home 1:1</p>
+                      </div>
+                    )}
                     <Button variant="outline" size="sm" asChild disabled={isUploading}>
                       <label className="cursor-pointer">{isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}Carica copertina<input type="file" accept="image/*" className="hidden" onChange={e => handleImageUpload(e, "cover")} /></label>
                     </Button>
