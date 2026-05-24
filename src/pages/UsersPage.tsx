@@ -49,6 +49,12 @@ const money = (value: unknown) => {
 };
 const formatEuro = (value: unknown) => euro.format(money(value));
 const hasContactValue = (value: unknown) => typeof value === "string" && value.trim().length > 0;
+const currentMembershipYear = new Date().getFullYear();
+const hasActiveMembership = (user: Profile) =>
+  user.membership_status === "Active" &&
+  (user.membership_year == null || user.membership_year === currentMembershipYear);
+const getUserStatusLabel = (user: Profile) =>
+  [user.account_status || "Active", hasActiveMembership(user) ? "Tesserato" : null].filter(Boolean).join(" · ");
 
 function FieldLabel({ children, tooltip }: { children: string; tooltip?: string }) {
   return (
@@ -335,7 +341,7 @@ export default function UsersPage() {
         let comparison = 0;
         if (sort.field === "name") comparison = compareText(getUserName(a), getUserName(b));
         else if (sort.field === "role") comparison = compareText(a.roles.join(", "), b.roles.join(", "));
-        else if (sort.field === "status") comparison = compareText(a.account_status || "Active", b.account_status || "Active");
+        else if (sort.field === "status") comparison = compareText(getUserStatusLabel(a), getUserStatusLabel(b));
         else if (sort.field === "events") comparison = compareNumber(regCounts[a.id] || 0, regCounts[b.id] || 0);
         else if (sort.field === "spent") comparison = compareNumber(money(paymentSummaries[a.id]?.net_amount), money(paymentSummaries[b.id]?.net_amount));
         else if (sort.field === "joined") comparison = compareDate(a.created_at, b.created_at);
@@ -381,7 +387,7 @@ export default function UsersPage() {
     exportToCsv("users", [t("common.name"), t("common.email"), t("common.phone"), "Instagram", t("users.role"), t("common.status"), t("users.events"), "Spesa lorda", "Rimborsi", "Spesa netta", t("users.joined")],
       sortedUsers.map((u) => [
         `${u.first_name} ${u.last_name}`, u.email || "", u.phone || "", u.instagram_handle ? `@${u.instagram_handle}` : "",
-        u.roles.join(", "), u.account_status || "Active",
+        u.roles.join(", "), getUserStatusLabel(u),
         String(regCounts[u.id] || 0),
         String(money(paymentSummaries[u.id]?.gross_amount).toFixed(2)),
         String(money(paymentSummaries[u.id]?.refunded_amount).toFixed(2)),
@@ -493,16 +499,26 @@ export default function UsersPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge
-                        variant={user.account_status === "Active" ? "outline" : "default"}
-                        className={
-                          user.account_status === "Active" ? "bg-green-500/10 text-green-500 hover:bg-green-500/20" :
-                          user.account_status === "Suspended" ? "bg-yellow-500 hover:bg-yellow-600" :
-                          "bg-destructive hover:bg-destructive/90"
-                        }
-                      >
-                        {user.account_status || "Active"}
-                      </Badge>
+                      <div className="flex min-w-[96px] flex-col items-start gap-1">
+                        <Badge
+                          variant={user.account_status === "Active" ? "outline" : "default"}
+                          className={
+                            user.account_status === "Active" ? "bg-green-500/10 text-green-500 hover:bg-green-500/20" :
+                            user.account_status === "Suspended" ? "bg-yellow-500 hover:bg-yellow-600" :
+                            "bg-destructive hover:bg-destructive/90"
+                          }
+                        >
+                          {user.account_status || "Active"}
+                        </Badge>
+                        {hasActiveMembership(user) && (
+                          <Badge
+                            variant="outline"
+                            className="border-emerald-500/25 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20"
+                          >
+                            Tesserato
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>{regCounts[user.id] || 0}</TableCell>
                     <TableCell>
