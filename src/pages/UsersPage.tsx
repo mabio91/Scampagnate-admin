@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, MoreHorizontal, Trash2, Edit2, UserPlus, Download, Info, ArrowUp, ArrowDown } from "lucide-react";
+import { Search, MoreHorizontal, Trash2, Edit2, UserPlus, Download, Info, ArrowUp, ArrowDown, Phone, Instagram, CheckCircle2, XCircle } from "lucide-react";
 import RefreshButton from "@/components/RefreshButton";
 import { RowActionButton, RowActionCell } from "@/components/RowActions";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -21,12 +21,19 @@ import { toast } from "sonner";
 import type { Tables, Database } from "@/integrations/supabase/types";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { exportToCsv } from "@/lib/exportUtils";
-import { instagramProfileUrl, isValidInstagramHandle, normalizeInstagramHandle } from "@/lib/instagram";
+import { isValidInstagramHandle, normalizeInstagramHandle } from "@/lib/instagram";
 
 type Profile = Tables<"profiles">;
 type SortDirection = "asc" | "desc";
-type UserSortField = "name" | "email" | "phone" | "instagram" | "role" | "status" | "events" | "joined" | "lastLogin";
+type UserSortField = "name" | "role" | "status" | "events" | "spent" | "joined" | "lastLogin";
 type UserSort = { field: UserSortField; direction: SortDirection } | null;
+type PaymentSummary = {
+  user_id: string | null;
+  gross_amount: number | string | null;
+  refunded_amount: number | string | null;
+  net_amount: number | string | null;
+  payment_count: number | null;
+};
 
 const membershipFieldTooltips = {
   birth_place: "Comune o Stato estero di nascita, come riportato sul documento.",
@@ -34,6 +41,20 @@ const membershipFieldTooltips = {
   residential_address: "Indirizzo completo di residenza, inclusi via/piazza e numero civico.",
   province_of_residence: "Sigla della provincia di residenza. Usa EE per residenza all'estero.",
 };
+
+const euro = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" });
+const money = (value: unknown) => {
+  const amount = Number(value || 0);
+  return Number.isFinite(amount) ? amount : 0;
+};
+const formatEuro = (value: unknown) => euro.format(money(value));
+const hasContactValue = (value: unknown) => typeof value === "string" && value.trim().length > 0;
+const currentMembershipYear = new Date().getFullYear();
+const hasActiveMembership = (user: Profile) =>
+  user.membership_status === "Active" &&
+  (user.membership_year == null || user.membership_year === currentMembershipYear);
+const getUserStatusLabel = (user: Profile) =>
+  [user.account_status || "Active", hasActiveMembership(user) ? "Tesserato" : null].filter(Boolean).join(" · ");
 
 function FieldLabel({ children, tooltip }: { children: string; tooltip?: string }) {
   return (
@@ -52,6 +73,40 @@ function FieldLabel({ children, tooltip }: { children: string; tooltip?: string 
         </Tooltip>
       )}
     </div>
+  );
+}
+
+function ContactStatus({
+  icon: Icon,
+  label,
+  present,
+}: {
+  icon: typeof Phone;
+  label: string;
+  present: boolean;
+}) {
+  const statusLabel = present ? `${label} compilato` : `${label} mancante`;
+  const StatusIcon = present ? CheckCircle2 : XCircle;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span
+          className={`inline-flex h-7 min-w-10 items-center justify-center gap-1 rounded-full border px-1.5 ${
+            present
+              ? "border-green-500/25 bg-green-500/10 text-green-600"
+              : "border-red-500/25 bg-red-500/10 text-red-600"
+          }`}
+          aria-label={statusLabel}
+        >
+          <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+          <StatusIcon className="h-3 w-3" aria-hidden="true" />
+        </span>
+      </TooltipTrigger>
+      <TooltipContent className="text-xs">
+        <p>{statusLabel}</p>
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -116,6 +171,21 @@ export default function UsersPage() {
         counts[r.user_id] = (counts[r.user_id] || 0) + 1;
       });
       return counts;
+    },
+  });
+
+  const { data: paymentSummaries = {} } = useQuery({
+    queryKey: ["admin-user-payment-summary"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("admin_user_payment_summary")
+        .select("user_id, gross_amount, refunded_amount, net_amount, payment_count");
+      if (error) throw error;
+
+      return ((data || []) as PaymentSummary[]).reduce<Record<string, PaymentSummary>>((acc, row) => {
+        if (row.user_id) acc[row.user_id] = row;
+        return acc;
+      }, {});
     },
   });
 
@@ -270,12 +340,10 @@ export default function UsersPage() {
     ? [...filtered].sort((a, b) => {
         let comparison = 0;
         if (sort.field === "name") comparison = compareText(getUserName(a), getUserName(b));
-        else if (sort.field === "email") comparison = compareText(a.email, b.email);
-        else if (sort.field === "phone") comparison = compareText(a.phone, b.phone);
-        else if (sort.field === "instagram") comparison = compareText(a.instagram_handle, b.instagram_handle);
         else if (sort.field === "role") comparison = compareText(a.roles.join(", "), b.roles.join(", "));
-        else if (sort.field === "status") comparison = compareText(a.account_status || "Active", b.account_status || "Active");
+        else if (sort.field === "status") comparison = compareText(getUserStatusLabel(a), getUserStatusLabel(b));
         else if (sort.field === "events") comparison = compareNumber(regCounts[a.id] || 0, regCounts[b.id] || 0);
+        else if (sort.field === "spent") comparison = compareNumber(money(paymentSummaries[a.id]?.net_amount), money(paymentSummaries[b.id]?.net_amount));
         else if (sort.field === "joined") comparison = compareDate(a.created_at, b.created_at);
         else if (sort.field === "lastLogin") comparison = compareDate(a.last_sign_in_at, b.last_sign_in_at);
 
@@ -316,11 +384,15 @@ export default function UsersPage() {
   );
 
   const handleExport = () => {
-    exportToCsv("users", [t("common.name"), t("common.email"), t("common.phone"), "Instagram", t("users.role"), t("common.status"), t("users.events"), t("users.joined")],
+    exportToCsv("users", [t("common.name"), t("common.email"), t("common.phone"), "Instagram", t("users.role"), t("common.status"), t("users.events"), "Spesa lorda", "Rimborsi", "Spesa netta", t("users.joined")],
       sortedUsers.map((u) => [
         `${u.first_name} ${u.last_name}`, u.email || "", u.phone || "", u.instagram_handle ? `@${u.instagram_handle}` : "",
-        u.roles.join(", "), u.account_status || "Active",
-        String(regCounts[u.id] || 0), new Date(u.created_at).toLocaleDateString(),
+        u.roles.join(", "), getUserStatusLabel(u),
+        String(regCounts[u.id] || 0),
+        String(money(paymentSummaries[u.id]?.gross_amount).toFixed(2)),
+        String(money(paymentSummaries[u.id]?.refunded_amount).toFixed(2)),
+        String(money(paymentSummaries[u.id]?.net_amount).toFixed(2)),
+        new Date(u.created_at).toLocaleDateString(),
       ])
     );
     toast.success(t("export.exportCsv"));
@@ -334,7 +406,7 @@ export default function UsersPage() {
           <p className="text-muted-foreground mt-1">{t("users.subtitle")} ({users.length} {t("common.total").toLowerCase()})</p>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          <RefreshButton queryKeys={[["admin-users"], ["admin-user-reg-counts"]]} />
+          <RefreshButton queryKeys={[["admin-users"], ["admin-user-reg-counts"], ["admin-user-payment-summary"]]} />
           <Button variant="outline" size="icon" onClick={handleExport} title={t("export.exportCsv")}>
             <Download className="h-4 w-4" />
           </Button>
@@ -392,35 +464,32 @@ export default function UsersPage() {
               <TableHeader>
                 <TableRow>
                   {renderSortableHead("name", t("common.name"), "Ordina utenti per nome")}
-                  {renderSortableHead("email", t("common.email"), "Ordina utenti per email")}
-                  {renderSortableHead("phone", t("common.phone"), "Ordina utenti per telefono")}
-                  {renderSortableHead("instagram", "Instagram", "Ordina utenti per Instagram")}
+                  <TableHead>Dati</TableHead>
                   {renderSortableHead("role", t("users.role"), "Ordina utenti per ruolo")}
                   {renderSortableHead("status", t("common.status"), "Ordina utenti per stato")}
                   {renderSortableHead("events", t("users.events"), "Ordina utenti per eventi")}
+                  {renderSortableHead("spent", "Spesa", "Ordina utenti per spesa netta")}
                   {renderSortableHead("joined", t("users.joined"), "Ordina utenti per data iscrizione")}
                   {renderSortableHead("lastLogin", t("users.lastLogin"), "Ordina utenti per ultimo login")}
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sortedUsers.map((user) => (
+                {sortedUsers.map((user) => {
+                  const paymentSummary = paymentSummaries[user.id];
+                  const grossAmount = money(paymentSummary?.gross_amount);
+                  const refundedAmount = money(paymentSummary?.refunded_amount);
+                  return (
                   <TableRow key={user.id} className="cursor-pointer" onClick={() => navigate(`/users/${user.id}`)}>
-                    <TableCell className="font-medium">{user.first_name} {user.last_name}</TableCell>
-                    <TableCell className="text-muted-foreground">{user.email || "—"}</TableCell>
-                    <TableCell className="text-muted-foreground">{user.phone || "—"}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {user.instagram_handle ? (
-                        <a
-                          href={instagramProfileUrl(user.instagram_handle)}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-primary hover:underline"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          @{user.instagram_handle}
-                        </a>
-                      ) : "—"}
+                    <TableCell className="min-w-[210px]">
+                      <div className="font-medium leading-tight">{user.first_name} {user.last_name}</div>
+                      <div className="mt-1 max-w-[230px] truncate text-xs text-muted-foreground">{user.email || "—"}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1.5">
+                        <ContactStatus icon={Phone} label="Telefono" present={hasContactValue(user.phone)} />
+                        <ContactStatus icon={Instagram} label="Instagram" present={hasContactValue(user.instagram_handle)} />
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
@@ -430,18 +499,37 @@ export default function UsersPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge
-                        variant={user.account_status === "Active" ? "outline" : "default"}
-                        className={
-                          user.account_status === "Active" ? "bg-green-500/10 text-green-500 hover:bg-green-500/20" :
-                          user.account_status === "Suspended" ? "bg-yellow-500 hover:bg-yellow-600" :
-                          "bg-destructive hover:bg-destructive/90"
-                        }
-                      >
-                        {user.account_status || "Active"}
-                      </Badge>
+                      <div className="flex min-w-[96px] flex-col items-start gap-1">
+                        <Badge
+                          variant={user.account_status === "Active" ? "outline" : "default"}
+                          className={
+                            user.account_status === "Active" ? "bg-green-500/10 text-green-500 hover:bg-green-500/20" :
+                            user.account_status === "Suspended" ? "bg-yellow-500 hover:bg-yellow-600" :
+                            "bg-destructive hover:bg-destructive/90"
+                          }
+                        >
+                          {user.account_status || "Active"}
+                        </Badge>
+                        {hasActiveMembership(user) && (
+                          <Badge
+                            variant="outline"
+                            className="border-emerald-500/25 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20"
+                          >
+                            Tesserato
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>{regCounts[user.id] || 0}</TableCell>
+                    <TableCell>
+                      <div className="font-medium tabular-nums">{formatEuro(paymentSummary?.net_amount)}</div>
+                      {(grossAmount > 0 || refundedAmount > 0) && (
+                        <div className="text-[11px] text-muted-foreground whitespace-nowrap">
+                          Lordo {formatEuro(grossAmount)}
+                          {refundedAmount > 0 ? ` · Rimb. ${formatEuro(refundedAmount)}` : ""}
+                        </div>
+                      )}
+                    </TableCell>
                     <TableCell className="text-muted-foreground text-sm">{new Date(user.created_at).toLocaleDateString()}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">{user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString() : t("users.never")}</TableCell>
                     <RowActionCell>
@@ -480,9 +568,10 @@ export default function UsersPage() {
                       </DropdownMenu>
                     </RowActionCell>
                   </TableRow>
-                ))}
+                );
+                })}
                 {sortedUsers.length === 0 && (
-                  <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">{t("users.noUsersFound")}</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">{t("users.noUsersFound")}</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>

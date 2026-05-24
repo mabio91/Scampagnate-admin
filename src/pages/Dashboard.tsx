@@ -33,6 +33,22 @@ const PIE_COLORS = [
   "hsl(280, 40%, 50%)",
 ];
 
+type PaymentSummaryRow = {
+  user_id: string | null;
+  gross_amount: number | string | null;
+  refunded_amount: number | string | null;
+  net_amount: number | string | null;
+  payment_count: number | null;
+  last_payment_at: string | null;
+};
+
+const euro = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" });
+const money = (value: unknown) => {
+  const amount = Number(value || 0);
+  return Number.isFinite(amount) ? amount : 0;
+};
+const formatEuro = (value: unknown) => euro.format(money(value));
+
 function useChartTheme() {
   const { theme, resolvedTheme } = useTheme();
   const [, setTick] = useState(0);
@@ -859,6 +875,43 @@ export default function Dashboard() {
     },
   });
 
+  const { data: paymentRecap = { gross: 0, refunds: 0, net: 0, topUsers: [] as Array<PaymentSummaryRow & { name: string; email: string | null }> } } = useQuery({
+    queryKey: ["admin-payment-recap"],
+    queryFn: async () => {
+      const { data: summaries, error } = await supabase
+        .from("admin_user_payment_summary")
+        .select("user_id, gross_amount, refunded_amount, net_amount, payment_count, last_payment_at");
+      if (error) throw error;
+
+      const rows = ((summaries || []) as PaymentSummaryRow[])
+        .filter((row): row is PaymentSummaryRow & { user_id: string } =>
+          Boolean(row.user_id) && (money(row.gross_amount) > 0 || money(row.refunded_amount) > 0)
+        );
+      const userIds = rows.map((row) => row.user_id);
+      const { data: profiles } = userIds.length > 0
+        ? await supabase.from("profiles").select("id, first_name, last_name, email").in("id", userIds)
+        : { data: [] };
+      const profileMap = new Map((profiles || []).map((profile) => [profile.id, profile]));
+
+      return {
+        gross: rows.reduce((sum, row) => sum + money(row.gross_amount), 0),
+        refunds: rows.reduce((sum, row) => sum + money(row.refunded_amount), 0),
+        net: rows.reduce((sum, row) => sum + money(row.net_amount), 0),
+        topUsers: rows
+          .sort((a, b) => money(b.net_amount) - money(a.net_amount))
+          .slice(0, 6)
+          .map((row) => {
+            const profile = profileMap.get(row.user_id);
+            return {
+              ...row,
+              name: profile ? `${profile.first_name} ${profile.last_name}`.trim() || "Utente" : "Utente",
+              email: profile?.email || null,
+            };
+          }),
+      };
+    },
+  });
+
   const typeConfig: Record<string, { bg: string; dot: string }> = {
     user: { bg: "bg-primary/8 text-primary border-primary/20", dot: "bg-primary" },
     event: { bg: "bg-accent/8 text-accent border-accent/20", dot: "bg-accent" },
@@ -888,7 +941,7 @@ export default function Dashboard() {
           <h1 className="text-2xl md:text-3xl font-bold mt-1">{t("dashboard.title")}</h1>
         </div>
         <div className="flex flex-wrap items-center gap-4">
-          <RefreshButton queryKeys={[["kpi-total-users"], ["kpi-active-members"], ["kpi-users-attended"], ["kpi-events-year"], ["kpi-participation-rate"], ["kpi-attendance-rate"], ["kpi-trends"], ["stats-issues"], ["stats-organizers"], ["stats-categories"], ["stats-events-month"], ["stats-issues-trend"], ["stats-recent"], ["dashboard-alerts"]]} />
+          <RefreshButton queryKeys={[["kpi-total-users"], ["kpi-active-members"], ["kpi-users-attended"], ["kpi-events-year"], ["kpi-participation-rate"], ["kpi-attendance-rate"], ["kpi-trends"], ["stats-issues"], ["stats-organizers"], ["stats-categories"], ["stats-events-month"], ["stats-issues-trend"], ["stats-recent"], ["dashboard-alerts"], ["admin-payment-recap"]]} />
           {/* Italy Time */}
           <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-4 py-2.5 shadow-sm">
             <MapPin className="h-4 w-4 text-accent" />
@@ -1099,13 +1152,22 @@ export default function Dashboard() {
       </div>
 
       {/* ── Operational Quick Stats ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <PremiumStatCard
           title={t("dashboard.organizers")}
           value={totalOrganizers.toLocaleString()}
           icon={Building2}
           iconBg="bg-secondary"
           kpiInfo={{ definition: "Organizzatori e admin attivi", formula: "COUNT(ruolo = organizer o admin)" }}
+        />
+        <PremiumStatCard
+          title="Spesa netta utenti"
+          value={formatEuro(paymentRecap.net)}
+          icon={CreditCard}
+          iconBg="bg-primary"
+          subtitle={`Lordo ${formatEuro(paymentRecap.gross)} · Rimborsi ${formatEuro(paymentRecap.refunds)}`}
+          onClick={() => navigate("/users")}
+          kpiInfo={{ definition: "Totale pagamenti Stripe al netto dei rimborsi", formula: "SUM(payments) - SUM(refunds)" }}
         />
         <PremiumStatCard
           title={t("dashboard.openIssues")}
@@ -1140,6 +1202,41 @@ export default function Dashboard() {
           kpiInfo={{ definition: "Salute community", formula: "Basata su tasso presenza: >70% Ottima, >40% Buona, ≤40% Da migliorare" }}
         />
       </div>
+
+      <ChartCard title="Recap spesa utenti" icon={CreditCard}>
+        {paymentRecap.topUsers.length === 0 ? (
+          <div className="flex items-center justify-center h-[160px]">
+            <p className="text-sm text-muted-foreground">Nessun pagamento Stripe registrato.</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-border/60">
+            {paymentRecap.topUsers.map((user, index) => (
+              <div
+                key={user.user_id}
+                className="flex items-center justify-between gap-4 py-3 cursor-pointer hover:bg-muted/40 px-2 -mx-2 rounded-md"
+                onClick={() => navigate(`/users/${user.user_id}`)}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                    {index + 1}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold truncate">{user.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{user.email || "—"}</p>
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-sm font-bold tabular-nums">{formatEuro(user.net_amount)}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {user.payment_count || 0} pagamenti
+                    {money(user.refunded_amount) > 0 ? ` · Rimb. ${formatEuro(user.refunded_amount)}` : ""}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </ChartCard>
 
       {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
