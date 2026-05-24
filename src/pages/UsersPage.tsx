@@ -25,8 +25,16 @@ import { instagramProfileUrl, isValidInstagramHandle, normalizeInstagramHandle }
 
 type Profile = Tables<"profiles">;
 type SortDirection = "asc" | "desc";
-type UserSortField = "name" | "email" | "phone" | "instagram" | "role" | "status" | "events" | "joined" | "lastLogin";
+type UserSortField = "name" | "email" | "phone" | "instagram" | "role" | "status" | "events" | "spent" | "joined" | "lastPayment" | "lastLogin";
 type UserSort = { field: UserSortField; direction: SortDirection } | null;
+type PaymentSummary = {
+  user_id: string | null;
+  gross_amount: number | string | null;
+  refunded_amount: number | string | null;
+  net_amount: number | string | null;
+  payment_count: number | null;
+  last_payment_at: string | null;
+};
 
 const membershipFieldTooltips = {
   birth_place: "Comune o Stato estero di nascita, come riportato sul documento.",
@@ -34,6 +42,13 @@ const membershipFieldTooltips = {
   residential_address: "Indirizzo completo di residenza, inclusi via/piazza e numero civico.",
   province_of_residence: "Sigla della provincia di residenza. Usa EE per residenza all'estero.",
 };
+
+const euro = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" });
+const money = (value: unknown) => {
+  const amount = Number(value || 0);
+  return Number.isFinite(amount) ? amount : 0;
+};
+const formatEuro = (value: unknown) => euro.format(money(value));
 
 function FieldLabel({ children, tooltip }: { children: string; tooltip?: string }) {
   return (
@@ -116,6 +131,21 @@ export default function UsersPage() {
         counts[r.user_id] = (counts[r.user_id] || 0) + 1;
       });
       return counts;
+    },
+  });
+
+  const { data: paymentSummaries = {} } = useQuery({
+    queryKey: ["admin-user-payment-summary"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("admin_user_payment_summary")
+        .select("user_id, gross_amount, refunded_amount, net_amount, payment_count, last_payment_at");
+      if (error) throw error;
+
+      return ((data || []) as PaymentSummary[]).reduce<Record<string, PaymentSummary>>((acc, row) => {
+        if (row.user_id) acc[row.user_id] = row;
+        return acc;
+      }, {});
     },
   });
 
@@ -276,7 +306,9 @@ export default function UsersPage() {
         else if (sort.field === "role") comparison = compareText(a.roles.join(", "), b.roles.join(", "));
         else if (sort.field === "status") comparison = compareText(a.account_status || "Active", b.account_status || "Active");
         else if (sort.field === "events") comparison = compareNumber(regCounts[a.id] || 0, regCounts[b.id] || 0);
+        else if (sort.field === "spent") comparison = compareNumber(money(paymentSummaries[a.id]?.net_amount), money(paymentSummaries[b.id]?.net_amount));
         else if (sort.field === "joined") comparison = compareDate(a.created_at, b.created_at);
+        else if (sort.field === "lastPayment") comparison = compareDate(paymentSummaries[a.id]?.last_payment_at, paymentSummaries[b.id]?.last_payment_at);
         else if (sort.field === "lastLogin") comparison = compareDate(a.last_sign_in_at, b.last_sign_in_at);
 
         const directedComparison = applySortDirection(comparison, sort.direction);
@@ -316,11 +348,16 @@ export default function UsersPage() {
   );
 
   const handleExport = () => {
-    exportToCsv("users", [t("common.name"), t("common.email"), t("common.phone"), "Instagram", t("users.role"), t("common.status"), t("users.events"), t("users.joined")],
+    exportToCsv("users", [t("common.name"), t("common.email"), t("common.phone"), "Instagram", t("users.role"), t("common.status"), t("users.events"), "Spesa lorda", "Rimborsi", "Spesa netta", "Ultimo pagamento", t("users.joined")],
       sortedUsers.map((u) => [
         `${u.first_name} ${u.last_name}`, u.email || "", u.phone || "", u.instagram_handle ? `@${u.instagram_handle}` : "",
         u.roles.join(", "), u.account_status || "Active",
-        String(regCounts[u.id] || 0), new Date(u.created_at).toLocaleDateString(),
+        String(regCounts[u.id] || 0),
+        String(money(paymentSummaries[u.id]?.gross_amount).toFixed(2)),
+        String(money(paymentSummaries[u.id]?.refunded_amount).toFixed(2)),
+        String(money(paymentSummaries[u.id]?.net_amount).toFixed(2)),
+        paymentSummaries[u.id]?.last_payment_at ? new Date(paymentSummaries[u.id].last_payment_at).toLocaleString() : "",
+        new Date(u.created_at).toLocaleDateString(),
       ])
     );
     toast.success(t("export.exportCsv"));
@@ -334,7 +371,7 @@ export default function UsersPage() {
           <p className="text-muted-foreground mt-1">{t("users.subtitle")} ({users.length} {t("common.total").toLowerCase()})</p>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          <RefreshButton queryKeys={[["admin-users"], ["admin-user-reg-counts"]]} />
+          <RefreshButton queryKeys={[["admin-users"], ["admin-user-reg-counts"], ["admin-user-payment-summary"]]} />
           <Button variant="outline" size="icon" onClick={handleExport} title={t("export.exportCsv")}>
             <Download className="h-4 w-4" />
           </Button>
@@ -398,13 +435,18 @@ export default function UsersPage() {
                   {renderSortableHead("role", t("users.role"), "Ordina utenti per ruolo")}
                   {renderSortableHead("status", t("common.status"), "Ordina utenti per stato")}
                   {renderSortableHead("events", t("users.events"), "Ordina utenti per eventi")}
+                  {renderSortableHead("spent", "Spesa", "Ordina utenti per spesa netta")}
+                  {renderSortableHead("lastPayment", "Ultimo pagamento", "Ordina utenti per ultimo pagamento")}
                   {renderSortableHead("joined", t("users.joined"), "Ordina utenti per data iscrizione")}
                   {renderSortableHead("lastLogin", t("users.lastLogin"), "Ordina utenti per ultimo login")}
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sortedUsers.map((user) => (
+                {sortedUsers.map((user) => {
+                  const paymentSummary = paymentSummaries[user.id];
+                  const refundedAmount = money(paymentSummary?.refunded_amount);
+                  return (
                   <TableRow key={user.id} className="cursor-pointer" onClick={() => navigate(`/users/${user.id}`)}>
                     <TableCell className="font-medium">{user.first_name} {user.last_name}</TableCell>
                     <TableCell className="text-muted-foreground">{user.email || "—"}</TableCell>
@@ -442,6 +484,16 @@ export default function UsersPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>{regCounts[user.id] || 0}</TableCell>
+                    <TableCell>
+                      <div className="font-medium tabular-nums">{formatEuro(paymentSummary?.net_amount)}</div>
+                      <div className="text-[11px] text-muted-foreground whitespace-nowrap">
+                        Lordo {formatEuro(paymentSummary?.gross_amount)}
+                        {refundedAmount > 0 ? ` · Rimb. ${formatEuro(refundedAmount)}` : ""}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
+                      {paymentSummary?.last_payment_at ? new Date(paymentSummary.last_payment_at).toLocaleDateString() : "—"}
+                    </TableCell>
                     <TableCell className="text-muted-foreground text-sm">{new Date(user.created_at).toLocaleDateString()}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">{user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString() : t("users.never")}</TableCell>
                     <RowActionCell>
@@ -480,9 +532,10 @@ export default function UsersPage() {
                       </DropdownMenu>
                     </RowActionCell>
                   </TableRow>
-                ))}
+                );
+                })}
                 {sortedUsers.length === 0 && (
-                  <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">{t("users.noUsersFound")}</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-8">{t("users.noUsersFound")}</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>

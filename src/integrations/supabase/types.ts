@@ -2592,6 +2592,85 @@ export type Database = {
           },
         ]
       }
+      user_payment_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          event_amount: number
+          event_id: string | null
+          id: string
+          kind: string
+          membership_fee_amount: number
+          metadata: Json
+          registration_id: string | null
+          service_fee_amount: number
+          source: string
+          stripe_checkout_session_id: string | null
+          stripe_payment_intent_id: string | null
+          stripe_refund_id: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string
+          event_amount?: number
+          event_id?: string | null
+          id?: string
+          kind: string
+          membership_fee_amount?: number
+          metadata?: Json
+          registration_id?: string | null
+          service_fee_amount?: number
+          source: string
+          stripe_checkout_session_id?: string | null
+          stripe_payment_intent_id?: string | null
+          stripe_refund_id?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          event_amount?: number
+          event_id?: string | null
+          id?: string
+          kind?: string
+          membership_fee_amount?: number
+          metadata?: Json
+          registration_id?: string | null
+          service_fee_amount?: number
+          source?: string
+          stripe_checkout_session_id?: string | null
+          stripe_payment_intent_id?: string | null
+          stripe_refund_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_payment_transactions_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_payment_transactions_registration_id_fkey"
+            columns: ["registration_id"]
+            isOneToOne: false
+            referencedRelation: "event_registrations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_payment_transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
@@ -2643,6 +2722,30 @@ export type Database = {
           user_name: string | null
         }
         Relationships: []
+      }
+      admin_user_payment_summary: {
+        Row: {
+          event_amount: number | null
+          gross_amount: number | null
+          last_payment_at: string | null
+          last_transaction_at: string | null
+          membership_fee_amount: number | null
+          net_amount: number | null
+          payment_count: number | null
+          refund_count: number | null
+          refunded_amount: number | null
+          service_fee_amount: number | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_payment_transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Functions: {

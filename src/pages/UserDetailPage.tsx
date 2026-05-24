@@ -6,13 +6,35 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { AlertTriangle, ArrowLeft, Instagram, Landmark, Car, Target, Activity, TrendingUp, Calendar, MapPin, ChevronRight, Gamepad2, Pill, ShieldCheck } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Instagram, Landmark, Car, Target, Activity, TrendingUp, Calendar, MapPin, ChevronRight, Gamepad2, Pill, ShieldCheck, CreditCard } from "lucide-react";
 import { UserGamificationSection } from "@/components/gamification/UserGamificationSection";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { formatMembershipId } from "@/lib/membership";
 import { instagramProfileUrl } from "@/lib/instagram";
+
+type UserPaymentTransaction = {
+  id: string;
+  event_id: string | null;
+  kind: "payment" | "refund";
+  source: string;
+  amount: number | string;
+  event_amount: number | string | null;
+  service_fee_amount: number | string | null;
+  membership_fee_amount: number | string | null;
+  created_at: string;
+  stripe_payment_intent_id: string | null;
+  stripe_refund_id: string | null;
+  events?: { title?: string | null; date?: string | null } | null;
+};
+
+const euro = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" });
+const money = (value: unknown) => {
+  const amount = Number(value || 0);
+  return Number.isFinite(amount) ? amount : 0;
+};
+const formatEuro = (value: unknown) => euro.format(money(value));
 
 export default function UserDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -61,6 +83,32 @@ export default function UserDetailPage() {
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
+    },
+    enabled: !!id,
+  });
+
+  const { data: userPayments = [], isLoading: loadingPayments } = useQuery({
+    queryKey: ["user-detail-payments", id],
+    queryFn: async () => {
+      if (!id) return [];
+      const { data, error } = await supabase
+        .from("user_payment_transactions")
+        .select("id, kind, source, amount, event_amount, service_fee_amount, membership_fee_amount, event_id, created_at, stripe_payment_intent_id, stripe_refund_id")
+        .eq("user_id", id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+
+      const eventIds = [...new Set((data || []).map((payment) => payment.event_id).filter(Boolean))] as string[];
+      const { data: events } = eventIds.length > 0
+        ? await supabase.from("events").select("id, title, date").in("id", eventIds)
+        : { data: [] };
+      const eventMap = new Map((events || []).map((event) => [event.id, event]));
+
+      return (data || []).map((payment) => ({
+        ...payment,
+        kind: payment.kind === "refund" ? "refund" : "payment",
+        events: payment.event_id ? eventMap.get(payment.event_id) || null : null,
+      })) as UserPaymentTransaction[];
     },
     enabled: !!id,
   });
@@ -118,6 +166,16 @@ export default function UserDetailPage() {
   }
 
   const interestsArr = user.interests || [];
+  const paymentGross = userPayments
+    .filter((payment) => payment.kind === "payment")
+    .reduce((sum, payment) => sum + money(payment.amount), 0);
+  const paymentRefunds = userPayments
+    .filter((payment) => payment.kind === "refund")
+    .reduce((sum, payment) => sum + money(payment.amount), 0);
+  const paymentNet = paymentGross - paymentRefunds;
+  const membershipSpend = userPayments
+    .filter((payment) => payment.kind === "payment")
+    .reduce((sum, payment) => sum + money(payment.membership_fee_amount), 0);
 
   return (
     <div className="space-y-6">
@@ -147,9 +205,10 @@ export default function UserDetailPage() {
       </div>
 
       <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 max-w-lg">
+        <TabsList className="grid w-full grid-cols-4 max-w-2xl">
           <TabsTrigger value="profile">{t("users.profileOverview")}</TabsTrigger>
           <TabsTrigger value="activity">{t("users.activityHistory")}</TabsTrigger>
+          <TabsTrigger value="payments" className="gap-1"><CreditCard className="h-3.5 w-3.5" /> Pagamenti</TabsTrigger>
           <TabsTrigger value="gamification" className="gap-1"><Gamepad2 className="h-3.5 w-3.5" /> Gamification</TabsTrigger>
         </TabsList>
 
@@ -385,6 +444,75 @@ export default function UserDetailPage() {
           )}
         </TabsContent>
 
+        <TabsContent value="payments" className="space-y-6 mt-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <MetricCard label="Spesa lorda" value={formatEuro(paymentGross)} color="primary" />
+            <MetricCard label="Rimborsi" value={formatEuro(paymentRefunds)} color="warning" />
+            <MetricCard label="Spesa netta" value={formatEuro(paymentNet)} color="success" />
+            <MetricCard label="Quote tessera" value={formatEuro(membershipSpend)} color="primary" />
+          </div>
+
+          {loadingPayments ? (
+            <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16" />)}</div>
+          ) : userPayments.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center text-muted-foreground">
+                Nessun pagamento Stripe registrato.
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Origine</TableHead>
+                      <TableHead>Evento</TableHead>
+                      <TableHead>Importo</TableHead>
+                      <TableHead>Componenti</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {userPayments.map((payment) => (
+                      <TableRow key={payment.id}>
+                        <TableCell className="text-sm whitespace-nowrap">{new Date(payment.created_at).toLocaleString()}</TableCell>
+                        <TableCell>
+                          <Badge variant={payment.kind === "payment" ? "default" : "secondary"}>
+                            {payment.kind === "payment" ? "Pagamento" : "Rimborso"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm">{paymentSourceLabel(payment.source)}</TableCell>
+                        <TableCell className="text-sm">
+                          {payment.events?.title ? (
+                            <div>
+                              <p className="font-medium">{payment.events.title}</p>
+                              {payment.events.date && <p className="text-xs text-muted-foreground">{new Date(payment.events.date).toLocaleDateString()}</p>}
+                            </div>
+                          ) : "—"}
+                        </TableCell>
+                        <TableCell className="font-medium tabular-nums">{formatEuro(payment.amount)}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {payment.kind === "payment" ? (
+                            <div className="space-y-0.5">
+                              <p>Evento {formatEuro(payment.event_amount)}</p>
+                              <p>Servizio {formatEuro(payment.service_fee_amount)}</p>
+                              <p>Tessera {formatEuro(payment.membership_fee_amount)}</p>
+                            </div>
+                          ) : (
+                            <span>{payment.stripe_refund_id || payment.stripe_payment_intent_id || "—"}</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
         <TabsContent value="gamification" className="mt-6">
           <UserGamificationSection
             userId={user.id}
@@ -436,6 +564,21 @@ function getHealthSafetyLabel(status?: string | null) {
   return "Non ancora compilato";
 }
 
+function paymentSourceLabel(source: string) {
+  const labels: Record<string, string> = {
+    event_checkout: "Evento",
+    event_balance_checkout: "Saldo evento",
+    membership_checkout: "Tessera",
+    registration_change: "Cambio formula",
+    event_cancellation_refund: "Rimborso cancellazione",
+    event_cancelled_refund: "Rimborso evento annullato",
+    event_checkout_auto_refund: "Rimborso automatico",
+    legacy_event_registration: "Evento storico",
+    legacy_event_refund: "Rimborso storico",
+  };
+  return labels[source] || source;
+}
+
 function HealthInfoBlock({ label, value }: { label: string; value?: string | null }) {
   return (
     <div className="space-y-2 rounded-md border bg-muted/20 p-3">
@@ -452,7 +595,7 @@ const metricStyles: Record<string, { card: string; text: string }> = {
   destructive: { card: "bg-destructive/5 border-destructive/20", text: "text-destructive" },
 };
 
-function MetricCard({ label, value, color }: { label: string; value: number; color: string }) {
+function MetricCard({ label, value, color }: { label: string; value: number | string; color: string }) {
   const style = metricStyles[color] || metricStyles.primary;
   return (
     <Card className={style.card}>
