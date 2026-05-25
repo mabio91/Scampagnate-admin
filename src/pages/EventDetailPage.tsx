@@ -10,6 +10,7 @@ import { EventParticipantsList } from "@/components/participants/EventParticipan
 import { EventBadgePills } from "@/components/EventBadges";
 import { EventShareLinks } from "@/components/EventShareLinks";
 import { useTrekkingDifficultyLevels, getDifficultyByValue } from "@/hooks/useTrekkingDifficultyLevels";
+import { renderEventDescriptionHtml } from "@/lib/eventDescription";
 import {
   ArrowLeft, MapPin, Calendar, Clock, Users, DollarSign,
   Eye, Shield, Image as ImageIcon, ChevronRight,
@@ -252,7 +253,14 @@ export default function EventDetailPage() {
               <Separator />
               <div>
                 <p className="font-medium mb-1">Descrizione</p>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{event.description || "—"}</p>
+                {event.description ? (
+                  <div
+                    className="prose prose-sm max-w-none text-sm text-muted-foreground prose-headings:text-foreground prose-strong:text-foreground prose-p:text-muted-foreground prose-li:text-muted-foreground [&_h3]:mb-1 [&_h3]:mt-3 [&_ol]:pl-5 [&_p]:my-2 [&_ul]:list-disc [&_ul]:pl-5"
+                    dangerouslySetInnerHTML={{ __html: renderEventDescriptionHtml(event.description) }}
+                  />
+                ) : (
+                  <p className="text-sm text-muted-foreground">—</p>
+                )}
               </div>
             </CardContent>
           </Card>

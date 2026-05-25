@@ -30,6 +30,37 @@ const PAYMENT_STATUS_OPTIONS = [
   "failed",
 ];
 
+const REGISTRATION_STATUS_LABELS: Record<string, string> = {
+  registered: "Iscritto",
+  deposit_paid: "Acconto pagato",
+  paid: "Pagato",
+  attended: "Presente",
+  no_show: "No show",
+  waitlist: "Lista d'attesa",
+  pending_approval: "In approvazione",
+  pending_payment: "Pagamento in attesa",
+  cancelled: "Cancellata",
+};
+
+const PAYMENT_STATUS_LABELS: Record<string, string> = {
+  pending: "In attesa",
+  paid: "Pagato",
+  deposit_paid: "Acconto pagato",
+  pay_on_location: "Sul posto",
+  not_required: "Non richiesto",
+  failed: "Fallito",
+};
+
+const REFUND_STATUS_LABELS: Record<string, string> = {
+  not_requested: "non richiesto",
+  requested: "richiesto",
+  pending: "in attesa",
+  processing: "in elaborazione",
+  completed: "completato",
+  failed: "fallito",
+  cancelled: "annullato",
+};
+
 type EventRegistrationUpdate = Database["public"]["Tables"]["event_registrations"]["Update"];
 
 interface AdminParticipantListItemProps {
@@ -81,6 +112,11 @@ function getHealthSafetyLabel(status?: string | null) {
   return "Non compilato";
 }
 
+function getReadableLabel(labels: Record<string, string>, value?: string | null) {
+  if (!value) return "";
+  return labels[value] || value.replace(/_/g, " ");
+}
+
 export function AdminParticipantListItem({
   avatarUrl,
   userId,
@@ -118,6 +154,8 @@ export function AdminParticipantListItem({
   const { currentLevel } = useUserLevel(totalPoints);
   const reliability = getReliabilityLabel(completedEventsCount, totalRegistrations, noShowCount);
   const isCancelled = status === "cancelled";
+  const refundLabel = getReadableLabel(REFUND_STATUS_LABELS, refundStatus);
+  const refundAmountValue = refundAmount == null ? null : Number(refundAmount);
   const hasPaymentDetails =
     amountPaid != null ||
     totalPriceAmount != null ||
@@ -192,10 +230,10 @@ export function AdminParticipantListItem({
               Iscrizione cancellata
             </span>
           ) : status ? (
-            <span>Stato: <span className="font-medium text-foreground">{status}</span></span>
+            <span>Stato: <span className="font-medium text-foreground">{getReadableLabel(REGISTRATION_STATUS_LABELS, status)}</span></span>
           ) : null}
           {paymentStatus && (
-            <span>Pagamento: <span className="font-medium text-foreground">{paymentStatus}</span></span>
+            <span>Pagamento: <span className="font-medium text-foreground">{getReadableLabel(PAYMENT_STATUS_LABELS, paymentStatus)}</span></span>
           )}
           {priceOptionName && (
             <span>Opzione: <span className="font-medium text-foreground">{priceOptionName}</span></span>
@@ -215,8 +253,11 @@ export function AdminParticipantListItem({
               <span>Saldo €{Number(balanceDueAmount).toFixed(2)} {balancePaymentMode === "on_site" ? "sul posto" : "online"}</span>
             ) : null}
             {refundStatus || refundAmount != null ? (
-              <span className={cn("font-medium", refundStatus === "completed" ? "text-success" : "text-warning")}>
-                Rimborso {refundAmount != null ? `€${Number(refundAmount).toFixed(2)}` : ""} {refundStatus || ""}
+              <span className={cn(
+                "font-medium",
+                refundStatus === "completed" ? "text-success" : refundStatus === "not_requested" ? "text-muted-foreground" : "text-warning",
+              )}>
+                Rimborso {refundAmountValue != null && refundAmountValue > 0 ? `€${refundAmountValue.toFixed(2)}` : ""} {refundLabel}
               </span>
             ) : null}
           </div>
@@ -251,7 +292,7 @@ export function AdminParticipantListItem({
 	          </div>
 	        )}
 	        {onUpdate && (
-          <div className="grid gap-2 pt-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+          <div className="grid grid-cols-2 gap-2 pt-2">
             <Select
               value={status || "registered"}
               onValueChange={(value) => onUpdate({
@@ -265,7 +306,7 @@ export function AdminParticipantListItem({
               </SelectTrigger>
               <SelectContent>
                 {REGISTRATION_STATUS_OPTIONS.map((option) => (
-                  <SelectItem key={option} value={option}>{option}</SelectItem>
+                  <SelectItem key={option} value={option}>{getReadableLabel(REGISTRATION_STATUS_LABELS, option)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -280,7 +321,7 @@ export function AdminParticipantListItem({
               </SelectTrigger>
               <SelectContent>
                 {PAYMENT_STATUS_OPTIONS.map((option) => (
-                  <SelectItem key={option} value={option}>{option}</SelectItem>
+                  <SelectItem key={option} value={option}>{getReadableLabel(PAYMENT_STATUS_LABELS, option)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
