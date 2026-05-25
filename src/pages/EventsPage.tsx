@@ -101,6 +101,7 @@ type PricingRule = {
 };
 
 type RegistrationField = { label: string; type: string; required: boolean; options?: string[] };
+type AccessRuleEnforcement = "hard" | "soft";
 type AccessRuleType =
   | "min_trekking_events"
   | "min_attended_events"
@@ -116,7 +117,7 @@ type CanonicalAccessRule = {
   value?: number | string;
   badge_id?: string;
   badge_ids?: string[];
-  enforcement?: "hard" | "soft";
+  enforcement?: AccessRuleEnforcement;
 };
 type AccessRules = {
   rules?: CanonicalAccessRule[];
@@ -133,8 +134,6 @@ type AccessRules = {
   require_manual_approval?: boolean;
   restriction_message?: string | null;
   exclusivity_label?: string | null;
-  detail_visibility?: "everyone" | "registered_only" | "eligible_only";
-  registration_rule?: "open" | "eligible_only" | "invite_only";
   pricing_rules?: PricingRule[];
 };
 
@@ -162,6 +161,18 @@ type LocalMeetingPoint = { _key: string; id?: string; name: string; location: st
 type EquipmentItem = { name: string; is_mandatory: boolean; notes: string };
 type AttendanceBadgeEntry = { type: "attendance_badge"; badge_id: string };
 type GalleryImage = { url: string; order: number };
+type StaffProfileSearchResult = Pick<Tables<"profiles">, "id" | "first_name" | "last_name" | "email" | "avatar_url">;
+type EventStaffRow = Pick<Tables<"event_staff">, "id" | "profile_id" | "display_name" | "role_label" | "avatar_url" | "is_public" | "sort_order">;
+type LocalEventStaff = {
+  _key: string;
+  id?: string;
+  profile_id: string | null;
+  display_name: string;
+  role_label: string;
+  avatar_url: string | null;
+  is_public: boolean;
+  profileSearch: string;
+};
 
 /* ══════ Constants ══════ */
 const CANCELLATION_POLICY_OPTIONS = [
@@ -240,23 +251,24 @@ const normalizeEventClosingSentence = (sentence?: string | null) => {
   return sentence.replace(/^(?:✨\s*)+/u, "").trim();
 };
 
-const DETAIL_VISIBILITY_OPTIONS = [
-  { value: "everyone", label: "Tutti possono vedere i dettagli" },
-  { value: "registered_only", label: "Solo utenti registrati" },
-  { value: "eligible_only", label: "Solo utenti idonei" },
-];
-const REGISTRATION_RULE_OPTIONS = [
-  { value: "open", label: "Aperto a tutti" },
-  { value: "eligible_only", label: "Solo utenti idonei" },
-  { value: "invite_only", label: "Solo su invito" },
-];
 const ACTIVITY_FREQUENCY_OPTIONS = [
-  { value: "sedentario", label: "Sedentario" },
-  { value: "occasionale", label: "Occasionale" },
-  { value: "settimanale", label: "Settimanale" },
-  { value: "frequente", label: "Frequente" },
-  { value: "quotidiano", label: "Quotidiano" },
+  { value: "1", label: "Raramente" },
+  { value: "2", label: "1-2 volte a settimana" },
+  { value: "3", label: "Più di 2 volte a settimana" },
 ];
+const LEGACY_ACTIVITY_FREQUENCY_MAP: Record<string, string> = {
+  sedentario: "1",
+  occasionale: "1",
+  raramente: "1",
+  settimanale: "2",
+  "1-2 volte a settimana": "2",
+  frequente: "3",
+  quotidiano: "3",
+  "più di 2 volte a settimana": "3",
+  "piu di 2 volte a settimana": "3",
+};
+const STAFF_ROLE_PRESETS = ["STAFF", "FOTOGRAFO", "GUIDA"];
+const CUSTOM_STAFF_ROLE_VALUE = "__custom__";
 
 const INTEREST_CATEGORY_OPTIONS = [
   { id: "trekking_giornalieri", label: "Trekking giornalieri" },
@@ -324,6 +336,8 @@ const normalizeRegistrationFields = (value: unknown): RegistrationField[] => {
       if (!isPlainRecord(field)) return null;
       const label = String(field.label || "").trim();
       if (!label) return null;
+      const rawType = String(field.type || "text").trim().toLowerCase();
+      const type = rawType === "select" || rawType === "dropdown" ? "select" : "text";
       const options = Array.isArray(field.options)
         ? field.options.map((option: unknown) => String(option).trim()).filter(Boolean)
         : typeof field.options === "string"
@@ -331,12 +345,20 @@ const normalizeRegistrationFields = (value: unknown): RegistrationField[] => {
           : [];
       return {
         label,
-        type: String(field.type || "text"),
+        type,
         required: Boolean(field.required),
-        ...(options.length ? { options } : {}),
+        ...(type === "select" && options.length ? { options } : {}),
       };
     })
     .filter((field): field is RegistrationField => Boolean(field));
+};
+
+const normalizeActivityFrequencyValue = (value: unknown): string | null => {
+  if (value == null || value === "") return null;
+  const raw = String(value).trim().toLowerCase();
+  const numeric = Number(raw);
+  if (Number.isFinite(numeric) && numeric > 0) return String(Math.min(3, Math.max(1, Math.round(numeric))));
+  return LEGACY_ACTIVITY_FREQUENCY_MAP[raw] || null;
 };
 
 const normalizeAdditionalFields = (value: unknown): AdditionalFields => {
@@ -411,6 +433,12 @@ const getRequiredBadgeIdsFromRules = (rules: CanonicalAccessRule[]) => {
   return rule.value ? [String(rule.value)] : [];
 };
 
+const normalizeRuleEnforcement = (value: unknown): AccessRuleEnforcement =>
+  value === "soft" ? "soft" : "hard";
+
+const getRuleEnforcementFromRules = (rules: CanonicalAccessRule[], type: AccessRuleType): AccessRuleEnforcement =>
+  normalizeRuleEnforcement(rules.find((rule) => rule.type === type)?.enforcement);
+
 const normalizeAccessRules = (value: unknown): AccessRules => {
   const raw = isPlainRecord(value) ? { ...value } as AccessRules : {};
   const rules = Array.isArray(raw.rules)
@@ -427,7 +455,9 @@ const normalizeAccessRules = (value: unknown): AccessRules => {
     rules,
     min_level: getRuleValue(rules, "min_level") ?? raw.min_level ?? null,
     min_experiences: getRuleValue(rules, "min_experience") ?? raw.min_experiences ?? raw.min_experience ?? null,
-    min_activity_frequency: (rules.find((rule) => rule.type === "min_activity_frequency")?.value as string | undefined) ?? raw.min_activity_frequency ?? null,
+    min_activity_frequency: normalizeActivityFrequencyValue(rules.find((rule) => rule.type === "min_activity_frequency")?.value)
+      ?? normalizeActivityFrequencyValue(raw.min_activity_frequency)
+      ?? null,
     min_trekking_events: getRuleValue(rules, "min_trekking_events") ?? raw.min_trekking_events ?? null,
     min_attended_events: minAttendedEvents,
     min_activities: minAttendedEvents,
@@ -436,8 +466,6 @@ const normalizeAccessRules = (value: unknown): AccessRules => {
       : raw.required_badge_ids ?? (raw.required_badge_id ? [raw.required_badge_id] : null),
     require_active_membership: rules.some((rule) => rule.type === "require_membership") || Boolean(raw.require_active_membership),
     require_manual_approval: rules.some((rule) => rule.type === "manual_approval") || Boolean(raw.require_manual_approval),
-    detail_visibility: raw.detail_visibility || "everyone",
-    registration_rule: raw.registration_rule || "open",
     restriction_message: raw.restriction_message || null,
     exclusivity_label: raw.exclusivity_label || null,
   };
@@ -449,13 +477,18 @@ const buildAccessRulesForStorage = (value: unknown): AccessRules | null => {
   const rules: CanonicalAccessRule[] = [];
   const addNumberRule = (type: AccessRuleType, value?: number | null) => {
     const numeric = numberRuleValue(value);
-    if (numeric) rules.push({ type, value: numeric, enforcement: "hard" });
+    if (numeric) rules.push({ type, value: numeric, enforcement: getRuleEnforcementFromRules(source.rules || [], type) });
   };
 
   addNumberRule("min_level", source.min_level);
   addNumberRule("min_experience", source.min_experiences);
-  if (source.min_activity_frequency) {
-    rules.push({ type: "min_activity_frequency", value: source.min_activity_frequency, enforcement: "hard" });
+  const activityFrequency = normalizeActivityFrequencyValue(source.min_activity_frequency);
+  if (activityFrequency) {
+    rules.push({
+      type: "min_activity_frequency",
+      value: Number(activityFrequency),
+      enforcement: getRuleEnforcementFromRules(source.rules || [], "min_activity_frequency"),
+    });
   }
   addNumberRule("min_trekking_events", source.min_trekking_events);
   addNumberRule("min_attended_events", source.min_attended_events ?? source.min_activities);
@@ -469,8 +502,6 @@ const buildAccessRulesForStorage = (value: unknown): AccessRules | null => {
 
   if (source.restriction_message?.trim()) next.restriction_message = source.restriction_message.trim();
   if (source.exclusivity_label?.trim()) next.exclusivity_label = source.exclusivity_label.trim();
-  if (source.detail_visibility && source.detail_visibility !== "everyone") next.detail_visibility = source.detail_visibility;
-  if (source.registration_rule && source.registration_rule !== "open") next.registration_rule = source.registration_rule;
   if (rules.length > 0) next.rules = rules;
 
   return Object.keys(next).length > 0 ? next : null;
@@ -574,6 +605,26 @@ const priceOptionToRule = (option: any, fallbackPaymentType: PaymentType, index:
   };
 };
 
+const legacyEventPriceOptionToRule = (event: any): PricingRule => {
+  const paymentType = (event.payment_type || "free") as PaymentType;
+  const price = Number(event.price || 0);
+  const depositAmount = paymentType === "deposit" ? Number(event.deposit || 0) : null;
+  return {
+    id: crypto.randomUUID(),
+    isNew: true,
+    name: "",
+    price: paymentType === "free" ? 0 : price,
+    condition: "everyone",
+    payment_type: paymentType,
+    deposit_amount: depositAmount,
+    balance_amount: paymentType === "deposit" ? Math.max(0, price - Number(depositAmount || 0)) : null,
+    balance_payment_mode: (event.balance_payment_mode || "online") as BalancePaymentMode,
+    has_dedicated_spots: false,
+    dedicated_spots: null,
+    spots_taken: 0,
+  };
+};
+
 export default function EventsPage() {
   type SortField = "date" | "organizer";
   const [searchParams, setSearchParams] = useSearchParams();
@@ -590,6 +641,8 @@ export default function EventsPage() {
   const [localMeetingPoints, setLocalMeetingPoints] = useState<LocalMeetingPoint[]>([]);
   const [localPriceOptions, setLocalPriceOptions] = useState<PricingRule[]>([]);
   const [localSpecialBadgeIds, setLocalSpecialBadgeIds] = useState<string[]>([]);
+  const [localEventStaff, setLocalEventStaff] = useState<LocalEventStaff[]>([]);
+  const [activeStaffSearchIndex, setActiveStaffSearchIndex] = useState<number | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [imageCropTarget, setImageCropTarget] = useState<{ file: File; type: "cover" | "coverHome" | "gallery"; coverFile?: File } | null>(null);
   const [convertProposalId, setConvertProposalId] = useState<string | null>(null);
@@ -604,6 +657,7 @@ export default function EventsPage() {
       setLocalMeetingPoints([]);
       setLocalPriceOptions([]);
       setLocalSpecialBadgeIds([]);
+      setLocalEventStaff([]);
       setEditEvent({
         ...emptyEvent,
         isNew: true,
@@ -664,6 +718,22 @@ export default function EventsPage() {
       return (profiles || []).map(p => ({ id: p.id, name: `${p.first_name} ${p.last_name}`.trim() }));
     },
   });
+  const activeStaffSearchTerm =
+    activeStaffSearchIndex !== null ? localEventStaff[activeStaffSearchIndex]?.profileSearch.trim() || "" : "";
+  const { data: staffProfileResults = [] } = useQuery({
+    queryKey: ["admin-event-staff-profile-search", activeStaffSearchTerm],
+    queryFn: async () => {
+      if (activeStaffSearchTerm.length < 2) return [];
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, first_name, last_name, email, avatar_url")
+        .or(`first_name.ilike.%${activeStaffSearchTerm}%,last_name.ilike.%${activeStaffSearchTerm}%,email.ilike.%${activeStaffSearchTerm}%`)
+        .limit(8);
+      if (error) throw error;
+      return (data || []) as StaffProfileSearchResult[];
+    },
+    enabled: activeStaffSearchTerm.length >= 2,
+  });
   const { data: equipmentTemplates = [] } = useQuery({
     queryKey: ["admin-equipment-templates-select"],
     queryFn: async () => {
@@ -723,6 +793,31 @@ export default function EventsPage() {
       access_rules: buildAccessRulesForStorage({ ...getAR(editEvent), ...patch }),
     });
   };
+  const getAccessRuleEnforcement = (type: AccessRuleType): AccessRuleEnforcement =>
+    getRuleEnforcementFromRules(getAR(editEvent).rules || [], type);
+  const updateAccessRuleEnforcement = (type: AccessRuleType, enforcement: AccessRuleEnforcement) => {
+    if (!editEvent) return;
+    const current = getAR(editEvent);
+    const rules = [...(current.rules || [])];
+    const index = rules.findIndex((rule) => rule.type === type);
+    if (index === -1) return;
+    rules[index] = { ...rules[index], enforcement };
+    updateAR({ rules });
+  };
+  const renderAccessRuleEnforcementSelect = (type: AccessRuleType) => (
+    <Select
+      value={getAccessRuleEnforcement(type)}
+      onValueChange={(value) => updateAccessRuleEnforcement(type, value as AccessRuleEnforcement)}
+    >
+      <SelectTrigger className="h-8 text-xs">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="hard">Bloccante</SelectItem>
+        <SelectItem value="soft">Avviso</SelectItem>
+      </SelectContent>
+    </Select>
+  );
   const updateAF = (patch: Partial<AdditionalFields>) => {
     if (!editEvent) return;
     const rawCurrent = isPlainRecord(editEvent.additional_fields) ? editEvent.additional_fields : {};
@@ -782,19 +877,22 @@ export default function EventsPage() {
 
   const getPricingRules = (_evt: any): PricingRule[] => localPriceOptions;
   const addPricingRule = () => {
-    const paymentType = (editEvent?.payment_type || "free") as PaymentType;
+    const lastRule = localPriceOptions[localPriceOptions.length - 1];
+    const paymentType = (lastRule?.payment_type || editEvent?.payment_type || "free") as PaymentType;
+    const basePrice = Number(lastRule?.price ?? editEvent?.price ?? 0);
+    const baseDeposit = Number(lastRule?.deposit_amount ?? editEvent?.deposit ?? 0);
     setLocalPriceOptions((rules) => [
       ...rules,
       {
         id: crypto.randomUUID(),
         isNew: true,
         name: "",
-        price: Number(editEvent?.price || 0),
+        price: basePrice,
         condition: "everyone",
         payment_type: paymentType,
-        deposit_amount: paymentType === "deposit" ? Number(editEvent?.deposit || 0) : null,
-        balance_amount: paymentType === "deposit" ? Math.max(0, Number(editEvent?.price || 0) - Number(editEvent?.deposit || 0)) : null,
-        balance_payment_mode: "online",
+        deposit_amount: paymentType === "deposit" ? baseDeposit : null,
+        balance_amount: paymentType === "deposit" ? Math.max(0, basePrice - baseDeposit) : null,
+        balance_payment_mode: lastRule?.balance_payment_mode || "online",
         has_dedicated_spots: false,
         dedicated_spots: null,
         spots_taken: 0,
@@ -825,6 +923,75 @@ export default function EventsPage() {
 
   /* ── Custom fields helpers ── */
   const getCustomFields = (evt: any): RegistrationField[] => getAF(evt).fields || getAF(evt).custom_fields || [];
+  const updateCustomField = (index: number, patch: Partial<RegistrationField>) => {
+    const fields = [...getCustomFields(editEvent)];
+    const nextField = { ...fields[index], ...patch };
+    if (patch.type === "text") delete nextField.options;
+    if (patch.type === "select" && !nextField.options) nextField.options = [];
+    fields[index] = nextField;
+    updateAF({ fields });
+  };
+  const updateCustomFieldOption = (fieldIndex: number, optionIndex: number, value: string) => {
+    const fields = [...getCustomFields(editEvent)];
+    const options = [...(fields[fieldIndex].options || [])];
+    options[optionIndex] = value;
+    fields[fieldIndex] = { ...fields[fieldIndex], options };
+    updateAF({ fields });
+  };
+  const addCustomFieldOption = (fieldIndex: number) => {
+    const fields = [...getCustomFields(editEvent)];
+    fields[fieldIndex] = { ...fields[fieldIndex], options: [...(fields[fieldIndex].options || []), ""] };
+    updateAF({ fields });
+  };
+  const removeCustomFieldOption = (fieldIndex: number, optionIndex: number) => {
+    const fields = [...getCustomFields(editEvent)];
+    fields[fieldIndex] = {
+      ...fields[fieldIndex],
+      options: (fields[fieldIndex].options || []).filter((_, index) => index !== optionIndex),
+    };
+    updateAF({ fields });
+  };
+
+  /* ── Event staff helpers ── */
+  const addStaffMember = () => {
+    setLocalEventStaff((staff) => [
+      ...staff,
+      {
+        _key: crypto.randomUUID(),
+        profile_id: null,
+        display_name: "",
+        role_label: "STAFF",
+        avatar_url: null,
+        is_public: true,
+        profileSearch: "",
+      },
+    ]);
+  };
+  const updateStaffMember = <K extends keyof LocalEventStaff>(index: number, key: K, value: LocalEventStaff[K]) => {
+    setLocalEventStaff((staff) => staff.map((member, memberIndex) => memberIndex === index ? { ...member, [key]: value } : member));
+  };
+  const removeStaffMember = (index: number) => {
+    setLocalEventStaff((staff) => staff.filter((_, memberIndex) => memberIndex !== index));
+    setActiveStaffSearchIndex((current) => current === index ? null : current);
+  };
+  const selectStaffProfile = (index: number, profile: StaffProfileSearchResult) => {
+    const displayName = `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || profile.email || "Staff";
+    setLocalEventStaff((staff) => staff.map((member, memberIndex) => memberIndex === index
+      ? {
+        ...member,
+        profile_id: profile.id,
+        display_name: displayName,
+        avatar_url: profile.avatar_url || null,
+        profileSearch: displayName,
+      }
+      : member));
+    setActiveStaffSearchIndex(null);
+  };
+  const clearStaffProfile = (index: number) => {
+    setLocalEventStaff((staff) => staff.map((member, memberIndex) => memberIndex === index
+      ? { ...member, profile_id: null, avatar_url: null, profileSearch: "" }
+      : member));
+  };
 
   /* ── Open edit dialog ── */
   const handleOpenEdit = async (event: EventWithCategory) => {
@@ -842,13 +1009,31 @@ export default function EventsPage() {
       .select("badge_id")
       .eq("event_id", event.id);
     if (specialBadgesError) throw specialBadgesError;
+    const { data: staffRows, error: staffError } = await supabase
+      .from("event_staff")
+      .select("id, profile_id, display_name, role_label, avatar_url, is_public, sort_order")
+      .eq("event_id", event.id)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true });
+    if (staffError) throw staffError;
     const specialBadgeIds = [
       ...(specialBadgeLinks || []).map((link) => link.badge_id).filter(Boolean),
       ...getLegacySpecialBadgeIdsFromEventBadges((event as any).event_badges),
     ];
+    const mappedPriceOptions = (priceOptions || []).map((option, index) => priceOptionToRule(option, event.payment_type as PaymentType, index));
     setLocalMeetingPoints(mps);
-    setLocalPriceOptions((priceOptions || []).map((option, index) => priceOptionToRule(option, event.payment_type as PaymentType, index)));
+    setLocalPriceOptions(mappedPriceOptions.length ? mappedPriceOptions : [legacyEventPriceOptionToRule(event)]);
     setLocalSpecialBadgeIds([...new Set(specialBadgeIds)]);
+    setLocalEventStaff(((staffRows || []) as EventStaffRow[]).map((member) => ({
+      _key: member.id,
+      id: member.id,
+      profile_id: member.profile_id || null,
+      display_name: member.display_name || "",
+      role_label: member.role_label || "STAFF",
+      avatar_url: member.avatar_url || null,
+      is_public: member.is_public !== false,
+      profileSearch: member.display_name || "",
+    })));
     setEditEvent({
       ...event,
       gallery_images: normalizeGalleryImages(event.gallery_images),
@@ -862,6 +1047,7 @@ export default function EventsPage() {
     setLocalMeetingPoints([]);
     setLocalPriceOptions([]);
     setLocalSpecialBadgeIds([]);
+    setLocalEventStaff([]);
     setEditEvent({ ...emptyEvent, isNew: true });
   };
 
@@ -1059,6 +1245,31 @@ export default function EventsPage() {
           if (error) throw error;
         }
 
+        const { error: deleteStaffError } = await supabase
+          .from("event_staff")
+          .delete()
+          .eq("event_id", savedId);
+        if (deleteStaffError) throw deleteStaffError;
+
+        const staffRows = localEventStaff
+          .map((member, index) => ({
+            event_id: savedId,
+            profile_id: member.profile_id || null,
+            display_name: member.display_name.trim(),
+            role_label: member.role_label.trim() || "STAFF",
+            avatar_url: member.avatar_url || null,
+            sort_order: index,
+            is_public: member.is_public,
+          }))
+          .filter((member) => member.display_name);
+
+        if (staffRows.length > 0) {
+          const { error: insertStaffError } = await supabase
+            .from("event_staff")
+            .insert(staffRows);
+          if (insertStaffError) throw insertStaffError;
+        }
+
         const retainedOptionIds = validPriceOptions
           .filter((option) => !option.isNew)
           .map((option) => option.id);
@@ -1132,35 +1343,17 @@ export default function EventsPage() {
           .eq("event_id", savedId);
         if (deleteSpecialBadgesError) throw deleteSpecialBadgesError;
 
-        const specialBadgeIds = [...new Set(localSpecialBadgeIds.filter(Boolean))];
+        const allowedSpecialBadgeIds = new Set(
+          badges
+            .filter((badge) => badge.category === "special" && badge.name !== "Founding Member")
+            .map((badge) => badge.id),
+        );
+        const specialBadgeIds = [...new Set(localSpecialBadgeIds.filter((badgeId) => allowedSpecialBadgeIds.has(badgeId)))];
         if (specialBadgeIds.length) {
           const { error: insertSpecialBadgesError } = await supabase
             .from("event_special_badges")
             .insert(specialBadgeIds.map((badgeId) => ({ event_id: savedId, badge_id: badgeId })));
           if (insertSpecialBadgesError) throw insertSpecialBadgesError;
-        }
-
-        if (specialBadgeIds.length) {
-          const { data: attendedUsers, error: attendedUsersError } = await supabase
-            .from("event_registrations")
-            .select("user_id, sport_level")
-            .eq("event_id", savedId)
-            .or("checked_in.eq.true,status.eq.attended");
-
-          if (attendedUsersError) throw attendedUsersError;
-
-          const awardRows = [...new Set((attendedUsers || [])
-            .filter((row) => row.user_id && !row.sport_level?.startsWith("manual:"))
-            .map((row) => row.user_id))]
-            .flatMap((userId) => specialBadgeIds.map((badgeId) => ({ user_id: userId, badge_id: badgeId })));
-
-          if (awardRows.length) {
-            const { error: awardError } = await supabase.from("user_badges").upsert(awardRows, {
-              onConflict: "user_id,badge_id",
-              ignoreDuplicates: true,
-            });
-            if (awardError) throw awardError;
-          }
         }
       }
     },
@@ -1179,6 +1372,7 @@ export default function EventsPage() {
       setEditEvent(null);
       setLocalPriceOptions([]);
       setLocalSpecialBadgeIds([]);
+      setLocalEventStaff([]);
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -1248,7 +1442,19 @@ export default function EventsPage() {
       ? <ArrowUp className="h-3.5 w-3.5" />
       : <ArrowDown className="h-3.5 w-3.5" />;
   };
-  const specialBadges = badges.filter((badge) => badge.category === "special");
+  const specialBadges = badges.filter((badge) => badge.category === "special" && badge.name !== "Founding Member");
+  const handleSaveEvent = () => {
+    if (!editEvent) return;
+    if (!editEvent.image_url) {
+      toast.error("Carica un'immagine di copertina");
+      return;
+    }
+    if (!getAF(editEvent).fit_score_main_category) {
+      toast.error("Seleziona la categoria fit score principale");
+      return;
+    }
+    saveMutation.mutate({ evt: editEvent, mps: localMeetingPoints, priceOptions: localPriceOptions });
+  };
 
   return (
     <>
@@ -1754,26 +1960,6 @@ export default function EventsPage() {
                   <div><Label>Posti riservati</Label><Input type="number" value={editEvent.reserved_spots ?? 0} onChange={e => setEditEvent({ ...editEvent, reserved_spots: parseInt(e.target.value) || 0 })} /></div>
                 </div>
                 <div>
-                  <Label>Tipo pagamento</Label>
-                  <Select value={editEvent.payment_type || "free"} onValueChange={v => setEditEvent({ ...editEvent, payment_type: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="free">Gratuito</SelectItem>
-                      <SelectItem value="paid">A pagamento</SelectItem>
-                      <SelectItem value="deposit">Con acconto</SelectItem>
-                      <SelectItem value="location">Pagamento in loco</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {(editEvent.payment_type === "paid" || editEvent.payment_type === "deposit" || editEvent.payment_type === "location") && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div><Label>Prezzo totale (€)</Label><Input type="number" step="0.01" value={editEvent.price ?? ""} onChange={e => setEditEvent({ ...editEvent, price: e.target.value === "" ? undefined : parseFloat(e.target.value) })} /></div>
-                    {editEvent.payment_type === "deposit" && (
-                      <div><Label>Acconto (€)</Label><Input type="number" step="0.01" value={editEvent.deposit ?? ""} onChange={e => setEditEvent({ ...editEvent, deposit: e.target.value ? parseFloat(e.target.value) : null })} /></div>
-                    )}
-                  </div>
-                )}
-                <div>
                   <Label>Politica di cancellazione</Label>
                   <Select value={normalizeCancellationPolicy(editEvent.cancellation_policy)} onValueChange={v => setEditEvent({ ...editEvent, cancellation_policy: normalizeCancellationPolicy(v) })}>
                     <SelectTrigger><SelectValue placeholder="Seleziona..." /></SelectTrigger>
@@ -2095,8 +2281,8 @@ export default function EventsPage() {
                     <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="public">Pubblico — visibile a tutti</SelectItem>
-                      <SelectItem value="private">Privato — solo utenti idonei</SelectItem>
-                      <SelectItem value="hidden">Nascosto — solo link diretto</SelectItem>
+                      <SelectItem value="private">Privato — solo link diretto</SelectItem>
+                      <SelectItem value="hidden">Nascosto — solo organizzatori e admin</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -2112,20 +2298,6 @@ export default function EventsPage() {
                     onCheckedChange={(value) => updateAF({ waiting_list_enabled: value })}
                   />
                 </div>
-                <div className="space-y-2 p-3 rounded-lg border bg-card">
-                  <Label className="text-xs font-semibold">Chi può vedere i dettagli evento?</Label>
-                  <Select value={getAR(editEvent).detail_visibility || "everyone"} onValueChange={v => updateAR({ detail_visibility: v as any })}>
-                    <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-                    <SelectContent>{DETAIL_VISIBILITY_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2 p-3 rounded-lg border bg-card">
-                  <Label className="text-xs font-semibold">Chi può registrarsi?</Label>
-                  <Select value={getAR(editEvent).registration_rule || "open"} onValueChange={v => updateAR({ registration_rule: v as any })}>
-                    <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-                    <SelectContent>{REGISTRATION_RULE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
               </section>
 
               {/* ═══ 8. REQUISITI DI REGISTRAZIONE ═══ */}
@@ -2134,41 +2306,56 @@ export default function EventsPage() {
                 <div className="flex items-center gap-2"><Lock className="h-4 w-4 text-primary" /><h4 className="text-sm font-semibold">Requisiti di registrazione</h4></div>
                 <p className="text-[10px] text-muted-foreground">Lascia vuoto per accesso libero.</p>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="space-y-1">
                     <Label className="text-xs">Livello minimo richiesto</Label>
-                    <Select value={getAR(editEvent).min_level ? String(getAR(editEvent).min_level) : "none"} onValueChange={v => updateAR({ min_level: v === "none" ? null : parseInt(v) })}>
-                      <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Nessuno" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Nessuno</SelectItem>
-                        {difficultyLevels.map(l => <SelectItem key={l.id} value={String(l.level_number)}>{l.icon} {l.label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <div className={`grid gap-2 ${getAR(editEvent).min_level ? "grid-cols-[minmax(0,1fr)_120px]" : "grid-cols-1"}`}>
+                      <Select value={getAR(editEvent).min_level ? String(getAR(editEvent).min_level) : "none"} onValueChange={v => updateAR({ min_level: v === "none" ? null : parseInt(v) })}>
+                        <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Nessuno" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Nessuno</SelectItem>
+                          {difficultyLevels.map(l => <SelectItem key={l.id} value={String(l.level_number)}>{l.icon} {l.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      {getAR(editEvent).min_level ? renderAccessRuleEnforcementSelect("min_level") : null}
+                    </div>
                   </div>
-                  <div>
+                  <div className="space-y-1">
                     <Label className="text-xs">Frequenza attività fisica minima</Label>
-                    <Select value={getAR(editEvent).min_activity_frequency || "none"} onValueChange={v => updateAR({ min_activity_frequency: v === "none" ? null : v })}>
-                      <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Nessuna" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Nessuna</SelectItem>
-                        {ACTIVITY_FREQUENCY_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <div className={`grid gap-2 ${getAR(editEvent).min_activity_frequency ? "grid-cols-[minmax(0,1fr)_120px]" : "grid-cols-1"}`}>
+                      <Select value={getAR(editEvent).min_activity_frequency || "none"} onValueChange={v => updateAR({ min_activity_frequency: v === "none" ? null : v })}>
+                        <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Nessuna" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Nessuna</SelectItem>
+                          {ACTIVITY_FREQUENCY_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      {getAR(editEvent).min_activity_frequency ? renderAccessRuleEnforcementSelect("min_activity_frequency") : null}
+                    </div>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="space-y-1">
                     <Label className="text-xs">Numero minimo di esperienze</Label>
-                    <Input type="number" min={0} className="h-8 text-sm" placeholder="Nessun minimo" value={getAR(editEvent).min_experiences ?? ""} onChange={e => updateAR({ min_experiences: e.target.value ? parseInt(e.target.value) : null })} />
+                    <div className={`grid gap-2 ${getAR(editEvent).min_experiences ? "grid-cols-[minmax(0,1fr)_120px]" : "grid-cols-1"}`}>
+                      <Input type="number" min={0} className="h-8 text-sm" placeholder="Nessun minimo" value={getAR(editEvent).min_experiences ?? ""} onChange={e => updateAR({ min_experiences: e.target.value ? parseInt(e.target.value) : null })} />
+                      {getAR(editEvent).min_experiences ? renderAccessRuleEnforcementSelect("min_experience") : null}
+                    </div>
                   </div>
-                  <div>
+                  <div className="space-y-1">
                     <Label className="text-xs">Min. eventi trekking completati</Label>
-                    <Input type="number" min={0} className="h-8 text-sm" placeholder="Nessun minimo" value={getAR(editEvent).min_trekking_events ?? ""} onChange={e => updateAR({ min_trekking_events: e.target.value ? parseInt(e.target.value) : null })} />
+                    <div className={`grid gap-2 ${getAR(editEvent).min_trekking_events ? "grid-cols-[minmax(0,1fr)_120px]" : "grid-cols-1"}`}>
+                      <Input type="number" min={0} className="h-8 text-sm" placeholder="Nessun minimo" value={getAR(editEvent).min_trekking_events ?? ""} onChange={e => updateAR({ min_trekking_events: e.target.value ? parseInt(e.target.value) : null })} />
+                      {getAR(editEvent).min_trekking_events ? renderAccessRuleEnforcementSelect("min_trekking_events") : null}
+                    </div>
                   </div>
                 </div>
-                <div>
+                <div className="space-y-1">
                   <Label className="text-xs">Min. presenze totali</Label>
-                  <Input type="number" min={0} className="h-8 text-sm w-1/2" placeholder="Nessun minimo" value={getAR(editEvent).min_attended_events ?? ""} onChange={e => updateAR({ min_attended_events: e.target.value ? parseInt(e.target.value) : null })} />
+                  <div className={`grid gap-2 ${getAR(editEvent).min_attended_events ? "grid-cols-[minmax(0,1fr)_120px] sm:w-1/2" : "grid-cols-1 sm:w-1/2"}`}>
+                    <Input type="number" min={0} className="h-8 text-sm" placeholder="Nessun minimo" value={getAR(editEvent).min_attended_events ?? ""} onChange={e => updateAR({ min_attended_events: e.target.value ? parseInt(e.target.value) : null })} />
+                    {getAR(editEvent).min_attended_events ? renderAccessRuleEnforcementSelect("min_attended_events") : null}
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-3 p-2.5 rounded-md border bg-card">
@@ -2249,7 +2436,124 @@ export default function EventsPage() {
                 ))}
               </section>
 
-              {/* ═══ 10. LISTA ATTREZZATURA ═══ */}
+              {/* ═══ 10. STAFF EVENTO ═══ */}
+              <Separator />
+              <section className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2"><Users className="h-4 w-4 text-primary" /><h4 className="text-sm font-semibold">Staff evento</h4></div>
+                  <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={addStaffMember}>
+                    <Plus className="h-3 w-3 mr-1" /> Aggiungi
+                  </Button>
+                </div>
+                {localEventStaff.length === 0 && <p className="text-xs text-muted-foreground italic">Nessuno staff aggiuntivo inserito.</p>}
+                {localEventStaff.map((member, idx) => {
+                  const isPresetRole = STAFF_ROLE_PRESETS.includes(member.role_label);
+                  const staffSearchTerm = member.profileSearch.trim();
+                  const showStaffResults = activeStaffSearchIndex === idx && staffSearchTerm.length >= 2;
+
+                  return (
+                    <div key={member._key} className="space-y-3 p-3 rounded-md border bg-card">
+                      <div className="flex items-center gap-3">
+                        {member.avatar_url ? (
+                          <img src={member.avatar_url} alt="" className="h-9 w-9 rounded-full object-cover" />
+                        ) : (
+                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
+                            {(member.display_name || "S").slice(0, 1).toUpperCase()}
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold">{member.display_name || "Nuovo membro staff"}</p>
+                          <p className="truncate text-[10px] uppercase tracking-wide text-muted-foreground">{member.role_label || "STAFF"}</p>
+                        </div>
+                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeStaffMember(idx)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_140px]">
+                        <div className="relative space-y-1">
+                          <Label className="text-xs">Profilo collegato</Label>
+                          <Input
+                            className="h-8 text-sm"
+                            placeholder="Cerca per nome o email"
+                            value={member.profileSearch}
+                            onChange={(e) => {
+                              updateStaffMember(idx, "profileSearch", e.target.value);
+                              setActiveStaffSearchIndex(idx);
+                            }}
+                            onFocus={() => setActiveStaffSearchIndex(idx)}
+                          />
+                          {showStaffResults && (
+                            <div className="absolute z-50 mt-1 max-h-44 w-full overflow-y-auto rounded-md border bg-popover p-1 shadow-md">
+                              {staffProfileResults.length === 0 && (
+                                <p className="px-2 py-1.5 text-xs text-muted-foreground">Nessun profilo trovato</p>
+                              )}
+                              {staffProfileResults.map((profile: StaffProfileSearchResult) => {
+                                const profileName = `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || profile.email || "Profilo";
+                                return (
+                                  <button
+                                    key={profile.id}
+                                    type="button"
+                                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs hover:bg-muted"
+                                    onClick={() => selectStaffProfile(idx, profile)}
+                                  >
+                                    {profile.avatar_url ? (
+                                      <img src={profile.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover" />
+                                    ) : (
+                                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-[10px] font-semibold">
+                                        {profileName.slice(0, 1).toUpperCase()}
+                                      </span>
+                                    )}
+                                    <span className="min-w-0">
+                                      <span className="block truncate font-medium">{profileName}</span>
+                                      {profile.email && <span className="block truncate text-muted-foreground">{profile.email}</span>}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
+                          <Label className="text-xs">Visibile</Label>
+                          <Switch checked={member.is_public} onCheckedChange={(value) => updateStaffMember(idx, "is_public", value)} />
+                        </div>
+                      </div>
+
+                      {member.profile_id && (
+                        <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => clearStaffProfile(idx)}>
+                          Usa nominativo manuale
+                        </Button>
+                      )}
+
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Nome visualizzato</Label>
+                          <Input className="h-8 text-sm" value={member.display_name} onChange={(e) => updateStaffMember(idx, "display_name", e.target.value)} placeholder="Nome staff" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Ruolo</Label>
+                          <Select
+                            value={isPresetRole ? member.role_label : CUSTOM_STAFF_ROLE_VALUE}
+                            onValueChange={(value) => updateStaffMember(idx, "role_label", value === CUSTOM_STAFF_ROLE_VALUE ? "" : value)}
+                          >
+                            <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {STAFF_ROLE_PRESETS.map((role) => <SelectItem key={role} value={role}>{role}</SelectItem>)}
+                              <SelectItem value={CUSTOM_STAFF_ROLE_VALUE}>Ruolo personalizzato</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          {!isPresetRole && (
+                            <Input className="h-8 text-sm" value={member.role_label} onChange={(e) => updateStaffMember(idx, "role_label", e.target.value)} placeholder="Ruolo personalizzato" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </section>
+
+              {/* ═══ 11. LISTA ATTREZZATURA ═══ */}
               <Separator />
               <section className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -2282,7 +2586,7 @@ export default function EventsPage() {
                 ))}
               </section>
 
-              {/* ═══ 11. DISPONIBILITÀ AUTO ═══ */}
+              {/* ═══ 12. DISPONIBILITÀ AUTO ═══ */}
               <Separator />
               <section className="space-y-2">
                 <div className="flex items-center gap-2"><Car className="h-4 w-4 text-primary" /><h4 className="text-sm font-semibold">Disponibilità auto</h4></div>
@@ -2295,14 +2599,14 @@ export default function EventsPage() {
                 </div>
               </section>
 
-              {/* ═══ 12. RICHIESTE SPECIALI (Custom registration fields) ═══ */}
+              {/* ═══ 13. RICHIESTE SPECIALI (Custom registration fields) ═══ */}
               <Separator />
               <section className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2"><FileText className="h-4 w-4 text-primary" /><h4 className="text-sm font-semibold">Richieste speciali</h4></div>
                   <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => {
                     const fields = getCustomFields(editEvent);
-                    updateAF({ fields: [...fields, { label: "", type: "text", required: false }] });
+                    updateAF({ fields: [...fields, { label: "", type: "text", required: false, options: [] }] });
                   }}>
                     <Plus className="h-3 w-3 mr-1" /> Aggiungi campo
                   </Button>
@@ -2310,33 +2614,49 @@ export default function EventsPage() {
                 <p className="text-[10px] text-muted-foreground">Campi personalizzati mostrati nel modulo di registrazione.</p>
                 {getCustomFields(editEvent).length === 0 && <p className="text-xs text-muted-foreground italic">Nessun campo personalizzato.</p>}
                 {getCustomFields(editEvent).map((f, idx) => (
-                  <div key={idx} className="flex items-center gap-2 p-2 rounded-md border bg-card">
-                    <Input className="h-8 text-sm flex-1" placeholder="Etichetta campo" value={f.label} onChange={e => {
-                      const fields = [...getCustomFields(editEvent)];
-                      fields[idx] = { ...fields[idx], label: e.target.value };
-                      updateAF({ fields });
-                    }} />
-                    <Select value={f.type} onValueChange={v => {
-                      const fields = [...getCustomFields(editEvent)];
-                      fields[idx] = { ...fields[idx], type: v };
-                      updateAF({ fields });
-                    }}>
-                      <SelectTrigger className="h-8 w-24 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="text">Testo</SelectItem>
-                        <SelectItem value="select">Selezione</SelectItem>
-                        <SelectItem value="checkbox">Checkbox</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Checkbox checked={f.required} onCheckedChange={v => {
-                      const fields = [...getCustomFields(editEvent)];
-                      fields[idx] = { ...fields[idx], required: !!v };
-                      updateAF({ fields });
-                    }} />
-                    <span className="text-[10px] text-muted-foreground">Obbligatorio</span>
-                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => {
-                      updateAF({ fields: getCustomFields(editEvent).filter((_, i) => i !== idx) });
-                    }}><X className="h-3.5 w-3.5" /></Button>
+                  <div key={idx} className="space-y-3 p-3 rounded-md border bg-card">
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_130px_auto_auto] sm:items-end">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Etichetta</Label>
+                        <Input className="h-8 text-sm" placeholder="Etichetta campo" value={f.label} onChange={e => updateCustomField(idx, { label: e.target.value })} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Tipo</Label>
+                        <Select value={f.type === "select" ? "select" : "text"} onValueChange={v => updateCustomField(idx, { type: v })}>
+                          <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="text">Testo</SelectItem>
+                            <SelectItem value="select">Selezione</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <label className="flex h-8 items-center gap-2 text-xs">
+                        <Checkbox checked={f.required} onCheckedChange={v => updateCustomField(idx, { required: !!v })} />
+                        Obbligatorio
+                      </label>
+                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => {
+                        updateAF({ fields: getCustomFields(editEvent).filter((_, i) => i !== idx) });
+                      }}><X className="h-3.5 w-3.5" /></Button>
+                    </div>
+                    {f.type === "select" && (
+                      <div className="space-y-2 rounded-md border bg-muted/30 p-2">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs">Opzioni selezione</Label>
+                          <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => addCustomFieldOption(idx)}>
+                            <Plus className="h-3 w-3 mr-1" /> Opzione
+                          </Button>
+                        </div>
+                        {(f.options || []).length === 0 && <p className="text-[10px] text-muted-foreground">Aggiungi almeno una opzione.</p>}
+                        {(f.options || []).map((option, optionIndex) => (
+                          <div key={optionIndex} className="flex items-center gap-2">
+                            <Input className="h-8 text-sm" value={option} onChange={(e) => updateCustomFieldOption(idx, optionIndex, e.target.value)} placeholder={`Opzione ${optionIndex + 1}`} />
+                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeCustomFieldOption(idx, optionIndex)}>
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
               </section>
@@ -2346,7 +2666,7 @@ export default function EventsPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditEvent(null)}>Annulla</Button>
             <Button
-              onClick={() => saveMutation.mutate({ evt: editEvent, mps: localMeetingPoints, priceOptions: localPriceOptions })}
+              onClick={handleSaveEvent}
               disabled={saveMutation.isPending || !editEvent?.image_url}
             >
               {saveMutation.isPending ? "Salvataggio..." : "Salva"}
