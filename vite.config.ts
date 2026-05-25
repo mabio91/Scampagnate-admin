@@ -18,13 +18,12 @@ const manualChunks = (id: string) => {
   if (id.includes("/node_modules/lucide-react/")) return "icons-core";
 
   const groups: Array<[string, string[]]> = [
-    ["react-vendor", ["react/", "react-dom/", "react-router-dom/", "next-themes/"]],
+    ["react-vendor", ["react/", "react-dom/", "scheduler/", "react-router/", "react-router-dom/", "@remix-run/router/", "next-themes/"]],
     ["query-vendor", ["@tanstack/"]],
     ["supabase-vendor", ["@supabase/"]],
     ["radix-vendor", ["@radix-ui/"]],
     ["form-vendor", ["react-hook-form/", "@hookform/", "zod/"]],
     ["editor-vendor", ["@tiptap/", "prosemirror-"]],
-    ["chart-vendor", ["recharts/", "d3-"]],
     ["date-vendor", ["date-fns/"]],
     ["ui-vendor", ["sonner/", "vaul/", "cmdk/", "input-otp/"]],
   ];
