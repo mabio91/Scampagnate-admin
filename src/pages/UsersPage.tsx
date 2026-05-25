@@ -36,6 +36,7 @@ type PaymentSummary = {
 };
 
 const membershipFieldTooltips = {
+  sex: "Valore M/F richiesto per tessera associativa e copertura assicurativa.",
   birth_place: "Comune o Stato estero di nascita, come riportato sul documento.",
   province_of_birth: "Sigla della provincia di nascita. Usa EE per nascita all'estero.",
   residential_address: "Indirizzo completo di residenza, inclusi via/piazza e numero civico.",
@@ -120,6 +121,7 @@ export default function UsersPage() {
   const [editUser, setEditUser] = useState<(Profile & { roles: string[] }) | null>(null);
   const [editForm, setEditForm] = useState({
     first_name: "", last_name: "", phone: "", instagram_handle: "", bio: "",
+    sex: "",
     birth_date: "",
     birth_place: "",
     province_of_birth: "",
@@ -201,6 +203,7 @@ export default function UsersPage() {
       const { error } = await supabase.from("profiles").update({
         first_name: editForm.first_name, last_name: editForm.last_name,
         phone: editForm.phone, instagram_handle: normalizedInstagramHandle, bio: editForm.bio, account_status: editForm.account_status,
+        sex: editForm.sex || null,
         birth_date: editForm.birth_date || null,
         birth_place: editForm.birth_place || null,
         province_of_birth: editForm.province_of_birth || null,
@@ -262,6 +265,7 @@ export default function UsersPage() {
       phone: user.phone,
       instagram_handle: user.instagram_handle || "",
       bio: user.bio || "",
+      sex: user.sex || "",
       birth_date: user.birth_date || "",
       birth_place: user.birth_place || "",
       province_of_birth: user.province_of_birth || "",
@@ -603,6 +607,22 @@ export default function UsersPage() {
                     value={editForm.birth_date}
                     onChange={(e) => setEditForm({ ...editForm, birth_date: e.target.value })}
                   />
+                </div>
+                <div className="space-y-2">
+                  <FieldLabel tooltip={membershipFieldTooltips.sex}>Sex</FieldLabel>
+                  <Select
+                    value={editForm.sex || "unset"}
+                    onValueChange={(value) => setEditForm({ ...editForm, sex: value === "unset" ? "" : value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unset">Not set</SelectItem>
+                      <SelectItem value="M">M</SelectItem>
+                      <SelectItem value="F">F</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <FieldLabel tooltip={membershipFieldTooltips.birth_place}>Place of Birth</FieldLabel>

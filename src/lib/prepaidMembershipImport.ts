@@ -3,6 +3,7 @@ export type PrepaidMembershipImportRow = {
   first_name: string;
   last_name: string;
   phone: string | null;
+  sex: "M" | "F" | null;
   birth_date: string | null;
   birth_place: string | null;
   province_of_birth: string | null;
@@ -43,6 +44,11 @@ const headerMap: Record<string, keyof PrepaidMembershipImportRow> = {
   telefono: "phone",
   cellulare: "phone",
   phone: "phone",
+  sesso: "sex",
+  sesso_anagrafico: "sex",
+  sex: "sex",
+  gender: "sex",
+  m_f: "sex",
   data_nascita: "birth_date",
   data_di_nascita: "birth_date",
   datadinascita: "birth_date",
@@ -83,6 +89,7 @@ const headerMap: Record<string, keyof PrepaidMembershipImportRow> = {
 const requiredMembershipFields: Array<keyof PrepaidMembershipImportRow> = [
   "first_name",
   "last_name",
+  "sex",
   "birth_date",
   "birth_place",
   "province_of_birth",
@@ -96,6 +103,7 @@ const emptyRow = (): PrepaidMembershipImportRow => ({
   first_name: "",
   last_name: "",
   phone: null,
+  sex: null,
   birth_date: null,
   birth_place: null,
   province_of_birth: null,
@@ -139,6 +147,25 @@ const normalizeProvince = (value: ImportedCell) => {
   if (!normalized) return null;
   const alias = normalizeHeader(normalized);
   return provinceAliases[alias] || normalized.toUpperCase();
+};
+
+const sexAliases: Record<string, "M" | "F"> = {
+  m: "M",
+  maschio: "M",
+  maschile: "M",
+  uomo: "M",
+  male: "M",
+  f: "F",
+  femmina: "F",
+  femminile: "F",
+  donna: "F",
+  female: "F",
+};
+
+export const normalizeImportedSex = (value: ImportedCell) => {
+  const normalized = normalizeText(value);
+  if (!normalized) return null;
+  return sexAliases[normalizeHeader(normalized)] || null;
 };
 
 export const normalizeImportedEmail = (value: ImportedCell) => {
@@ -268,6 +295,7 @@ export const parsePrepaidMembershipRows = (importRows: ImportedCell[][]): Prepai
       if (!target || target === "source_row") return;
 
       if (target === "email") parsed.email = normalizeImportedEmail(cell);
+      else if (target === "sex") parsed.sex = normalizeImportedSex(cell);
       else if (target === "birth_date") parsed.birth_date = normalizeImportedDate(cell);
       else if (target === "payment_date") parsed.payment_date = normalizeImportedDate(cell);
       else if (target === "membership_year") parsed.membership_year = parseMembershipYear(cell);

@@ -166,6 +166,7 @@ export function PrepaidMembershipImport({ members }: { members: Profile[] }) {
       row.email || "",
       row.first_name,
       row.last_name,
+      row.sex || "",
       row.status,
       row.error_message || "",
       matchedProfile?.first_name || "",
@@ -270,7 +271,7 @@ export function PrepaidMembershipImport({ members }: { members: Profile[] }) {
             <Label htmlFor="prepaid-csv">CSV membership prepagate</Label>
             <Input id="prepaid-csv" type="file" accept=".csv,text/csv" onChange={handleCsvUpload} />
             <p className="text-xs text-muted-foreground">
-              Puoi esportare l'Excel in CSV. Header riconosciuti: email opzionale, nome, cognome, data nascita,
+              Puoi esportare l'Excel in CSV. Header riconosciuti: email opzionale, nome, cognome, sesso, data nascita,
               luogo nascita, provincia nascita, indirizzo residenza, citta residenza, provincia residenza, data pagamento, anno tessera, note.
             </p>
           </div>
@@ -313,7 +314,7 @@ export function PrepaidMembershipImport({ members }: { members: Profile[] }) {
               className="h-24 font-mono text-xs"
               value={csvPreview
                 .slice(0, 4)
-                .map((row) => `${row.email || "senza email"}; ${compactName(row.first_name, row.last_name)}; ${row.birth_date || "-"}; ${row.city_of_residence || "-"}`)
+                .map((row) => `${row.email || "senza email"}; ${compactName(row.first_name, row.last_name)}; ${row.sex || "-"}; ${row.birth_date || "-"}; ${row.city_of_residence || "-"}`)
                 .join("\n")}
             />
           </div>
@@ -371,6 +372,7 @@ export function PrepaidMembershipImport({ members }: { members: Profile[] }) {
                 <TableRow>
                   <SortableHead field="match">Match</SortableHead>
                   <SortableHead field="name">Nome</SortableHead>
+                  <TableHead>Sesso</TableHead>
                   <SortableHead field="membership_year">Anno</SortableHead>
                   <SortableHead field="payment_date">Pagamento</SortableHead>
                   <SortableHead field="status">Stato</SortableHead>
@@ -387,6 +389,7 @@ export function PrepaidMembershipImport({ members }: { members: Profile[] }) {
                     <TableRow key={row.id}>
                       <TableCell className="font-mono text-xs">{row.email || "anagrafica"}</TableCell>
                       <TableCell>{compactName(row.first_name, row.last_name)}</TableCell>
+                      <TableCell>{row.sex || "-"}</TableCell>
                       <TableCell>{row.membership_year}</TableCell>
                       <TableCell>{formatDate(row.payment_date)}</TableCell>
                       <TableCell>
@@ -432,7 +435,7 @@ export function PrepaidMembershipImport({ members }: { members: Profile[] }) {
                 })}
                 {sortedPrepaid.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
+                    <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
                       Nessuna membership prepagata trovata.
                     </TableCell>
                   </TableRow>
@@ -457,7 +460,7 @@ export function PrepaidMembershipImport({ members }: { members: Profile[] }) {
                 <div className="font-medium">{compactName(selectedPrepaid.first_name, selectedPrepaid.last_name)}</div>
                 <div className="text-muted-foreground">{selectedPrepaid.email || "Match anagrafico senza email"}</div>
                 <div className="text-xs text-muted-foreground mt-1">
-                  Tessera {selectedPrepaid.membership_year} · pagamento {formatDate(selectedPrepaid.payment_date)}
+                  Sesso {selectedPrepaid.sex || "-"} · tessera {selectedPrepaid.membership_year} · pagamento {formatDate(selectedPrepaid.payment_date)}
                 </div>
               </div>
 
