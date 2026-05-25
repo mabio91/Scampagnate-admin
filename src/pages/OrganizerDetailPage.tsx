@@ -28,7 +28,9 @@ export default function OrganizerDetailPage() {
         if (res.data && !res.data.error) {
           authUser = res.data.find((u: any) => u.id === id);
         }
-      } catch {}
+      } catch {
+        // Auth metadata is optional for this detail view.
+      }
       return {
         ...profile,
         roles: (roles || []).map((r) => r.role),

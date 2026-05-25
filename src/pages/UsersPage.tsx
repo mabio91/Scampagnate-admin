@@ -150,7 +150,9 @@ export default function UsersPage() {
           });
           if (res.data && !res.data.error) authUsers = res.data;
         }
-      } catch {}
+      } catch {
+        // Auth metadata is optional for this listing.
+      }
       const authMap = new Map(authUsers.map((u) => [u.id, u]));
       return (profiles || []).map((p) => ({
         ...p,

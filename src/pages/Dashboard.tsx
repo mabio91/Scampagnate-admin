@@ -474,11 +474,11 @@ export default function Dashboard() {
   const { data: attendanceRate = "0%", isLoading: l6 } = useQuery({
     queryKey: ["kpi-attendance-rate", filters],
     queryFn: async () => {
-      let qTotal = supabase
+      const qTotal = supabase
         .from("event_registrations")
         .select("id, events!inner(date, category_id, organizer_id, status)")
         .in("status", ["registered", "paid", "attended"]);
-      let qChecked = supabase
+      const qChecked = supabase
         .from("event_registrations")
         .select("id, events!inner(date, category_id, organizer_id, status)")
         .eq("checked_in", true);
