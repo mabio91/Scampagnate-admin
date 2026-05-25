@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, MoreHorizontal, Eye, Edit2, Trash2, Plus, Upload, X, ArrowUp, ArrowDown, Image as ImageIcon, Loader2, Shield, Lock, Star, Users, Award, Crown, CheckCircle2, DollarSign, Tag, Sparkles, Copy, MessageCircle, CalendarX, CloudSun, Thermometer, MapPin, Package, Car, FileText } from "lucide-react";
-import { MANUAL_BADGE_OPTIONS, EventBadgePills, computeAutoBadgesForStorage } from "@/components/EventBadges";
+import { MANUAL_BADGE_OPTIONS, EventBadgePills } from "@/components/EventBadges";
 import { RichTextEditor } from "@/components/RichTextEditor";
 import RefreshButton from "@/components/RefreshButton";
 import { RowActionButton, RowActionCell } from "@/components/RowActions";
@@ -100,17 +100,39 @@ type PricingRule = {
   spots_taken?: number | null;
 };
 
+type RegistrationField = { label: string; type: string; required: boolean; options?: string[] };
+type AccessRuleType =
+  | "min_trekking_events"
+  | "min_attended_events"
+  | "min_activities"
+  | "require_badge"
+  | "require_membership"
+  | "manual_approval"
+  | "min_level"
+  | "min_experience"
+  | "min_activity_frequency";
+type CanonicalAccessRule = {
+  type: AccessRuleType;
+  value?: number | string;
+  badge_id?: string;
+  badge_ids?: string[];
+  enforcement?: "hard" | "soft";
+};
 type AccessRules = {
+  rules?: CanonicalAccessRule[];
   min_level?: number | null;
   min_experiences?: number | null;
+  min_experience?: number | null;
   min_activity_frequency?: string | null;
   min_trekking_events?: number | null;
   min_activities?: number | null;
+  min_attended_events?: number | null;
   required_badge_id?: string | null; // legacy single
   required_badge_ids?: string[] | null;
   require_active_membership?: boolean;
   require_manual_approval?: boolean;
-  restriction_message?: string;
+  restriction_message?: string | null;
+  exclusivity_label?: string | null;
   detail_visibility?: "everyone" | "registered_only" | "eligible_only";
   registration_rule?: "open" | "eligible_only" | "invite_only";
   pricing_rules?: PricingRule[];
@@ -119,10 +141,20 @@ type AccessRules = {
 type AdditionalFields = {
   closing_sentence?: string | null;
   waiting_list_enabled?: boolean;
+  weather_override_condition?: string | null;
+  weather_override_temp_min?: number | null;
+  weather_override_temp_max?: number | null;
+  weather_override_temp_avg?: number | null;
+  weather_override_temp?: number | null;
   weather_override?: { weather_condition?: string; temp_min?: number | null; temp_max?: number | null; temp_avg?: number | null };
+  ask_car_availability?: boolean;
+  car_availability_enabled?: boolean;
   show_car_availability?: boolean;
   home_card_image_url?: string | null;
-  custom_fields?: { label: string; type: string; required: boolean }[];
+  fields?: RegistrationField[];
+  custom_fields?: RegistrationField[];
+  fit_score_main_category?: string | null;
+  fit_score_secondary_categories?: string[];
   duration_unit?: string;
 };
 
@@ -133,12 +165,35 @@ type GalleryImage = { url: string; order: number };
 
 /* ══════ Constants ══════ */
 const CANCELLATION_POLICY_OPTIONS = [
-  { value: "Cancellazione gratuita fino a 48h prima", label: "Cancellazione gratuita fino a 48h prima" },
-  { value: "Cancellazione gratuita fino a 24h prima", label: "Cancellazione gratuita fino a 24h prima" },
-  { value: "Cancellazione gratuita fino a 7 giorni prima", label: "Cancellazione gratuita fino a 7 giorni prima" },
-  { value: "Nessun rimborso", label: "Nessun rimborso" },
-  { value: "Rimborso parziale (50%)", label: "Rimborso parziale (50%)" },
+  { value: "flexible_24h", label: "Flessibile 24h" },
+  { value: "flexible_48h", label: "Flessibile 48h" },
+  { value: "non_refundable", label: "Non rimborsabile" },
 ];
+
+const LEGACY_CANCELLATION_POLICY_MAP: Record<string, string> = {
+  flexible: "flexible_24h",
+  flessibile: "flexible_24h",
+  "cancellazione gratuita fino a 24h prima": "flexible_24h",
+  "cancellazione gratuita fino a 48h prima": "flexible_48h",
+  "cancellazione gratuita fino a 7 giorni prima": "flexible_48h",
+  moderate: "flexible_48h",
+  moderata: "flexible_48h",
+  strict: "non_refundable",
+  rigida: "non_refundable",
+  custom: "non_refundable",
+  non_refundable: "non_refundable",
+  "nessun rimborso": "non_refundable",
+  "rimborso parziale (50%)": "non_refundable",
+};
+
+const normalizeCancellationPolicy = (value: string | null | undefined) => {
+  const normalized = value?.trim().toLowerCase();
+  if (!normalized) return "flexible_24h";
+  const prefix = normalized.split(":", 1)[0];
+  return LEGACY_CANCELLATION_POLICY_MAP[normalized]
+    || LEGACY_CANCELLATION_POLICY_MAP[prefix]
+    || (["flexible_24h", "flexible_48h", "non_refundable"].includes(normalized) ? normalized : "flexible_24h");
+};
 
 const PRICING_CONDITIONS = [
   { value: "everyone", label: "Tutti", description: "Visibile a tutti gli utenti" },
@@ -203,14 +258,28 @@ const ACTIVITY_FREQUENCY_OPTIONS = [
   { value: "quotidiano", label: "Quotidiano" },
 ];
 
+const INTEREST_CATEGORY_OPTIONS = [
+  { id: "trekking_giornalieri", label: "Trekking giornalieri" },
+  { id: "cammini_plurigiornalieri", label: "Cammini plurigiornalieri" },
+  { id: "notti_tenda", label: "Notti in tenda" },
+  { id: "trekking_notturni", label: "Trekking notturni" },
+  { id: "aperitivi_cene", label: "Aperitivi e cene" },
+  { id: "sport_movimento", label: "Sport e movimento" },
+  { id: "giochi_sfide", label: "Giochi e sfide" },
+  { id: "weekend_fuori_porta", label: "Weekend fuori porta" },
+  { id: "degustazioni_cantine", label: "Degustazioni e cantine" },
+  { id: "mare_spiaggia", label: "Mare e spiaggia" },
+];
+const FIT_SCORE_EVENT_SECONDARY_MAX = 2;
+
 const emptyEvent: Record<string, any> = {
   title: "", description: "", location: "", location_label: "", date: "", time: "09:00",
   spots_total: 20, reserved_spots: 0, price: 0, deposit: null, payment_type: "free",
   status: "draft", visibility: "public", organizer_name: "", organizer_id: null,
   category_id: null, image_url: "", gallery_images: [], access_rules: null,
-  featured: false, cancellation_policy: null, difficulty: null, duration: null,
+  featured: false, cancellation_policy: "flexible_24h", difficulty: null, duration: null,
   distance: null, elevation: null, event_badges: [], equipment_list: [],
-  additional_fields: { waiting_list_enabled: true },
+  additional_fields: { waiting_list_enabled: true, fields: [], custom_fields: [] },
 };
 
 /* ══════ Helpers ══════ */
@@ -222,30 +291,6 @@ const parseMeasure = (val: string | null | undefined): string => {
 const buildMeasure = (num: string, unit: string): string | null => {
   if (!num) return null;
   return `${num} ${unit}`;
-};
-
-const getAttendanceBadgeIdsFromEventBadges = (eventBadges: any): string[] => {
-  if (!Array.isArray(eventBadges)) return [];
-
-  return eventBadges
-    .filter((entry: any): entry is AttendanceBadgeEntry => (
-      entry &&
-      typeof entry === "object" &&
-      entry.type === "attendance_badge" &&
-      typeof entry.badge_id === "string"
-    ))
-    .map((entry) => entry.badge_id);
-};
-
-const replaceAttendanceBadgeIdsInEventBadges = (eventBadges: any, badgeIds: string[]) => {
-  const baseEntries = Array.isArray(eventBadges)
-    ? eventBadges.filter((entry: any) => !(entry && typeof entry === "object" && entry.type === "attendance_badge"))
-    : [];
-
-  return [
-    ...baseEntries,
-    ...badgeIds.map((badgeId) => ({ type: "attendance_badge" as const, badge_id: badgeId })),
-  ];
 };
 
 const normalizeGalleryImages = (value: unknown): GalleryImage[] => {
@@ -268,6 +313,204 @@ const normalizeGalleryImages = (value: unknown): GalleryImage[] => {
     .sort((a, b) => a.order - b.order)
     .map((item, index) => ({ ...item, order: index }));
 };
+
+const isPlainRecord = (value: unknown): value is Record<string, any> =>
+  Boolean(value && typeof value === "object" && !Array.isArray(value));
+
+const normalizeRegistrationFields = (value: unknown): RegistrationField[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((field): RegistrationField | null => {
+      if (!isPlainRecord(field)) return null;
+      const label = String(field.label || "").trim();
+      if (!label) return null;
+      const options = Array.isArray(field.options)
+        ? field.options.map((option: unknown) => String(option).trim()).filter(Boolean)
+        : typeof field.options === "string"
+          ? field.options.split(",").map((option: string) => option.trim()).filter(Boolean)
+          : [];
+      return {
+        label,
+        type: String(field.type || "text"),
+        required: Boolean(field.required),
+        ...(options.length ? { options } : {}),
+      };
+    })
+    .filter((field): field is RegistrationField => Boolean(field));
+};
+
+const normalizeAdditionalFields = (value: unknown): AdditionalFields => {
+  const raw = isPlainRecord(value) ? { ...value } as AdditionalFields : {};
+  const fields = normalizeRegistrationFields(raw.fields || raw.custom_fields);
+  const legacyWeather = isPlainRecord(raw.weather_override) ? raw.weather_override : {};
+  const askCarAvailability = Boolean(
+    raw.ask_car_availability ?? raw.car_availability_enabled ?? raw.show_car_availability,
+  );
+
+  return {
+    ...raw,
+    fields,
+    custom_fields: fields,
+    ask_car_availability: askCarAvailability,
+    show_car_availability: askCarAvailability,
+    weather_override_condition: raw.weather_override_condition ?? legacyWeather.weather_condition ?? null,
+    weather_override_temp_min: raw.weather_override_temp_min ?? legacyWeather.temp_min ?? null,
+    weather_override_temp_max: raw.weather_override_temp_max ?? legacyWeather.temp_max ?? null,
+    weather_override_temp_avg: raw.weather_override_temp_avg ?? raw.weather_override_temp ?? legacyWeather.temp_avg ?? null,
+  };
+};
+
+const buildAdditionalFieldsForStorage = (value: unknown): AdditionalFields => {
+  const raw = isPlainRecord(value) ? value : {};
+  const normalized = normalizeAdditionalFields(value);
+  const secondary = Array.isArray(normalized.fit_score_secondary_categories)
+    ? normalized.fit_score_secondary_categories.filter(Boolean).slice(0, FIT_SCORE_EVENT_SECONDARY_MAX)
+    : [];
+  const next: AdditionalFields = {
+    ...normalized,
+    fields: normalizeRegistrationFields(normalized.fields),
+    custom_fields: normalizeRegistrationFields(normalized.fields),
+    ask_car_availability: Boolean(normalized.ask_car_availability),
+    waiting_list_enabled: Boolean(normalized.waiting_list_enabled),
+    fit_score_main_category: normalized.fit_score_main_category || null,
+    fit_score_secondary_categories: secondary,
+    weather_override_condition: normalized.weather_override_condition || null,
+    weather_override_temp_min: normalized.weather_override_temp_min ?? null,
+    weather_override_temp_max: normalized.weather_override_temp_max ?? null,
+    weather_override_temp_avg: normalized.weather_override_temp_avg ?? null,
+  };
+
+  delete next.weather_override;
+  delete next.weather_override_temp;
+  if ("car_availability_enabled" in raw) {
+    next.car_availability_enabled = Boolean(normalized.ask_car_availability);
+  } else {
+    delete next.car_availability_enabled;
+  }
+  if ("show_car_availability" in raw) {
+    next.show_car_availability = Boolean(normalized.ask_car_availability);
+  } else {
+    delete next.show_car_availability;
+  }
+  return next;
+};
+
+const numberRuleValue = (value: unknown): number | null => {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+};
+
+const getRuleValue = (rules: CanonicalAccessRule[], type: AccessRuleType): number | null =>
+  numberRuleValue(rules.find((rule) => rule.type === type)?.value);
+
+const getRequiredBadgeIdsFromRules = (rules: CanonicalAccessRule[]) => {
+  const rule = rules.find((entry) => entry.type === "require_badge");
+  if (!rule) return [];
+  if (Array.isArray(rule.badge_ids) && rule.badge_ids.length > 0) return rule.badge_ids;
+  if (rule.badge_id) return [rule.badge_id];
+  return rule.value ? [String(rule.value)] : [];
+};
+
+const normalizeAccessRules = (value: unknown): AccessRules => {
+  const raw = isPlainRecord(value) ? { ...value } as AccessRules : {};
+  const rules = Array.isArray(raw.rules)
+    ? raw.rules.filter((rule): rule is CanonicalAccessRule => isPlainRecord(rule) && typeof rule.type === "string")
+    : [];
+  const minAttendedEvents = getRuleValue(rules, "min_attended_events")
+    ?? getRuleValue(rules, "min_activities")
+    ?? raw.min_attended_events
+    ?? raw.min_activities
+    ?? null;
+
+  return {
+    ...raw,
+    rules,
+    min_level: getRuleValue(rules, "min_level") ?? raw.min_level ?? null,
+    min_experiences: getRuleValue(rules, "min_experience") ?? raw.min_experiences ?? raw.min_experience ?? null,
+    min_activity_frequency: (rules.find((rule) => rule.type === "min_activity_frequency")?.value as string | undefined) ?? raw.min_activity_frequency ?? null,
+    min_trekking_events: getRuleValue(rules, "min_trekking_events") ?? raw.min_trekking_events ?? null,
+    min_attended_events: minAttendedEvents,
+    min_activities: minAttendedEvents,
+    required_badge_ids: getRequiredBadgeIdsFromRules(rules).length
+      ? getRequiredBadgeIdsFromRules(rules)
+      : raw.required_badge_ids ?? (raw.required_badge_id ? [raw.required_badge_id] : null),
+    require_active_membership: rules.some((rule) => rule.type === "require_membership") || Boolean(raw.require_active_membership),
+    require_manual_approval: rules.some((rule) => rule.type === "manual_approval") || Boolean(raw.require_manual_approval),
+    detail_visibility: raw.detail_visibility || "everyone",
+    registration_rule: raw.registration_rule || "open",
+    restriction_message: raw.restriction_message || null,
+    exclusivity_label: raw.exclusivity_label || null,
+  };
+};
+
+const buildAccessRulesForStorage = (value: unknown): AccessRules | null => {
+  const source = normalizeAccessRules(value);
+  const next: AccessRules = {};
+  const rules: CanonicalAccessRule[] = [];
+  const addNumberRule = (type: AccessRuleType, value?: number | null) => {
+    const numeric = numberRuleValue(value);
+    if (numeric) rules.push({ type, value: numeric, enforcement: "hard" });
+  };
+
+  addNumberRule("min_level", source.min_level);
+  addNumberRule("min_experience", source.min_experiences);
+  if (source.min_activity_frequency) {
+    rules.push({ type: "min_activity_frequency", value: source.min_activity_frequency, enforcement: "hard" });
+  }
+  addNumberRule("min_trekking_events", source.min_trekking_events);
+  addNumberRule("min_attended_events", source.min_attended_events ?? source.min_activities);
+
+  const badgeIds = (source.required_badge_ids || []).filter(Boolean);
+  if (badgeIds.length > 0) {
+    rules.push({ type: "require_badge", badge_ids: badgeIds, badge_id: badgeIds[0], enforcement: "hard" });
+  }
+  if (source.require_active_membership) rules.push({ type: "require_membership", enforcement: "hard" });
+  if (source.require_manual_approval) rules.push({ type: "manual_approval", enforcement: "hard" });
+
+  if (source.restriction_message?.trim()) next.restriction_message = source.restriction_message.trim();
+  if (source.exclusivity_label?.trim()) next.exclusivity_label = source.exclusivity_label.trim();
+  if (source.detail_visibility && source.detail_visibility !== "everyone") next.detail_visibility = source.detail_visibility;
+  if (source.registration_rule && source.registration_rule !== "open") next.registration_rule = source.registration_rule;
+  if (rules.length > 0) next.rules = rules;
+
+  return Object.keys(next).length > 0 ? next : null;
+};
+
+const getLegacySpecialBadgeIdsFromEventBadges = (eventBadges: any): string[] => {
+  if (!Array.isArray(eventBadges)) return [];
+  return eventBadges
+    .filter((entry: any): entry is AttendanceBadgeEntry => (
+      entry &&
+      typeof entry === "object" &&
+      entry.type === "attendance_badge" &&
+      typeof entry.badge_id === "string"
+    ))
+    .map((entry) => entry.badge_id);
+};
+
+const MANAGED_EVENT_BADGES = new Set([
+  ...MANUAL_BADGE_OPTIONS.map((option) => option.value),
+  "ultimi_posti",
+  "founding_event",
+  "gratuito",
+]);
+
+const canonicalizeEventBadges = (eventBadges: any): string[] => {
+  if (!Array.isArray(eventBadges)) return [];
+  const values = eventBadges
+    .map((entry: any) => {
+      if (typeof entry === "string") return entry.trim();
+      if (entry && typeof entry === "object" && entry.type === "custom" && typeof entry.label === "string") {
+        return entry.label.trim();
+      }
+      return "";
+    })
+    .filter(Boolean);
+  return [...new Set(values)];
+};
+
+const getCustomEventBadge = (eventBadges: any) =>
+  canonicalizeEventBadges(eventBadges).find((badge) => !MANAGED_EVENT_BADGES.has(badge)) || "";
 
 const ruleConditionFromEligibleGroup = (group: string | null | undefined): Pick<PricingRule, "condition" | "condition_value" | "condition_numeric_value" | "condition_operator"> => {
   if (!group || group === "all") return { condition: "everyone" };
@@ -301,14 +544,20 @@ const eligibleGroupFromRule = (rule: PricingRule) => {
   return "all";
 };
 
-const priceOptionToRule = (option: any, fallbackPaymentType: PaymentType): PricingRule => {
+const fallbackFormulaName = (index: number) => `Formula ${index + 1}`;
+const normalizeFormulaInputName = (name: string | null | undefined, index: number) => {
+  const trimmedName = name?.trim() || "";
+  return trimmedName === fallbackFormulaName(index) ? "" : trimmedName;
+};
+
+const priceOptionToRule = (option: any, fallbackPaymentType: PaymentType, index: number): PricingRule => {
   const paymentType = (option.payment_type || fallbackPaymentType) as PaymentType;
   const depositAmount = option.deposit_amount != null ? Number(option.deposit_amount) : null;
   const price = Number(option.price || 0);
   return {
     id: option.id,
     isNew: false,
-    name: option.name || "",
+    name: normalizeFormulaInputName(option.name, index),
     price,
     original_price: option.original_price != null ? Number(option.original_price) : null,
     ...ruleConditionFromEligibleGroup(option.eligible_group),
@@ -340,6 +589,7 @@ export default function EventsPage() {
   const [editEvent, setEditEvent] = useState<(Record<string, any> & { isNew?: boolean }) | null>(null);
   const [localMeetingPoints, setLocalMeetingPoints] = useState<LocalMeetingPoint[]>([]);
   const [localPriceOptions, setLocalPriceOptions] = useState<PricingRule[]>([]);
+  const [localSpecialBadgeIds, setLocalSpecialBadgeIds] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [imageCropTarget, setImageCropTarget] = useState<{ file: File; type: "cover" | "coverHome" | "gallery"; coverFile?: File } | null>(null);
   const [convertProposalId, setConvertProposalId] = useState<string | null>(null);
@@ -353,6 +603,7 @@ export default function EventsPage() {
       const p = state.convertProposal;
       setLocalMeetingPoints([]);
       setLocalPriceOptions([]);
+      setLocalSpecialBadgeIds([]);
       setEditEvent({
         ...emptyEvent,
         isNew: true,
@@ -442,12 +693,17 @@ export default function EventsPage() {
     remoteClosingSentences.length > 0 ? remoteClosingSentences : [...EVENT_CLOSING_SENTENCES];
 
   /* ── Access rules helpers ── */
-  const getAR = (evt: any): AccessRules => (evt?.access_rules as AccessRules) || {};
-  const getAF = (evt: any): AdditionalFields => {
-    const value = evt?.additional_fields;
-    return value && typeof value === "object" && !Array.isArray(value) ? (value as AdditionalFields) : {};
+  const getAR = (evt: any): AccessRules => normalizeAccessRules(evt?.access_rules);
+  const getAF = (evt: any): AdditionalFields => normalizeAdditionalFields(evt?.additional_fields);
+  const getWeather = (evt: any) => {
+    const af = getAF(evt);
+    return {
+      weather_condition: af.weather_override_condition || "",
+      temp_min: af.weather_override_temp_min ?? null,
+      temp_max: af.weather_override_temp_max ?? null,
+      temp_avg: af.weather_override_temp_avg ?? null,
+    };
   };
-  const getWeather = (evt: any) => getAF(evt).weather_override || {};
   const getClosingSentence = (evt: any) => normalizeEventClosingSentence(getAF(evt).closing_sentence);
   const getClosingSentenceMode = (evt: any): "random" | "preset" | "manual" => {
     const sentence = getClosingSentence(evt);
@@ -462,16 +718,45 @@ export default function EventsPage() {
 
   const updateAR = (patch: Partial<AccessRules>) => {
     if (!editEvent) return;
-    setEditEvent({ ...editEvent, access_rules: { ...getAR(editEvent), ...patch } });
+    setEditEvent({
+      ...editEvent,
+      access_rules: buildAccessRulesForStorage({ ...getAR(editEvent), ...patch }),
+    });
   };
   const updateAF = (patch: Partial<AdditionalFields>) => {
     if (!editEvent) return;
-    setEditEvent({ ...editEvent, additional_fields: { ...getAF(editEvent), ...patch } });
+    const rawCurrent = isPlainRecord(editEvent.additional_fields) ? editEvent.additional_fields : {};
+    const current = getAF(editEvent);
+    const next: AdditionalFields = { ...current, ...patch };
+    if ("fields" in patch || "custom_fields" in patch) {
+      const fields = normalizeRegistrationFields(patch.fields || patch.custom_fields);
+      next.fields = fields;
+      next.custom_fields = fields;
+    }
+    if ("ask_car_availability" in patch || "show_car_availability" in patch || "car_availability_enabled" in patch) {
+      const value = Boolean(patch.ask_car_availability ?? patch.show_car_availability ?? patch.car_availability_enabled);
+      next.ask_car_availability = value;
+      if ("car_availability_enabled" in rawCurrent || "car_availability_enabled" in patch) {
+        next.car_availability_enabled = value;
+      } else {
+        delete next.car_availability_enabled;
+      }
+      if ("show_car_availability" in rawCurrent || "show_car_availability" in patch) {
+        next.show_car_availability = value;
+      } else {
+        delete next.show_car_availability;
+      }
+    }
+    setEditEvent({ ...editEvent, additional_fields: next });
   };
   const updateWeather = (patch: any) => {
-    if (!editEvent) return;
-    const af = getAF(editEvent);
-    setEditEvent({ ...editEvent, additional_fields: { ...af, weather_override: { ...getWeather(editEvent), ...patch } } });
+    const next = { ...getWeather(editEvent), ...patch };
+    updateAF({
+      weather_override_condition: next.weather_condition || null,
+      weather_override_temp_min: next.temp_min ?? null,
+      weather_override_temp_max: next.temp_max ?? null,
+      weather_override_temp_avg: next.temp_avg ?? null,
+    });
   };
   const updateClosingSentenceMode = (mode: "random" | "preset" | "manual") => {
     if (mode === "random") {
@@ -491,12 +776,8 @@ export default function EventsPage() {
   const updateClosingSentence = (sentence: string) => {
     updateAF({ closing_sentence: normalizeEventClosingSentence(sentence) || null });
   };
-  const updateAttendanceBadgeIds = (badgeIds: string[]) => {
-    if (!editEvent) return;
-    setEditEvent({
-      ...editEvent,
-      event_badges: replaceAttendanceBadgeIdsInEventBadges(editEvent.event_badges, badgeIds),
-    });
+  const updateSpecialBadgeIds = (badgeIds: string[]) => {
+    setLocalSpecialBadgeIds([...new Set(badgeIds.filter(Boolean))]);
   };
 
   const getPricingRules = (_evt: any): PricingRule[] => localPriceOptions;
@@ -529,7 +810,7 @@ export default function EventsPage() {
 
   const hasAnyAccessRule = (evt: any): boolean => {
     const r = getAR(evt);
-    return !!(r.min_trekking_events || r.min_activities || r.min_level || r.min_experiences || r.required_badge_ids?.length || r.required_badge_id || r.require_active_membership || r.require_manual_approval);
+    return !!(r.min_trekking_events || r.min_attended_events || r.min_level || r.min_experiences || r.required_badge_ids?.length || r.required_badge_id || r.require_active_membership || r.require_manual_approval);
   };
 
   /* ── Equipment list helpers ── */
@@ -543,7 +824,7 @@ export default function EventsPage() {
   };
 
   /* ── Custom fields helpers ── */
-  const getCustomFields = (evt: any): { label: string; type: string; required: boolean }[] => getAF(evt).custom_fields || [];
+  const getCustomFields = (evt: any): RegistrationField[] => getAF(evt).fields || getAF(evt).custom_fields || [];
 
   /* ── Open edit dialog ── */
   const handleOpenEdit = async (event: EventWithCategory) => {
@@ -556,13 +837,31 @@ export default function EventsPage() {
       .eq("event_id", event.id)
       .order("sort_order");
     if (priceOptionsError) throw priceOptionsError;
+    const { data: specialBadgeLinks, error: specialBadgesError } = await supabase
+      .from("event_special_badges")
+      .select("badge_id")
+      .eq("event_id", event.id);
+    if (specialBadgesError) throw specialBadgesError;
+    const specialBadgeIds = [
+      ...(specialBadgeLinks || []).map((link) => link.badge_id).filter(Boolean),
+      ...getLegacySpecialBadgeIdsFromEventBadges((event as any).event_badges),
+    ];
     setLocalMeetingPoints(mps);
-    setLocalPriceOptions((priceOptions || []).map((option) => priceOptionToRule(option, event.payment_type as PaymentType)));
-    setEditEvent({ ...event, gallery_images: normalizeGalleryImages(event.gallery_images) });
+    setLocalPriceOptions((priceOptions || []).map((option, index) => priceOptionToRule(option, event.payment_type as PaymentType, index)));
+    setLocalSpecialBadgeIds([...new Set(specialBadgeIds)]);
+    setEditEvent({
+      ...event,
+      gallery_images: normalizeGalleryImages(event.gallery_images),
+      access_rules: buildAccessRulesForStorage(event.access_rules),
+      additional_fields: buildAdditionalFieldsForStorage(event.additional_fields),
+      cancellation_policy: normalizeCancellationPolicy(event.cancellation_policy),
+      event_badges: canonicalizeEventBadges((event as any).event_badges),
+    });
   };
   const handleOpenCreate = () => {
     setLocalMeetingPoints([]);
     setLocalPriceOptions([]);
+    setLocalSpecialBadgeIds([]);
     setEditEvent({ ...emptyEvent, isNew: true });
   };
 
@@ -663,7 +962,7 @@ export default function EventsPage() {
     mutationFn: async (payload: { evt: any; mps: LocalMeetingPoint[]; priceOptions: PricingRule[] }) => {
       const { evt, mps, priceOptions } = payload;
       const { isNew, event_categories, event_price_options, ...data } = evt;
-      const validPriceOptions = priceOptions.filter((option) => option.name.trim());
+      const validPriceOptions = priceOptions;
       const primaryPriceOption = validPriceOptions[0];
       if (primaryPriceOption) {
         const primaryPaymentType = primaryPriceOption.payment_type || data.payment_type || "free";
@@ -674,7 +973,7 @@ export default function EventsPage() {
       }
 
       // Build duration with unit
-      const af = (data.additional_fields as AdditionalFields) || {};
+      const af = buildAdditionalFieldsForStorage(data.additional_fields);
       const durationUnit = af.duration_unit || "h";
       if (data._durationValue !== undefined) {
         data.duration = data._durationValue ? `${data._durationValue} ${durationUnit}` : null;
@@ -689,28 +988,10 @@ export default function EventsPage() {
         delete data._elevationValue;
       }
 
-      // Normalize badge IDs: merge legacy required_badge_id into required_badge_ids
-      const ar = (data.access_rules as AccessRules) || {};
-      if (ar.required_badge_id && (!ar.required_badge_ids || !ar.required_badge_ids.length)) {
-        ar.required_badge_ids = [ar.required_badge_id];
-      }
-      delete ar.required_badge_id;
-      delete ar.pricing_rules;
-      data.access_rules = ar;
-
-      const specialBadgeIds = new Set(badges.filter((badge) => badge.category === "special").map((badge) => badge.id));
-
-      // Auto-compute event badges
-      const foundingBadge = badges.find(b => b.name === "Founding Member");
-      const autoBadges = computeAutoBadgesForStorage(data, foundingBadge?.id);
-      const manualBadges = ((data.event_badges as any[]) || []).filter((b: any) => b !== "founding_event");
-      data.event_badges = [...new Set([...autoBadges, ...manualBadges])];
-      data.event_badges = replaceAttendanceBadgeIdsInEventBadges(
-        data.event_badges,
-        badges.length
-          ? getAttendanceBadgeIdsFromEventBadges(data.event_badges).filter((badgeId) => specialBadgeIds.has(badgeId))
-          : getAttendanceBadgeIdsFromEventBadges(data.event_badges),
-      );
+      data.additional_fields = af;
+      data.access_rules = buildAccessRulesForStorage(data.access_rules);
+      data.cancellation_policy = normalizeCancellationPolicy(data.cancellation_policy);
+      data.event_badges = canonicalizeEventBadges(data.event_badges);
       data.gallery_images = normalizeGalleryImages(data.gallery_images);
 
       let savedId = data.id;
@@ -811,7 +1092,7 @@ export default function EventsPage() {
           const depositAmount = optionPaymentType === "deposit" ? Number(option.deposit_amount || 0) : null;
           const optionPayload = {
             event_id: savedId,
-            name: option.name.trim(),
+            name: option.name.trim() || fallbackFormulaName(idx),
             price: Number(option.price || 0),
             sort_order: idx,
             eligible_group: eligibleGroupFromRule(option),
@@ -845,8 +1126,21 @@ export default function EventsPage() {
           }
         }
 
-        const attendanceBadgeIds = getAttendanceBadgeIdsFromEventBadges(data.event_badges);
-        if (attendanceBadgeIds.length) {
+        const { error: deleteSpecialBadgesError } = await supabase
+          .from("event_special_badges")
+          .delete()
+          .eq("event_id", savedId);
+        if (deleteSpecialBadgesError) throw deleteSpecialBadgesError;
+
+        const specialBadgeIds = [...new Set(localSpecialBadgeIds.filter(Boolean))];
+        if (specialBadgeIds.length) {
+          const { error: insertSpecialBadgesError } = await supabase
+            .from("event_special_badges")
+            .insert(specialBadgeIds.map((badgeId) => ({ event_id: savedId, badge_id: badgeId })));
+          if (insertSpecialBadgesError) throw insertSpecialBadgesError;
+        }
+
+        if (specialBadgeIds.length) {
           const { data: attendedUsers, error: attendedUsersError } = await supabase
             .from("event_registrations")
             .select("user_id, sport_level")
@@ -858,7 +1152,7 @@ export default function EventsPage() {
           const awardRows = [...new Set((attendedUsers || [])
             .filter((row) => row.user_id && !row.sport_level?.startsWith("manual:"))
             .map((row) => row.user_id))]
-            .flatMap((userId) => attendanceBadgeIds.map((badgeId) => ({ user_id: userId, badge_id: badgeId })));
+            .flatMap((userId) => specialBadgeIds.map((badgeId) => ({ user_id: userId, badge_id: badgeId })));
 
           if (awardRows.length) {
             const { error: awardError } = await supabase.from("user_badges").upsert(awardRows, {
@@ -884,6 +1178,7 @@ export default function EventsPage() {
       queryClient.invalidateQueries({ queryKey: ["admin-proposals"] });
       setEditEvent(null);
       setLocalPriceOptions([]);
+      setLocalSpecialBadgeIds([]);
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -1251,6 +1546,58 @@ export default function EventsPage() {
                     </Select>
                   </div>
                 </div>
+                <div className="space-y-3 rounded-lg border bg-card p-3">
+                  <div>
+                    <Label className="text-xs font-semibold">Categoria fit score principale</Label>
+                    <Select
+                      value={getAF(editEvent).fit_score_main_category || "none"}
+                      onValueChange={(value) => {
+                        const selected = value === "none" ? null : value;
+                        const secondary = (getAF(editEvent).fit_score_secondary_categories || []).filter((category) => category !== selected);
+                        updateAF({ fit_score_main_category: selected, fit_score_secondary_categories: secondary });
+                      }}
+                    >
+                      <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Seleziona categoria" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Nessuna</SelectItem>
+                        {INTEREST_CATEGORY_OPTIONS.map((option) => (
+                          <SelectItem key={option.id} value={option.label}>{option.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold">Categorie fit score secondarie</Label>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {INTEREST_CATEGORY_OPTIONS.filter((option) => option.label !== getAF(editEvent).fit_score_main_category).map((option) => {
+                        const selected = (getAF(editEvent).fit_score_secondary_categories || []).includes(option.label);
+                        const disabled = !selected && (getAF(editEvent).fit_score_secondary_categories || []).length >= FIT_SCORE_EVENT_SECONDARY_MAX;
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            disabled={disabled}
+                            onClick={() => {
+                              const current = getAF(editEvent).fit_score_secondary_categories || [];
+                              updateAF({
+                                fit_score_secondary_categories: selected
+                                  ? current.filter((category) => category !== option.label)
+                                  : [...current, option.label].slice(0, FIT_SCORE_EVENT_SECONDARY_MAX),
+                              });
+                            }}
+                            className={`rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
+                              selected
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-border bg-muted/40 text-foreground"
+                            } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
+                          >
+                            {option.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
                 <div className="space-y-2 rounded-lg border bg-card p-3">
                   <div className="flex items-center gap-2">
                     <Award className="h-4 w-4 text-primary" />
@@ -1263,8 +1610,7 @@ export default function EventsPage() {
                         <Button type="button" variant="outline" className="h-auto min-h-10 w-full justify-between whitespace-normal text-left font-normal">
                           <span className="flex flex-wrap gap-1.5">
                             {(() => {
-                              const selectedIds = getAttendanceBadgeIdsFromEventBadges(editEvent.event_badges);
-                              const selectedBadges = specialBadges.filter((badge) => selectedIds.includes(badge.id));
+                              const selectedBadges = specialBadges.filter((badge) => localSpecialBadgeIds.includes(badge.id));
 
                               if (!selectedBadges.length) {
                                 return <span className="text-muted-foreground">Nessun badge speciale selezionato</span>;
@@ -1283,8 +1629,7 @@ export default function EventsPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)] max-h-72 overflow-y-auto">
                         {specialBadges.map((badge) => {
-                          const selectedIds = getAttendanceBadgeIdsFromEventBadges(editEvent.event_badges);
-                          const selected = selectedIds.includes(badge.id);
+                          const selected = localSpecialBadgeIds.includes(badge.id);
 
                           return (
                             <DropdownMenuCheckboxItem
@@ -1292,9 +1637,9 @@ export default function EventsPage() {
                               checked={selected}
                               onCheckedChange={(checked) => {
                                 const nextIds = checked
-                                  ? [...selectedIds, badge.id]
-                                  : selectedIds.filter((id) => id !== badge.id);
-                                updateAttendanceBadgeIds([...new Set(nextIds)]);
+                                  ? [...localSpecialBadgeIds, badge.id]
+                                  : localSpecialBadgeIds.filter((id) => id !== badge.id);
+                                updateSpecialBadgeIds(nextIds);
                               }}
                               onSelect={(event) => event.preventDefault()}
                             >
@@ -1430,10 +1775,9 @@ export default function EventsPage() {
                 )}
                 <div>
                   <Label>Politica di cancellazione</Label>
-                  <Select value={editEvent.cancellation_policy || "none"} onValueChange={v => setEditEvent({ ...editEvent, cancellation_policy: v === "none" ? null : v })}>
+                  <Select value={normalizeCancellationPolicy(editEvent.cancellation_policy)} onValueChange={v => setEditEvent({ ...editEvent, cancellation_policy: normalizeCancellationPolicy(v) })}>
                     <SelectTrigger><SelectValue placeholder="Seleziona..." /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">Nessuna politica</SelectItem>
                       {CANCELLATION_POLICY_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
@@ -1706,10 +2050,10 @@ export default function EventsPage() {
                 </div>
                 <div>
                   <Label className="text-xs">Badge personalizzato</Label>
-                  <Input className="h-8 text-sm" placeholder="es. NUOVO, SPECIALE..." value={(() => { const c = ((editEvent.event_badges as any[]) || []).find((b: any) => typeof b === "object" && b?.type === "custom"); return c?.label || ""; })()} onChange={e => {
-                    const cur = ((editEvent.event_badges as any[]) || []).filter((b: any) => !(typeof b === "object" && b?.type === "custom"));
+                  <Input className="h-8 text-sm" placeholder="es. NUOVO, SPECIALE..." value={getCustomEventBadge(editEvent.event_badges)} onChange={e => {
+                    const cur = canonicalizeEventBadges(editEvent.event_badges).filter((badge) => MANAGED_EVENT_BADGES.has(badge));
                     const v = e.target.value.trim();
-                    setEditEvent({ ...editEvent, event_badges: v ? [...cur, { type: "custom", label: v }] : cur });
+                    setEditEvent({ ...editEvent, event_badges: v ? [...cur, v] : cur });
                   }} />
                 </div>
                 <div className="p-2 rounded border bg-muted/30">
@@ -1824,7 +2168,7 @@ export default function EventsPage() {
                 </div>
                 <div>
                   <Label className="text-xs">Min. presenze totali</Label>
-                  <Input type="number" min={0} className="h-8 text-sm w-1/2" placeholder="Nessun minimo" value={getAR(editEvent).min_activities ?? ""} onChange={e => updateAR({ min_activities: e.target.value ? parseInt(e.target.value) : null })} />
+                  <Input type="number" min={0} className="h-8 text-sm w-1/2" placeholder="Nessun minimo" value={getAR(editEvent).min_attended_events ?? ""} onChange={e => updateAR({ min_attended_events: e.target.value ? parseInt(e.target.value) : null })} />
                 </div>
 
                 <div className="flex items-center gap-3 p-2.5 rounded-md border bg-card">
@@ -1947,7 +2291,7 @@ export default function EventsPage() {
                     <p className="text-xs font-medium">Mostra campo disponibilità auto nella registrazione</p>
                     <p className="text-[10px] text-muted-foreground">Gli utenti potranno indicare: Sì, Preferirei di no, Non sono automunito</p>
                   </div>
-                  <Switch checked={getAF(editEvent).show_car_availability || false} onCheckedChange={v => updateAF({ show_car_availability: v })} />
+                  <Switch checked={getAF(editEvent).ask_car_availability || false} onCheckedChange={v => updateAF({ ask_car_availability: v })} />
                 </div>
               </section>
 
@@ -1958,7 +2302,7 @@ export default function EventsPage() {
                   <div className="flex items-center gap-2"><FileText className="h-4 w-4 text-primary" /><h4 className="text-sm font-semibold">Richieste speciali</h4></div>
                   <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => {
                     const fields = getCustomFields(editEvent);
-                    updateAF({ custom_fields: [...fields, { label: "", type: "text", required: false }] });
+                    updateAF({ fields: [...fields, { label: "", type: "text", required: false }] });
                   }}>
                     <Plus className="h-3 w-3 mr-1" /> Aggiungi campo
                   </Button>
@@ -1970,12 +2314,12 @@ export default function EventsPage() {
                     <Input className="h-8 text-sm flex-1" placeholder="Etichetta campo" value={f.label} onChange={e => {
                       const fields = [...getCustomFields(editEvent)];
                       fields[idx] = { ...fields[idx], label: e.target.value };
-                      updateAF({ custom_fields: fields });
+                      updateAF({ fields });
                     }} />
                     <Select value={f.type} onValueChange={v => {
                       const fields = [...getCustomFields(editEvent)];
                       fields[idx] = { ...fields[idx], type: v };
-                      updateAF({ custom_fields: fields });
+                      updateAF({ fields });
                     }}>
                       <SelectTrigger className="h-8 w-24 text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -1987,11 +2331,11 @@ export default function EventsPage() {
                     <Checkbox checked={f.required} onCheckedChange={v => {
                       const fields = [...getCustomFields(editEvent)];
                       fields[idx] = { ...fields[idx], required: !!v };
-                      updateAF({ custom_fields: fields });
+                      updateAF({ fields });
                     }} />
                     <span className="text-[10px] text-muted-foreground">Obbligatorio</span>
                     <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => {
-                      updateAF({ custom_fields: getCustomFields(editEvent).filter((_, i) => i !== idx) });
+                      updateAF({ fields: getCustomFields(editEvent).filter((_, i) => i !== idx) });
                     }}><X className="h-3.5 w-3.5" /></Button>
                   </div>
                 ))}
