@@ -216,6 +216,8 @@ export default function MembersPage() {
   });
 
   const exportMembers = () => {
+    const activeMembers = members.filter((m) => m.membership_status === "Active");
+
     exportToCsv(
       "tesserati_export",
       [
@@ -229,7 +231,7 @@ export default function MembersPage() {
         "Città residenza",
         "Provincia residenza",
       ],
-      members.map((m) => [
+      activeMembers.map((m) => [
         m.first_name,
         m.last_name,
         getMemberSex(m),
