@@ -20,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { exportToCsv } from "@/lib/exportUtils";
 import { FOUNDING_MEMBER_BADGE_NAME, countMembersWithFoundingMemberBadge, hasFoundingMemberBadge } from "@/lib/foundingMember";
 import { formatMembershipId } from "@/lib/membership";
 import { PrepaidMembershipImport } from "@/components/members/PrepaidMembershipImport";
@@ -33,6 +34,17 @@ type UserBadgeRow = {
   badge_id: string;
   badges: { name: string | null; icon: string | null } | null;
 };
+
+const getOptionalProfileString = (profile: Profile, fieldNames: string[]) => {
+  const record = profile as Profile & Record<string, unknown>;
+  for (const fieldName of fieldNames) {
+    const value = record[fieldName];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return "";
+};
+
+const getMemberSex = (profile: Profile) => getOptionalProfileString(profile, ["gender", "sex", "sesso"]);
 
 export default function MembersPage() {
   const { t } = useLanguage();
@@ -204,26 +216,18 @@ export default function MembersPage() {
   });
 
   const exportMembers = () => {
-    const headers = ["Name", "Email", "Phone", "Membership ID", "Year", "Status"];
-    const csvData = members.map((m) => [
-      `${m.first_name} ${m.last_name}`,
-      "", // Email is not in profiles table, would need a join or fetch if needed
-      m.phone,
-      m.membership_id || "",
-      m.membership_year || "",
-      m.membership_status || "Inactive",
-    ]);
-
-    const csvContent = [headers, ...csvData].map((row) => row.join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", `members_export_${new Date().toISOString().split("T")[0]}.csv`);
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    exportToCsv(
+      "tesserati_export",
+      ["Nome", "Cognome", "Sesso", "Data di nascita", "Luogo nascita", "E-mail"],
+      members.map((m) => [
+        m.first_name,
+        m.last_name,
+        getMemberSex(m),
+        m.birth_date || "",
+        m.birth_place || "",
+        m.email || "",
+      ])
+    );
   };
 
   const bulkExpireMemberships = useMutation({
