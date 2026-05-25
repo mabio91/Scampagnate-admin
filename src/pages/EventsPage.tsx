@@ -77,6 +77,10 @@ const normalizeEditableEventStatus = (status?: string | null) => {
     : "open";
 };
 
+const normalizeEditableVisibility = (visibility?: string | null) => {
+  return visibility === "private" ? "private" : "public";
+};
+
 /* ══════ Types ══════ */
 type PricingRule = {
   id: string;
@@ -1041,6 +1045,7 @@ export default function EventsPage() {
       additional_fields: buildAdditionalFieldsForStorage(event.additional_fields),
       cancellation_policy: normalizeCancellationPolicy(event.cancellation_policy),
       event_badges: canonicalizeEventBadges((event as any).event_badges),
+      visibility: normalizeEditableVisibility(event.visibility),
     });
   };
   const handleOpenCreate = () => {
@@ -1179,6 +1184,7 @@ export default function EventsPage() {
       data.cancellation_policy = normalizeCancellationPolicy(data.cancellation_policy);
       data.event_badges = canonicalizeEventBadges(data.event_badges);
       data.gallery_images = normalizeGalleryImages(data.gallery_images);
+      data.visibility = normalizeEditableVisibility(data.visibility);
 
       let savedId = data.id;
       if (isNew) {
@@ -2277,12 +2283,11 @@ export default function EventsPage() {
                 <div className="flex items-center gap-2"><Shield className="h-4 w-4 text-primary" /><h4 className="text-sm font-semibold">Regole di iscrizione</h4></div>
                 <div className="space-y-2 p-3 rounded-lg border bg-card">
                   <Label className="text-xs font-semibold flex items-center gap-1.5"><Eye className="h-3.5 w-3.5 text-primary" /> Visibilità</Label>
-                  <Select value={editEvent.visibility || "public"} onValueChange={v => setEditEvent({ ...editEvent, visibility: v })}>
+                  <Select value={normalizeEditableVisibility(editEvent.visibility)} onValueChange={v => setEditEvent({ ...editEvent, visibility: v })}>
                     <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="public">Pubblico — visibile a tutti</SelectItem>
                       <SelectItem value="private">Privato — solo link diretto</SelectItem>
-                      <SelectItem value="hidden">Nascosto — solo organizzatori e admin</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
