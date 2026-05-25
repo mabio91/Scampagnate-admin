@@ -218,7 +218,17 @@ export default function MembersPage() {
   const exportMembers = () => {
     exportToCsv(
       "tesserati_export",
-      ["Nome", "Cognome", "Sesso", "Data di nascita", "Luogo nascita", "E-mail"],
+      [
+        "Nome",
+        "Cognome",
+        "Sesso",
+        "Data di nascita",
+        "Luogo nascita",
+        "E-mail",
+        "Indirizzo residenza",
+        "Città residenza",
+        "Provincia residenza",
+      ],
       members.map((m) => [
         m.first_name,
         m.last_name,
@@ -226,6 +236,9 @@ export default function MembersPage() {
         m.birth_date || "",
         m.birth_place || "",
         m.email || "",
+        m.residential_address || "",
+        m.city_of_residence || "",
+        m.province_of_residence || "",
       ])
     );
   };
