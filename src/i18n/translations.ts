@@ -176,6 +176,7 @@ export const translations = {
   "members.bulkExpire": { it: "Scadenza Massiva", en: "Bulk Expire" },
   "members.sendRenewalReminders": { it: "Invia Promemoria Rinnovo", en: "Send Renewal Reminders" },
   "members.exportCsv": { it: "Esporta CSV", en: "Export CSV" },
+  "members.exportExcel": { it: "Esporta Excel AICS", en: "Export AICS Excel" },
   "members.membershipYear": { it: "Anno Tessera", en: "Membership Year" },
   "members.foundingMemberToggle": { it: "Socio Fondatore", en: "Founding Member" },
   "members.bulkExpireTitle": { it: "Scadenza Massiva Tessere", en: "Bulk Expire Memberships" },

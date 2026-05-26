@@ -20,7 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import { useLanguage } from "@/i18n/LanguageContext";
-import { exportToCsv } from "@/lib/exportUtils";
+import { exportAicsMembershipXlsx } from "@/lib/aicsMembershipExport";
 import { FOUNDING_MEMBER_BADGE_NAME, countMembersWithFoundingMemberBadge, hasFoundingMemberBadge } from "@/lib/foundingMember";
 import { formatMembershipId } from "@/lib/membership";
 import { PrepaidMembershipImport } from "@/components/members/PrepaidMembershipImport";
@@ -218,31 +218,23 @@ export default function MembersPage() {
   const exportMembers = () => {
     const activeMembers = members.filter((m) => m.membership_status === "Active");
 
-    exportToCsv(
-      "tesserati_export",
-      [
-        "Nome",
-        "Cognome",
-        "Sesso",
-        "Data di nascita",
-        "Luogo nascita",
-        "E-mail",
-        "Indirizzo residenza",
-        "Città residenza",
-        "Provincia residenza",
-      ],
-      activeMembers.map((m) => [
-        m.first_name,
-        m.last_name,
-        getMemberSex(m),
-        m.birth_date || "",
-        m.birth_place || "",
-        m.email || "",
-        m.residential_address || "",
-        m.city_of_residence || "",
-        m.province_of_residence || "",
-      ])
+    exportAicsMembershipXlsx(
+      "modello_importazione_soci",
+      activeMembers.map((m) => ({
+        first_name: m.first_name,
+        last_name: m.last_name,
+        sex: getMemberSex(m),
+        birth_date: m.birth_date,
+        province_of_birth: m.province_of_birth,
+        birth_place: m.birth_place,
+        residential_address: m.residential_address,
+        province_of_residence: m.province_of_residence,
+        city_of_residence: m.city_of_residence,
+        phone: m.phone,
+        email: m.email,
+      }))
     );
+    toast.success(`${activeMembers.length} tesserati attivi esportati in Excel`);
   };
 
   const bulkExpireMemberships = useMutation({
@@ -409,7 +401,7 @@ export default function MembersPage() {
             <Bell className="h-4 w-4" /> {t("members.sendRenewalReminders")}
           </Button>
           <Button variant="outline" className="gap-2" onClick={exportMembers}>
-            <Download className="h-4 w-4" /> {t("members.exportCsv")}
+            <Download className="h-4 w-4" /> {t("members.exportExcel")}
           </Button>
         </div>
       </div>
