@@ -69,4 +69,22 @@ describe("AICS membership export", () => {
     expect(blob.type).toBe("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     expect(String.fromCharCode(bytes[0], bytes[1])).toBe("PK");
   });
+
+  it("orders worksheet XML nodes in the sequence required by Excel", async () => {
+    const blob = createAicsMembershipXlsxBlob(buildAicsMembershipRows([]));
+    const xlsxText = new TextDecoder().decode(await blob.arrayBuffer());
+    const worksheetStart = xlsxText.indexOf("<worksheet");
+    const dimensionIndex = xlsxText.indexOf("<dimension", worksheetStart);
+    const sheetViewsIndex = xlsxText.indexOf("<sheetViews", worksheetStart);
+    const columnsIndex = xlsxText.indexOf("<cols>", worksheetStart);
+    const sheetDataIndex = xlsxText.indexOf("<sheetData>", worksheetStart);
+    const mergeCellsIndex = xlsxText.indexOf("<mergeCells", worksheetStart);
+
+    expect(worksheetStart).toBeGreaterThan(-1);
+    expect(dimensionIndex).toBeGreaterThan(worksheetStart);
+    expect(sheetViewsIndex).toBeGreaterThan(dimensionIndex);
+    expect(columnsIndex).toBeGreaterThan(sheetViewsIndex);
+    expect(sheetDataIndex).toBeGreaterThan(columnsIndex);
+    expect(mergeCellsIndex).toBeGreaterThan(sheetDataIndex);
+  });
 });

@@ -210,7 +210,7 @@ function worksheetXml(rows: string[][]) {
     })
     .join("");
 
-  return xmlDocument(`<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetViews><sheetView workbookViewId="0"><pane ySplit="2" topLeftCell="A3" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><dimension ref="A1:Z${Math.max(rows.length, 2)}"/><cols>${COLUMN_WIDTHS.map((width, index) => `<col min="${index + 1}" max="${index + 1}" width="${width}" customWidth="1"/>`).join("")}</cols><sheetData>${rowXml}</sheetData><mergeCells count="${MERGED_RANGES.length}">${MERGED_RANGES.map((range) => `<mergeCell ref="${range}"/>`).join("")}</mergeCells></worksheet>`);
+  return xmlDocument(`<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><dimension ref="A1:Z${Math.max(rows.length, 2)}"/><sheetViews><sheetView workbookViewId="0"><pane ySplit="2" topLeftCell="A3" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${COLUMN_WIDTHS.map((width, index) => `<col min="${index + 1}" max="${index + 1}" width="${width}" customWidth="1"/>`).join("")}</cols><sheetData>${rowXml}</sheetData><mergeCells count="${MERGED_RANGES.length}">${MERGED_RANGES.map((range) => `<mergeCell ref="${range}"/>`).join("")}</mergeCells></worksheet>`);
 }
 
 function cellXml(value: string, rowNumber: number, columnNumber: number, styleIndex: number) {
