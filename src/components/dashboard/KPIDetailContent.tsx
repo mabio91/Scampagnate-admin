@@ -63,6 +63,7 @@ function statusBadge(status: string) {
     cancelled: "bg-destructive/10 text-destructive",
     full: "bg-warning/10 text-warning",
     past: "bg-muted text-muted-foreground",
+    completed: "bg-muted text-muted-foreground",
     closed: "bg-muted text-muted-foreground",
   };
   return <Badge variant="outline" className={colors[status] || ""}>{status}</Badge>;

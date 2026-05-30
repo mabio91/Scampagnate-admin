@@ -142,6 +142,7 @@ export function DashboardFilters({ filters, onChange }: DashboardFiltersProps) {
           <SelectItem value="closed">Chiuso</SelectItem>
           <SelectItem value="cancelled">Annullato</SelectItem>
           <SelectItem value="past">Passato</SelectItem>
+          <SelectItem value="completed">Concluso</SelectItem>
         </SelectContent>
       </Select>
 

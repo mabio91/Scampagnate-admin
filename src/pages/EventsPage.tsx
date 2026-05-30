@@ -46,7 +46,8 @@ const getLocalDateString = () => {
   return new Date(today.getTime() - timezoneOffset).toISOString().slice(0, 10);
 };
 
-const isEventPast = (event: Event, today = getLocalDateString()) => event.date < today;
+const isEventPast = (event: Event, today = getLocalDateString()) =>
+  ["past", "completed"].includes(event.status) || event.date < today;
 
 const statusColors: Record<string, string> = {
   available: "text-success border-success/30 bg-success/10",

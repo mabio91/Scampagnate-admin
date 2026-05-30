@@ -717,7 +717,7 @@ export default function Dashboard() {
       const { data: recentEventsForNoShow } = await supabase
         .from("events")
         .select("id, title")
-        .in("status", ["past", "closed"])
+        .in("status", ["past", "completed", "closed"])
         .order("date", { ascending: false })
         .limit(50);
       if (recentEventsForNoShow && recentEventsForNoShow.length > 0) {
