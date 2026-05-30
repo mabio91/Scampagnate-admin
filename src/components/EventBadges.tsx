@@ -8,6 +8,7 @@ export const MANUAL_BADGE_OPTIONS = [
   { value: "consigliato", label: "CONSIGLIATO", color: "bg-blue-500 text-white" },
   { value: "prezzo_speciale", label: "PREZZO SPECIALE", color: "bg-purple-500 text-white" },
   { value: "early_bird", label: "EARLY BIRD", color: "bg-orange-500 text-white" },
+  { value: "pet_friendly", label: "🐶 Friendly", color: "bg-emerald-500 text-white" },
 ] as const;
 
 export type EventBadgeEntry = {
