@@ -1063,15 +1063,14 @@ export default function EventsPage() {
 
   /* ── Image upload ── */
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: "cover" | "gallery") => {
-    const files = e.target.files;
+    const file = e.target.files?.[0];
     e.target.value = "";
-    if (!files?.length || !editEvent) return;
+    if (!file || !editEvent) return;
     const currentGallery = normalizeGalleryImages(editEvent.gallery_images);
     if (type === "gallery" && currentGallery.length >= 5) {
       toast.error("Massimo 5 immagini galleria");
       return;
     }
-    const file = files[0];
     if (!file.type.startsWith("image/")) {
       toast.error("Seleziona un file immagine");
       return;
