@@ -1483,48 +1483,6 @@ export default function EventsPage() {
 
   return (
     <>
-    <ImageCropDialog
-      open={!!imageCropTarget}
-      file={imageCropTarget?.file || null}
-      title={
-        imageCropTarget?.type === "gallery"
-          ? "Ritaglia immagine galleria"
-          : imageCropTarget?.type === "coverHome"
-            ? "Ritaglia anteprima home"
-            : "Ritaglia copertina"
-      }
-      description={
-        imageCropTarget?.type === "coverHome"
-          ? "Scegli la porzione quadrata mostrata nelle card della home."
-          : imageCropTarget?.type === "cover"
-            ? "Scegli il ritaglio 1:1 usato nel dettaglio evento."
-            : undefined
-      }
-      aspect={{ width: 1, height: 1 }}
-      outputWidth={1200}
-      outputHeight={1200}
-      onCancel={() => {
-        const target = imageCropTarget;
-        setImageCropTarget(null);
-        if (target?.type === "coverHome" && target.coverFile) {
-          void uploadCoverImages(target.coverFile);
-        }
-      }}
-      onCropped={(croppedFile) => {
-        const target = imageCropTarget;
-        setImageCropTarget(null);
-        if (!target) return;
-        if (target.type === "cover") {
-          setImageCropTarget({ file: target.file, type: "coverHome", coverFile: croppedFile });
-          return;
-        }
-        if (target.type === "coverHome" && target.coverFile) {
-          void uploadCoverImages(target.coverFile, croppedFile);
-          return;
-        }
-        if (target.type === "gallery") void uploadCroppedImage(croppedFile, "gallery");
-      }}
-    />
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -2700,6 +2658,48 @@ export default function EventsPage() {
         </DialogContent>
       </Dialog>
     </div>
+    <ImageCropDialog
+      open={!!imageCropTarget}
+      file={imageCropTarget?.file || null}
+      title={
+        imageCropTarget?.type === "gallery"
+          ? "Ritaglia immagine galleria"
+          : imageCropTarget?.type === "coverHome"
+            ? "Ritaglia anteprima home"
+            : "Ritaglia copertina"
+      }
+      description={
+        imageCropTarget?.type === "coverHome"
+          ? "Scegli la porzione quadrata mostrata nelle card della home."
+          : imageCropTarget?.type === "cover"
+            ? "Scegli il ritaglio 1:1 usato nel dettaglio evento."
+            : undefined
+      }
+      aspect={{ width: 1, height: 1 }}
+      outputWidth={1200}
+      outputHeight={1200}
+      onCancel={() => {
+        const target = imageCropTarget;
+        setImageCropTarget(null);
+        if (target?.type === "coverHome" && target.coverFile) {
+          void uploadCoverImages(target.coverFile);
+        }
+      }}
+      onCropped={(croppedFile) => {
+        const target = imageCropTarget;
+        setImageCropTarget(null);
+        if (!target) return;
+        if (target.type === "cover") {
+          setImageCropTarget({ file: target.file, type: "coverHome", coverFile: croppedFile });
+          return;
+        }
+        if (target.type === "coverHome" && target.coverFile) {
+          void uploadCoverImages(target.coverFile, croppedFile);
+          return;
+        }
+        if (target.type === "gallery") void uploadCroppedImage(croppedFile, "gallery");
+      }}
+    />
     </>
   );
 }
