@@ -80,6 +80,9 @@ const normalizeEditableEventStatus = (status?: string | null) => {
     : "open";
 };
 
+const canSaveIncompleteEventDraft = (status?: string | null) =>
+  normalizeEditableEventStatus(status) === "draft";
+
 /* ══════ Types ══════ */
 type PricingRule = {
   id: string;
@@ -1479,11 +1482,12 @@ export default function EventsPage() {
   const specialBadges = badges.filter((badge) => badge.category === "special" && badge.name !== "Founding Member");
   const handleSaveEvent = () => {
     if (!editEvent) return;
-    if (!editEvent.image_url) {
+    const requiresPublicationFields = !canSaveIncompleteEventDraft(editEvent.status);
+    if (requiresPublicationFields && !editEvent.image_url) {
       toast.error("Carica un'immagine di copertina");
       return;
     }
-    if (!getAF(editEvent).fit_score_main_category) {
+    if (requiresPublicationFields && !getAF(editEvent).fit_score_main_category) {
       toast.error("Seleziona la categoria fit score principale");
       return;
     }
@@ -1882,7 +1886,10 @@ export default function EventsPage() {
               <section className="space-y-3">
                 <h4 className="text-sm font-semibold border-b pb-1">🖼️ Galleria</h4>
                 <div className="space-y-2">
-                  <Label className="flex items-center gap-2">Immagine di copertina <span className="text-destructive font-bold">*</span></Label>
+                  <Label className="flex items-center gap-2">
+                    Immagine di copertina
+                    {!canSaveIncompleteEventDraft(editEvent.status) && <span className="text-destructive font-bold">*</span>}
+                  </Label>
                   <div className="flex items-start gap-4">
                     <div className="relative h-24 w-24 bg-muted rounded-md border border-dashed overflow-hidden flex items-center justify-center">
                       {editEvent.image_url ? (
@@ -2659,7 +2666,7 @@ export default function EventsPage() {
             <Button variant="outline" onClick={() => setEditEvent(null)}>Annulla</Button>
             <Button
               onClick={handleSaveEvent}
-              disabled={saveMutation.isPending || !editEvent?.image_url}
+              disabled={saveMutation.isPending}
             >
               {saveMutation.isPending ? "Salvataggio..." : "Salva"}
             </Button>
