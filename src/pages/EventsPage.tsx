@@ -28,6 +28,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { GoogleAddressInput } from "@/components/GoogleAddressInput";
 import ImageCropDialog from "@/components/ImageCropDialog";
 import { HOME_CARD_IMAGE_FIELD, getEventHomeCardImageUrl } from "@/lib/eventImages";
+import { compressImageForUpload } from "@/lib/imageCompression";
 import { ensurePrimaryMeetingPoint, type PrimaryMeetingPointSource } from "@/lib/meetingPoints";
 
 type Event = Tables<"events">;
@@ -647,7 +648,7 @@ export default function EventsPage() {
   const [localEventStaff, setLocalEventStaff] = useState<LocalEventStaff[]>([]);
   const [activeStaffSearchIndex, setActiveStaffSearchIndex] = useState<number | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [imageCropTarget, setImageCropTarget] = useState<{ file: File; type: "cover" | "coverHome" | "gallery"; coverFile?: File } | null>(null);
+  const [imageCropTarget, setImageCropTarget] = useState<{ file: File; type: "cover" | "coverHome"; coverFile?: File } | null>(null);
   const [convertProposalId, setConvertProposalId] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { data: difficultyLevels = [] } = useTrekkingDifficultyLevels();
@@ -1079,6 +1080,10 @@ export default function EventsPage() {
       toast.error("L'immagine originale deve essere inferiore a 25MB");
       return;
     }
+    if (type === "gallery") {
+      void uploadGalleryImage(file);
+      return;
+    }
     setImageCropTarget({ file, type });
   };
 
@@ -1122,12 +1127,17 @@ export default function EventsPage() {
     }
   };
 
-  const uploadCroppedImage = async (file: File, type: "gallery") => {
+  const uploadGalleryImage = async (file: File) => {
     if (!editEvent) return;
     const currentGallery = normalizeGalleryImages(editEvent.gallery_images);
     setIsUploading(true);
     try {
-      const publicUrl = await uploadEventImageFile(file);
+      const galleryFile = await compressImageForUpload(file, {
+        maxDimension: 1800,
+        quality: 0.82,
+        outputType: "image/jpeg",
+      });
+      const publicUrl = await uploadEventImageFile(galleryFile);
       setEditEvent({
         ...editEvent,
         gallery_images: [...currentGallery, { url: publicUrl, order: currentGallery.length }],
@@ -2660,13 +2670,7 @@ export default function EventsPage() {
     <ImageCropDialog
       open={!!imageCropTarget}
       file={imageCropTarget?.file || null}
-      title={
-        imageCropTarget?.type === "gallery"
-          ? "Ritaglia immagine galleria"
-          : imageCropTarget?.type === "coverHome"
-            ? "Ritaglia anteprima home"
-            : "Ritaglia copertina"
-      }
+      title={imageCropTarget?.type === "coverHome" ? "Ritaglia anteprima home" : "Ritaglia copertina"}
       description={
         imageCropTarget?.type === "coverHome"
           ? "Scegli la porzione quadrata mostrata nelle card della home."
@@ -2696,7 +2700,6 @@ export default function EventsPage() {
           void uploadCoverImages(target.coverFile, croppedFile);
           return;
         }
-        if (target.type === "gallery") void uploadCroppedImage(croppedFile, "gallery");
       }}
     />
     </>
