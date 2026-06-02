@@ -11,6 +11,7 @@ import { EventBadgePills } from "@/components/EventBadges";
 import { EventShareLinks } from "@/components/EventShareLinks";
 import { useTrekkingDifficultyLevels, getDifficultyByValue } from "@/hooks/useTrekkingDifficultyLevels";
 import { renderEventDescriptionHtml } from "@/lib/eventDescription";
+import { getPriceOptionDisplayName } from "@/lib/priceOptions";
 import {
   ArrowLeft, MapPin, Calendar, Clock, Users, DollarSign,
   Eye, Shield, Image as ImageIcon, ChevronRight,
@@ -274,7 +275,7 @@ export default function EventDetailPage() {
                     <div key={option.id} className="rounded-lg border bg-muted/30 p-3 text-sm">
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className="font-medium">{option.name}</p>
+                          <p className="font-medium">{getPriceOptionDisplayName(option)}</p>
                           <p className="text-xs text-muted-foreground">{getPriceOptionPaymentSummary(option, event)}</p>
                           <p className="text-xs text-muted-foreground">
                             {option.has_dedicated_spots ? `${option.spots_taken || 0}/${option.dedicated_spots || 0} posti dedicati` : "Usa capienza evento"}

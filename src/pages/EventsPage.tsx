@@ -29,6 +29,7 @@ import { GoogleAddressInput } from "@/components/GoogleAddressInput";
 import ImageCropDialog from "@/components/ImageCropDialog";
 import { HOME_CARD_IMAGE_FIELD, getEventHomeCardImageUrl } from "@/lib/eventImages";
 import { compressImageForUpload } from "@/lib/imageCompression";
+import { isGeneratedPriceOptionName } from "@/lib/priceOptions";
 
 type Event = Tables<"events">;
 type EventWithCategory = Event & {
@@ -580,10 +581,9 @@ const eligibleGroupFromRule = (rule: PricingRule) => {
   return "all";
 };
 
-const fallbackFormulaName = (index: number) => `Formula ${index + 1}`;
 const normalizeFormulaInputName = (name: string | null | undefined, index: number) => {
   const trimmedName = name?.trim() || "";
-  return trimmedName === fallbackFormulaName(index) ? "" : trimmedName;
+  return trimmedName === `Formula ${index + 1}` || isGeneratedPriceOptionName(trimmedName) ? "" : trimmedName;
 };
 
 const priceOptionToRule = (option: any, fallbackPaymentType: PaymentType, index: number): PricingRule => {
@@ -1316,7 +1316,7 @@ export default function EventsPage() {
           const depositAmount = optionPaymentType === "deposit" ? Number(option.deposit_amount || 0) : null;
           const optionPayload = {
             event_id: savedId,
-            name: option.name.trim() || fallbackFormulaName(idx),
+            name: option.name.trim(),
             price: Number(option.price || 0),
             sort_order: idx,
             eligible_group: eligibleGroupFromRule(option),
