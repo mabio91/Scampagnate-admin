@@ -29,7 +29,6 @@ import { GoogleAddressInput } from "@/components/GoogleAddressInput";
 import ImageCropDialog from "@/components/ImageCropDialog";
 import { HOME_CARD_IMAGE_FIELD, getEventHomeCardImageUrl } from "@/lib/eventImages";
 import { compressImageForUpload } from "@/lib/imageCompression";
-import { ensurePrimaryMeetingPoint, type PrimaryMeetingPointSource } from "@/lib/meetingPoints";
 
 type Event = Tables<"events">;
 type EventWithCategory = Event & {
@@ -645,7 +644,6 @@ export default function EventsPage() {
   const eventPeriod = periodParam && EVENT_PERIOD_FILTERS.includes(periodParam) ? periodParam : "upcoming";
   const [editEvent, setEditEvent] = useState<(Record<string, any> & { isNew?: boolean }) | null>(null);
   const [localMeetingPoints, setLocalMeetingPoints] = useState<LocalMeetingPoint[]>([]);
-  const [initialMeetingPointSource, setInitialMeetingPointSource] = useState<PrimaryMeetingPointSource | null>(null);
   const [localPriceOptions, setLocalPriceOptions] = useState<PricingRule[]>([]);
   const [localSpecialBadgeIds, setLocalSpecialBadgeIds] = useState<string[]>([]);
   const [localEventStaff, setLocalEventStaff] = useState<LocalEventStaff[]>([]);
@@ -662,7 +660,6 @@ export default function EventsPage() {
     if (state?.convertProposal) {
       const p = state.convertProposal;
       setLocalMeetingPoints([]);
-      setInitialMeetingPointSource(null);
       setLocalPriceOptions([]);
       setLocalSpecialBadgeIds([]);
       setLocalEventStaff([]);
@@ -1030,11 +1027,6 @@ export default function EventsPage() {
     ];
     const mappedPriceOptions = (priceOptions || []).map((option, index) => priceOptionToRule(option, event.payment_type as PaymentType, index));
     setLocalMeetingPoints(mps);
-    setInitialMeetingPointSource({
-      location: event.location,
-      locationLabel: event.location_label,
-      time: event.time,
-    });
     setLocalPriceOptions(mappedPriceOptions.length ? mappedPriceOptions : [legacyEventPriceOptionToRule(event)]);
     setLocalSpecialBadgeIds([...new Set(specialBadgeIds)]);
     setLocalEventStaff(((staffRows || []) as EventStaffRow[]).map((member) => ({
@@ -1058,7 +1050,6 @@ export default function EventsPage() {
   };
   const handleOpenCreate = () => {
     setLocalMeetingPoints([]);
-    setInitialMeetingPointSource(null);
     setLocalPriceOptions([]);
     setLocalSpecialBadgeIds([]);
     setLocalEventStaff([]);
@@ -1216,22 +1207,7 @@ export default function EventsPage() {
       // Registrations can reference meeting points, so removed points must be
       // unlinked before deletion or Postgres will reject the delete.
       if (savedId) {
-        const ensuredMeetingPoints = ensurePrimaryMeetingPoint(
-          mps,
-          {
-            location: data.location,
-            locationLabel: data.location_label,
-            time: data.time,
-          },
-          (point) => ({
-            _key: crypto.randomUUID(),
-            ...point,
-            notes: "",
-            sort_order: 0,
-          }),
-          initialMeetingPointSource,
-        );
-        const validMps = ensuredMeetingPoints.filter(mp => mp.name.trim());
+        const validMps = mps.filter(mp => mp.name.trim());
 
         const { data: existingMps, error: existingMpsError } = await supabase
           .from("event_meeting_points")
