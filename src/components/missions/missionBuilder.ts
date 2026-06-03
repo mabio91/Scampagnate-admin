@@ -183,6 +183,7 @@ export type MissionEnriched = {
   status: MissionStatus;
   visibility: MissionVisibility;
   type: MissionType;
+  timezone: string | null;
   starts_at: string | null;
   ends_at: string | null;
   sort_order: number;

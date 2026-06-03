@@ -28,6 +28,56 @@ const slugify = (value: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
+const PERIODIC_MISSION_TYPES = new Set(["monthly", "weekly"]);
+
+const getZonedDateParts = (date: Date, timezone: string) => {
+  const readParts = (timeZone: string) => {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    const parts = formatter.formatToParts(date);
+    const getPart = (type: string) => Number(parts.find((part) => part.type === type)?.value || 0);
+
+    return {
+      year: getPart("year"),
+      month: getPart("month"),
+      day: getPart("day"),
+    };
+  };
+
+  try {
+    return readParts(timezone);
+  } catch {
+    return readParts("Europe/Rome");
+  }
+};
+
+const getMissionCycleKey = (missionType: string, timezone?: string | null, date = new Date()) => {
+  const normalizedType = missionType.toLowerCase();
+  const safeTimezone = timezone?.trim() || "Europe/Rome";
+  const parts = getZonedDateParts(date, safeTimezone);
+
+  if (normalizedType === "monthly") {
+    return `${parts.year}-${String(parts.month).padStart(2, "0")}`;
+  }
+
+  if (normalizedType === "weekly") {
+    const utcDate = new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
+    const dayOfWeek = utcDate.getUTCDay() || 7;
+    utcDate.setUTCDate(utcDate.getUTCDate() + 4 - dayOfWeek);
+    const isoYear = utcDate.getUTCFullYear();
+    const yearStart = new Date(Date.UTC(isoYear, 0, 1));
+    const isoWeek = Math.ceil((((utcDate.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+
+    return `${isoYear}-W${String(isoWeek).padStart(2, "0")}`;
+  }
+
+  return "lifetime";
+};
+
 export default function MissionsPage() {
   const queryClient = useQueryClient();
   const [dialog, setDialog] = useState(false);
@@ -43,7 +93,7 @@ export default function MissionsPage() {
         supabase.from("mission_rewards" as any).select("*").order("sort_order", { ascending: true }),
         supabase.from("mission_prerequisites" as any).select("*").order("sort_order", { ascending: true }),
         supabase.from("mission_campaigns" as any).select("*").order("starts_at", { ascending: false }),
-        supabase.from("user_mission_progress" as any).select("mission_id, user_id, is_completed, completed_at"),
+        supabase.from("user_mission_progress" as any).select("mission_id, user_id, cycle_key, is_completed, completed_at"),
       ]);
 
       if (missionsRes.error) throw missionsRes.error;
@@ -87,7 +137,10 @@ export default function MissionsPage() {
 
       const missions: MissionEnriched[] = (missionsRes.data || []).map((mission: any) => {
         const campaign = campaignRows.find((item) => item.id === mission.campaign_id) || null;
-        const progressRows = progressByMission.get(mission.id) || [];
+        const allProgressRows = progressByMission.get(mission.id) || [];
+        const progressRows = PERIODIC_MISSION_TYPES.has(String(mission.type || "").toLowerCase())
+          ? allProgressRows.filter((row: any) => row.cycle_key === getMissionCycleKey(mission.type, mission.timezone))
+          : allProgressRows;
         const startedUsers = new Set(progressRows.map((row: any) => row.user_id)).size;
         const completedRows = progressRows.filter((row: any) => row.is_completed);
         const completedUsers = new Set(completedRows.map((row: any) => row.user_id)).size;
