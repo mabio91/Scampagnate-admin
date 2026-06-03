@@ -18,6 +18,34 @@ type Props = Omit<ComponentProps<typeof Input>, "value" | "onChange"> & {
   onPlaceSelect?: (place: { address: string; name?: string }) => void;
 };
 
+const placeDisplayNameText = (displayName: any) => {
+  if (typeof displayName === "string") return displayName;
+  return displayName?.text;
+};
+
+const formatSelectedPlaceAddress = (
+  placeName?: string,
+  formattedAddress?: string,
+  fallback?: string,
+) => {
+  const cleanName = placeName?.trim();
+  const cleanAddress = formattedAddress?.trim();
+  const cleanFallback = fallback?.trim();
+
+  if (cleanName && cleanAddress) {
+    const normalizedName = cleanName.toLocaleLowerCase("it-IT");
+    const normalizedAddress = cleanAddress.toLocaleLowerCase("it-IT");
+
+    if (normalizedAddress === normalizedName || normalizedAddress.startsWith(`${normalizedName},`)) {
+      return cleanAddress;
+    }
+
+    return `${cleanName}, ${cleanAddress}`;
+  }
+
+  return cleanAddress || cleanName || cleanFallback || "";
+};
+
 export function GoogleAddressInput({
   value,
   onValueChange,
@@ -126,9 +154,10 @@ export function GoogleAddressInput({
       const place = suggestion.prediction?.toPlace?.();
       if (place) {
         await place.fetchFields({ fields: ["displayName", "formattedAddress"] });
+        const placeName = placeDisplayNameText(place.displayName);
         onPlaceSelect?.({
-          address: place.formattedAddress || suggestion.fullText,
-          name: place.displayName,
+          address: formatSelectedPlaceAddress(placeName, place.formattedAddress, suggestion.fullText),
+          name: placeName,
         });
       } else {
         onPlaceSelect?.({ address: suggestion.fullText });
