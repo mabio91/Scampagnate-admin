@@ -20,9 +20,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import type { Tables, TablesInsert } from "@/integrations/supabase/types";
 
 type DiscountCode = Tables<"discount_codes">;
+type DiscountUsageProfile = Pick<Tables<"profiles">, "id" | "first_name" | "last_name" | "email">;
+type DiscountUsageEvent = Pick<Tables<"events">, "id" | "title">;
 type DiscountCodeUsage = Tables<"discount_code_usage"> & {
-  profiles: Pick<Tables<"profiles">, "first_name" | "last_name" | "email"> | null;
-  events: Pick<Tables<"events">, "title"> | null;
+  profiles: DiscountUsageProfile | null;
+  events: DiscountUsageEvent | null;
 };
 
 const getErrorMessage = (error: unknown) => {
@@ -91,16 +93,45 @@ const DiscountCodesPage = () => {
     },
   });
 
-  const { data: usageData = [] } = useQuery({
+  const { data: usageData = [], isLoading: isUsageLoading, error: usageError } = useQuery({
     queryKey: ["discount-usage", selectedCodeId],
     enabled: !!selectedCodeId,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: usageRows, error } = await supabase
         .from("discount_code_usage")
-        .select("*, profiles:user_id(first_name, last_name, email), events:event_id(title)")
-        .eq("discount_code_id", selectedCodeId!);
+        .select("*")
+        .eq("discount_code_id", selectedCodeId!)
+        .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as DiscountCodeUsage[];
+
+      const usages = (usageRows || []) as Tables<"discount_code_usage">[];
+      const userIds = Array.from(new Set(usages.map((usage) => usage.user_id).filter(Boolean)));
+      const eventIds = Array.from(new Set(usages.map((usage) => usage.event_id).filter(Boolean)));
+
+      const [profileResult, eventResult] = await Promise.all([
+        userIds.length
+          ? supabase.from("profiles").select("id, first_name, last_name, email").in("id", userIds)
+          : Promise.resolve({ data: [] as DiscountUsageProfile[], error: null }),
+        eventIds.length
+          ? supabase.from("events").select("id, title").in("id", eventIds)
+          : Promise.resolve({ data: [] as DiscountUsageEvent[], error: null }),
+      ]);
+
+      if (profileResult.error) throw profileResult.error;
+      if (eventResult.error) throw eventResult.error;
+
+      const profilesById = new Map(
+        ((profileResult.data || []) as DiscountUsageProfile[]).map((profile) => [profile.id, profile])
+      );
+      const eventsById = new Map(
+        ((eventResult.data || []) as DiscountUsageEvent[]).map((event) => [event.id, event])
+      );
+
+      return usages.map((usage) => ({
+        ...usage,
+        profiles: profilesById.get(usage.user_id) || null,
+        events: eventsById.get(usage.event_id) || null,
+      }));
     },
   });
 
@@ -602,7 +633,15 @@ const DiscountCodesPage = () => {
           <DialogHeader>
             <DialogTitle>Code Usage History</DialogTitle>
           </DialogHeader>
-          {usageData.length === 0 ? (
+          {isUsageLoading ? (
+            <div className="space-y-3 py-2">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </div>
+          ) : usageError ? (
+            <p className="text-destructive text-center py-4">{getErrorMessage(usageError)}</p>
+          ) : usageData.length === 0 ? (
             <p className="text-muted-foreground text-center py-4">No usage recorded yet.</p>
           ) : (
             <Table>
