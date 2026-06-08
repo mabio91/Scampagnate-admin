@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Edit2, Trash2, MessageCircle, Upload, X, ChevronLeft, ChevronRight, GripVertical, Star } from "lucide-react";
+import { Plus, Edit2, Trash2, MessageCircle, Upload, X, ChevronLeft, ChevronRight, GripVertical, Star, ArrowUp, ArrowDown } from "lucide-react";
 import RefreshButton from "@/components/RefreshButton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -35,6 +35,25 @@ const emptyProduct = {
   is_active: true,
   sort_order: 0,
   whatsapp_number: "",
+};
+
+const PRODUCT_ORDER_STEP = 10;
+
+const assignProductSortOrders = (products: MerchProduct[]) =>
+  products.map((product, index) => ({ ...product, sort_order: (index + 1) * PRODUCT_ORDER_STEP }));
+
+const reorderProducts = (products: MerchProduct[], draggedId: string, targetId: string) => {
+  const sourceIndex = products.findIndex((product) => product.id === draggedId);
+  const targetIndex = products.findIndex((product) => product.id === targetId);
+
+  if (sourceIndex === -1 || targetIndex === -1 || sourceIndex === targetIndex) {
+    return products;
+  }
+
+  const next = [...products];
+  const [draggedProduct] = next.splice(sourceIndex, 1);
+  next.splice(targetIndex, 0, draggedProduct);
+  return assignProductSortOrders(next);
 };
 
 // --- Product Card with Image Carousel ---
@@ -273,6 +292,8 @@ export default function MerchPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
   const [uploadTarget, setUploadTarget] = useState<"hero" | "gallery">("hero");
+  const [draggedProductId, setDraggedProductId] = useState<string | null>(null);
+  const [dragOverProductId, setDragOverProductId] = useState<string | null>(null);
   const heroFileInputRef = useRef<HTMLInputElement>(null);
   const galleryFileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
@@ -285,6 +306,8 @@ export default function MerchPage() {
       return data || [];
     },
   });
+
+  const nextSortOrder = products.length > 0 ? Math.max(...products.map((product) => Number(product.sort_order ?? 0))) + PRODUCT_ORDER_STEP : PRODUCT_ORDER_STEP;
 
   const uploadImage = async (file: File): Promise<string> => {
     const compressedFile = await compressImageForUpload(file, { maxDimension: 1600, quality: 0.8 });
@@ -437,6 +460,38 @@ export default function MerchPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const reorderMutation = useMutation({
+    mutationFn: async (nextProducts: MerchProduct[]) => {
+      const orderedProducts = assignProductSortOrders(nextProducts);
+      const updatedAt = new Date().toISOString();
+
+      for (const product of orderedProducts) {
+        const { error } = await supabase
+          .from("merch_products")
+          .update({ sort_order: product.sort_order, updated_at: updatedAt })
+          .eq("id", product.id);
+
+        if (error) throw error;
+      }
+    },
+    onMutate: async (nextProducts) => {
+      await queryClient.cancelQueries({ queryKey: ["admin-merch"] });
+      const previousProducts = queryClient.getQueryData<MerchProduct[]>(["admin-merch"]);
+      queryClient.setQueryData<MerchProduct[]>(["admin-merch"], assignProductSortOrders(nextProducts));
+      return { previousProducts };
+    },
+    onSuccess: () => {
+      toast.success(t("merch.orderSaved"));
+      queryClient.invalidateQueries({ queryKey: ["admin-merch"] });
+    },
+    onError: (e: any, _nextProducts, context) => {
+      if (context?.previousProducts) {
+        queryClient.setQueryData<MerchProduct[]>(["admin-merch"], context.previousProducts);
+      }
+      toast.error(e.message);
+    },
+  });
+
   const getName = (p: MerchProduct) => (language === "it" && p.name_it ? p.name_it : p.name);
   const getDesc = (p: MerchProduct) => (language === "it" && p.description_it ? p.description_it : p.description);
   const getBadge = (p: MerchProduct) => (language === "it" && p.badge_it ? p.badge_it : p.badge);
@@ -447,11 +502,34 @@ export default function MerchPage() {
     window.open(`https://wa.me/${number}?text=${msg}`, "_blank");
   };
 
+  const moveProduct = (index: number, direction: -1 | 1) => {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= products.length || reorderMutation.isPending) return;
+
+    const next = [...products];
+    const [movedProduct] = next.splice(index, 1);
+    next.splice(targetIndex, 0, movedProduct);
+    reorderMutation.mutate(assignProductSortOrders(next));
+  };
+
+  const handleProductDrop = (targetProductId: string) => {
+    const draggedId = draggedProductId;
+    setDraggedProductId(null);
+    setDragOverProductId(null);
+
+    if (!draggedId || draggedId === targetProductId || reorderMutation.isPending) return;
+
+    const reordered = reorderProducts(products, draggedId, targetProductId);
+    if (reordered.some((product, index) => product.id !== products[index]?.id)) {
+      reorderMutation.mutate(reordered);
+    }
+  };
+
   const openEditDialog = (product?: MerchProduct) => {
     if (product) {
       setEditProduct({ ...product, gallery_images: getGalleryArray((product as any).gallery_images) } as any);
     } else {
-      setEditProduct({ ...emptyProduct, isNew: true });
+      setEditProduct({ ...emptyProduct, sort_order: nextSortOrder, isNew: true });
     }
   };
 
@@ -478,10 +556,33 @@ export default function MerchPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {products.map((product) => {
+          {products.map((product, index) => {
             const allImages = getAllImages(product);
             return (
-              <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow group">
+              <Card
+                key={product.id}
+                className={cn(
+                  "overflow-hidden hover:shadow-lg transition-shadow group",
+                  dragOverProductId === product.id && draggedProductId !== product.id ? "ring-2 ring-primary/40" : "",
+                  draggedProductId === product.id ? "opacity-60" : ""
+                )}
+                onDragOver={(event) => {
+                  if (!draggedProductId || draggedProductId === product.id || reorderMutation.isPending) return;
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                  if (dragOverProductId !== product.id) {
+                    setDragOverProductId(product.id);
+                  }
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  handleProductDrop(product.id);
+                }}
+                onDragEnd={() => {
+                  setDraggedProductId(null);
+                  setDragOverProductId(null);
+                }}
+              >
                 <div className="relative bg-muted/30 aspect-square flex items-center justify-center p-4">
                   {allImages.length > 0 ? (
                     <ProductImageCarousel images={allImages} alt={getName(product)} />
@@ -508,6 +609,53 @@ export default function MerchPage() {
                   </div>
                 </div>
                 <CardContent className="p-4 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <Badge variant="outline" className="font-mono">#{index + 1}</Badge>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        disabled={index === 0 || reorderMutation.isPending}
+                        onClick={() => moveProduct(index, -1)}
+                        aria-label={`${t("merch.moveUp")}: ${getName(product)}`}
+                        title={t("merch.moveUp")}
+                      >
+                        <ArrowUp className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        disabled={index === products.length - 1 || reorderMutation.isPending}
+                        onClick={() => moveProduct(index, 1)}
+                        aria-label={`${t("merch.moveDown")}: ${getName(product)}`}
+                        title={t("merch.moveDown")}
+                      >
+                        <ArrowDown className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 cursor-grab active:cursor-grabbing"
+                        draggable={!reorderMutation.isPending}
+                        disabled={reorderMutation.isPending}
+                        aria-label={`${t("merch.dragToReorder")}: ${getName(product)}`}
+                        title={t("merch.dragToReorder")}
+                        onDragStart={(event) => {
+                          setDraggedProductId(product.id);
+                          setDragOverProductId(product.id);
+                          event.dataTransfer.effectAllowed = "move";
+                          event.dataTransfer.setData("text/plain", product.id);
+                        }}
+                      >
+                        <GripVertical className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
                   <h3 className="font-semibold text-lg">{getName(product)}</h3>
                   <p className="text-xl font-bold text-primary">€{product.price.toFixed(2)}</p>
                   {getDesc(product) && (
