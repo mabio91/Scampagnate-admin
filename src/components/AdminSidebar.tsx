@@ -1,4 +1,4 @@
-import { Users, Building2, Tags, Calendar, AlertTriangle, LayoutDashboard, IdCard, Package, User, LogOut, Lightbulb, TicketPercent, ShoppingBag, FileText, Target, Settings2, Mountain, Mail, Gift, BellRing, Quote, type LucideIcon } from "lucide-react";
+import { Users, Building2, Tags, Calendar, AlertTriangle, LayoutDashboard, IdCard, Package, User, LogOut, Lightbulb, TicketPercent, ShoppingBag, FileText, Target, Settings2, Mountain, Mail, Gift, BellRing, Quote, FileSpreadsheet, type LucideIcon } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import logo from "@/assets/logo.png";
@@ -31,6 +31,7 @@ const navItems: { titleKey: TranslationKey; url: string; icon: LucideIcon }[] = 
   { titleKey: "sidebar.issues", url: "/issues", icon: AlertTriangle },
   { titleKey: "sidebar.proposals", url: "/proposals", icon: Lightbulb },
   { titleKey: "sidebar.discountCodes", url: "/discount-codes", icon: TicketPercent },
+  { titleKey: "sidebar.revenueExports", url: "/revenue-exports", icon: FileSpreadsheet },
   { titleKey: "sidebar.merch", url: "/merch", icon: ShoppingBag },
   { titleKey: "sidebar.contentPages", url: "/content-pages", icon: FileText },
   { titleKey: "sidebar.eventClosingSentences", url: "/event-closing-sentences", icon: Quote },

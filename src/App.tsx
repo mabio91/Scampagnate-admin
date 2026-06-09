@@ -25,6 +25,7 @@ const ProfilePage = lazy(() => import("@/pages/ProfilePage"));
 const MembersPage = lazy(() => import("@/pages/MembersPage"));
 const ProposalsPage = lazy(() => import("@/pages/ProposalsPage"));
 const DiscountCodesPage = lazy(() => import("@/pages/DiscountCodesPage"));
+const RevenueExportsPage = lazy(() => import("@/pages/RevenueExportsPage"));
 const MerchPage = lazy(() => import("@/pages/MerchPage"));
 const ContentPagesPage = lazy(() => import("@/pages/ContentPagesPage"));
 const ContentPageView = lazy(() => import("@/pages/ContentPageView"));
@@ -81,6 +82,7 @@ const App = () => (
                 <Route path="/members" element={<MembersPage />} />
                 <Route path="/proposals" element={<ProposalsPage />} />
                 <Route path="/discount-codes" element={<DiscountCodesPage />} />
+                <Route path="/revenue-exports" element={<RevenueExportsPage />} />
                 <Route path="/merch" element={<MerchPage />} />
                 <Route path="/content-pages" element={<ContentPagesPage />} />
                 <Route path="/event-closing-sentences" element={<EventClosingSentencesPage />} />

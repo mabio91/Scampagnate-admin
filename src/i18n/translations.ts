@@ -51,6 +51,7 @@ export const translations = {
   "sidebar.issues": { it: "Segnalazioni", en: "Issues" },
   "sidebar.proposals": { it: "Proposte", en: "Proposals" },
   "sidebar.discountCodes": { it: "Codici Sconto", en: "Discount Codes" },
+  "sidebar.revenueExports": { it: "Export incassi", en: "Revenue exports" },
   "sidebar.contentPages": { it: "Pagine Contenuto", en: "Content Pages" },
   "sidebar.eventClosingSentences": { it: "Frasi evento", en: "Event Phrases" },
   "sidebar.myProfile": { it: "Il mio profilo", en: "My Profile" },
