@@ -12,7 +12,7 @@ export default function GamificationSettingsPage() {
           <h1 className="text-2xl md:text-3xl font-bold">Impostazioni Gamification</h1>
           <p className="text-muted-foreground">Configura punti, livelli, badge e ricompense</p>
         </div>
-        <RefreshButton queryKeys={[["points-config"], ["community-levels-admin"], ["badges-admin"]]} />
+        <RefreshButton queryKeys={[["points-config"], ["community-levels-admin"], ["badges-admin"], ["event-categories"], ["event-fit-score-categories"]]} />
       </div>
 
       <Tabs defaultValue="points">

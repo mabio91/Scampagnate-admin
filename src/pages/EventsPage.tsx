@@ -31,6 +31,7 @@ import { HOME_CARD_IMAGE_FIELD, getEventHomeCardImageUrl } from "@/lib/eventImag
 import { compressImageForUpload } from "@/lib/imageCompression";
 import { isGeneratedPriceOptionName } from "@/lib/priceOptions";
 import { normalizeWhatsappGroupUrl } from "@/lib/eventWhatsapp";
+import { FIT_SCORE_EVENT_SECONDARY_MAX, INTEREST_CATEGORY_OPTIONS } from "@/lib/fitScoreCategories";
 
 type Event = Tables<"events">;
 type EventWithCategory = Event & {
@@ -276,20 +277,6 @@ const LEGACY_ACTIVITY_FREQUENCY_MAP: Record<string, string> = {
 };
 const STAFF_ROLE_PRESETS = ["STAFF", "FOTOGRAFO", "GUIDA"];
 const CUSTOM_STAFF_ROLE_VALUE = "__custom__";
-
-const INTEREST_CATEGORY_OPTIONS = [
-  { id: "trekking_giornalieri", label: "Trekking giornalieri" },
-  { id: "cammini_plurigiornalieri", label: "Cammini plurigiornalieri" },
-  { id: "notti_tenda", label: "Notti in tenda" },
-  { id: "trekking_notturni", label: "Trekking notturni" },
-  { id: "aperitivi_cene", label: "Aperitivi e cene" },
-  { id: "sport_movimento", label: "Sport e movimento" },
-  { id: "giochi_sfide", label: "Giochi e sfide" },
-  { id: "weekend_fuori_porta", label: "Weekend fuori porta" },
-  { id: "degustazioni_cantine", label: "Degustazioni e cantine" },
-  { id: "mare_spiaggia", label: "Mare e spiaggia" },
-];
-const FIT_SCORE_EVENT_SECONDARY_MAX = 2;
 
 const emptyEvent: Record<string, any> = {
   title: "", description: "", location: "", location_label: "", date: "", time: "09:00",

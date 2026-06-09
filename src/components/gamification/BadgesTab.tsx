@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { Plus, Trash2, Pencil, UserPlus } from "lucide-react";
 import IconPicker from "@/components/IconPicker";
 import DynamicIcon from "@/components/DynamicIcon";
+import { INTEREST_CATEGORY_OPTIONS, extractFitScoreCategoryNames, normalizeFitScoreCategoryName, sortFitScoreCategoryNames } from "@/lib/fitScoreCategories";
 
 interface BadgeForm {
   name: string;
@@ -23,6 +24,14 @@ interface BadgeForm {
   category: string;
   requirement_type: string;
   required_events: number;
+}
+
+type BadgeCategorySource = "system" | "event" | "fit_score";
+
+interface BadgeCategoryOption {
+  value: string;
+  label: string;
+  source: BadgeCategorySource;
 }
 
 const emptyBadge: BadgeForm = {
@@ -34,21 +43,45 @@ const emptyBadge: BadgeForm = {
   required_events: 1,
 };
 
-const BADGE_CATEGORY_OPTIONS = [
+const SYSTEM_BADGE_CATEGORY_OPTIONS: BadgeCategoryOption[] = [
   {
     value: "general",
     label: "Generale",
+    source: "system",
   },
   {
     value: "special",
     label: "Speciale",
+    source: "system",
   },
-] as const;
+];
 
-const getBadgeCategoryLabel = (category: string | null | undefined) => {
-  if (category === "general") return "Generale";
-  if (category === "special") return "Speciale";
+const getBadgeCategoryLabel = (category: string | null | undefined, options: BadgeCategoryOption[] = SYSTEM_BADGE_CATEGORY_OPTIONS) => {
+  const match = options.find((option) => option.value === category);
+  if (match) return match.label;
   return category || "—";
+};
+
+const getBadgeCategoryHelp = (category: string, options: BadgeCategoryOption[]) => {
+  const match = options.find((option) => option.value === category);
+
+  if (match?.value === "special") {
+    return "Speciale: usalo per badge legati a eventi unici, iniziative dedicate o assegnazioni manuali.";
+  }
+
+  if (match?.value === "general") {
+    return "Generale: usalo per badge di progressione o traguardi trasversali della piattaforma.";
+  }
+
+  if (match?.source === "fit_score") {
+    return `Categoria fit score: il badge conterà gli eventi con categoria principale o secondaria "${match.label}".`;
+  }
+
+  if (match?.source === "event") {
+    return `Categoria evento: il badge conterà anche eventuali categorie fit score principali o secondarie chiamate "${match.label}".`;
+  }
+
+  return "Scegli Generale, Speciale, una categoria evento o una categoria fit score.";
 };
 
 const getRequirementLabel = (requirementType: string | null | undefined) => {
@@ -91,10 +124,53 @@ export default function BadgesTab() {
   const { data: categories = [] } = useQuery({
     queryKey: ["event-categories"],
     queryFn: async () => {
-      const { data } = await supabase.from("event_categories").select("name").order("name");
+      const { data, error } = await supabase.from("event_categories").select("name").order("name");
+      if (error) throw error;
       return data || [];
     },
   });
+
+  const { data: fitScoreCategories = [] } = useQuery({
+    queryKey: ["event-fit-score-categories"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("events").select("additional_fields");
+      if (error) throw error;
+      return extractFitScoreCategoryNames(data || []);
+    },
+  });
+
+  const eventCategoryOptions: BadgeCategoryOption[] = categories
+    .map((category: { name: string | null }) => normalizeFitScoreCategoryName(category.name))
+    .filter((name): name is string => Boolean(name))
+    .sort(sortFitScoreCategoryNames)
+    .map((name) => ({
+      value: name,
+      label: name,
+      source: "event",
+    }));
+
+  const usedCategoryValues = new Set([
+    ...SYSTEM_BADGE_CATEGORY_OPTIONS.map((option) => option.value),
+    ...eventCategoryOptions.map((option) => option.value),
+  ]);
+
+  const configuredFitScoreCategoryNames = INTEREST_CATEGORY_OPTIONS.map((option) => option.label);
+  const allFitScoreCategoryNames = [...new Set([...configuredFitScoreCategoryNames, ...fitScoreCategories])]
+    .sort(sortFitScoreCategoryNames);
+
+  const fitScoreCategoryOptions: BadgeCategoryOption[] = allFitScoreCategoryNames
+    .filter((name) => !usedCategoryValues.has(name))
+    .map((name) => ({
+      value: name,
+      label: name,
+      source: "fit_score",
+    }));
+
+  const badgeCategoryOptions = [
+    ...SYSTEM_BADGE_CATEGORY_OPTIONS,
+    ...eventCategoryOptions,
+    ...fitScoreCategoryOptions,
+  ];
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -240,22 +316,38 @@ export default function BadgesTab() {
                       <SelectValue placeholder="Generale" />
                     </SelectTrigger>
                     <SelectContent>
-                      {BADGE_CATEGORY_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                      ))}
-                      {categories.map((c: any) => (
-                        <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>
-                      ))}
+                      <SelectGroup>
+                        <SelectLabel>Sistema</SelectLabel>
+                        {SYSTEM_BADGE_CATEGORY_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                        ))}
+                      </SelectGroup>
+                      {eventCategoryOptions.length > 0 && (
+                        <>
+                          <SelectSeparator />
+                          <SelectGroup>
+                            <SelectLabel>Categorie eventi</SelectLabel>
+                            {eventCategoryOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </>
+                      )}
+                      {fitScoreCategoryOptions.length > 0 && (
+                        <>
+                          <SelectSeparator />
+                          <SelectGroup>
+                            <SelectLabel>Categorie fit score</SelectLabel>
+                            {fitScoreCategoryOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                   <p className="mt-1 text-[11px] text-muted-foreground">
-                    {form.category === "special"
-                      ? "Speciale: usalo per badge legati a eventi unici, iniziative dedicate o assegnazioni manuali."
-                      : form.category === "general"
-                      ? "Generale: usalo per badge di progressione o traguardi trasversali della piattaforma."
-                      : form.category
-                      ? `Categoria evento: usala quando il badge riguarda progressi nella categoria "${form.category}".`
-                      : "Scegli Generale per badge di progressione, Speciale per badge evento/manuali, oppure una categoria evento specifica."}
+                    {form.category ? getBadgeCategoryHelp(form.category, badgeCategoryOptions) : "Scegli Generale, Speciale, una categoria evento o una categoria fit score."}
                   </p>
                 </div>
               </div>
@@ -312,7 +404,7 @@ export default function BadgesTab() {
                 </TableCell>
                 <TableCell>
                   {b.category ? (
-                    <Badge variant="secondary" className="text-xs">{getBadgeCategoryLabel(b.category)}</Badge>
+                    <Badge variant="secondary" className="text-xs">{getBadgeCategoryLabel(b.category, badgeCategoryOptions)}</Badge>
                   ) : (
                     <span className="text-xs text-muted-foreground">—</span>
                   )}
