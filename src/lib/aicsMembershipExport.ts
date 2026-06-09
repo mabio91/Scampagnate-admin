@@ -14,6 +14,9 @@ export type AicsMembershipExportMember = {
 
 const XLSX_MIME_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const SHEET_NAME = "Modello importazione soci";
+const DEFAULT_SOCIAL_QUALIFICATION = "atleta";
+const DEFAULT_SPORT_QUALIFICATION = "Atleta praticante";
+const DEFAULT_SPORT_ACTIVITY_CODE = "S0320";
 
 const GROUP_ROW = [
   "NOMINATIVO",
@@ -157,9 +160,10 @@ export const buildAicsMembershipRows = (members: AicsMembershipExportMember[]) =
     "",
     normalizeAicsPhone(member.phone),
     safeText(member.email),
+    DEFAULT_SOCIAL_QUALIFICATION,
     "",
-    "",
-    "",
+    DEFAULT_SPORT_QUALIFICATION,
+    DEFAULT_SPORT_ACTIVITY_CODE,
     "",
     "",
     "",
