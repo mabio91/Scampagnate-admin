@@ -30,6 +30,7 @@ import ImageCropDialog from "@/components/ImageCropDialog";
 import { HOME_CARD_IMAGE_FIELD, getEventHomeCardImageUrl } from "@/lib/eventImages";
 import { compressImageForUpload } from "@/lib/imageCompression";
 import { isGeneratedPriceOptionName } from "@/lib/priceOptions";
+import { normalizeWhatsappGroupUrl } from "@/lib/eventWhatsapp";
 
 type Event = Tables<"events">;
 type EventWithCategory = Event & {
@@ -295,6 +296,7 @@ const emptyEvent: Record<string, any> = {
   spots_total: 20, reserved_spots: 0, price: 0, deposit: null, payment_type: "free",
   status: "draft", visibility: "public", organizer_name: "", organizer_id: null,
   category_id: null, image_url: "", gallery_images: [], access_rules: null,
+  whatsapp_group_url: "",
   featured: false, cancellation_policy: "flexible_24h", difficulty: null, duration: null,
   distance: null, elevation: null, event_badges: [], equipment_list: [],
   additional_fields: { waiting_list_enabled: true, fields: [], custom_fields: [] },
@@ -1021,6 +1023,12 @@ export default function EventsPage() {
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: true });
     if (staffError) throw staffError;
+    const { data: whatsappLinkRow, error: whatsappLinkError } = await supabase
+      .from("event_whatsapp_links" as any)
+      .select("url")
+      .eq("event_id", event.id)
+      .maybeSingle();
+    if (whatsappLinkError) throw whatsappLinkError;
     const specialBadgeIds = [
       ...(specialBadgeLinks || []).map((link) => link.badge_id).filter(Boolean),
       ...getLegacySpecialBadgeIdsFromEventBadges((event as any).event_badges),
@@ -1046,6 +1054,7 @@ export default function EventsPage() {
       additional_fields: buildAdditionalFieldsForStorage(event.additional_fields),
       cancellation_policy: normalizeCancellationPolicy(event.cancellation_policy),
       event_badges: canonicalizeEventBadges((event as any).event_badges),
+      whatsapp_group_url: normalizeWhatsappGroupUrl((whatsappLinkRow as any)?.url) || "",
     });
   };
   const handleOpenCreate = () => {
@@ -1160,7 +1169,13 @@ export default function EventsPage() {
   const saveMutation = useMutation({
     mutationFn: async (payload: { evt: any; mps: LocalMeetingPoint[]; priceOptions: PricingRule[] }) => {
       const { evt, mps, priceOptions } = payload;
-      const { isNew, event_categories, event_price_options, ...data } = evt;
+      const requestedWhatsappGroupUrl = String(evt.whatsapp_group_url || "").trim();
+      const whatsappGroupUrl = normalizeWhatsappGroupUrl(requestedWhatsappGroupUrl);
+      if (requestedWhatsappGroupUrl && !whatsappGroupUrl) {
+        throw new Error("Il link gruppo WhatsApp deve iniziare con https://chat.whatsapp.com/");
+      }
+
+      const { isNew, event_categories, event_price_options, whatsapp_group_url, event_whatsapp_links, ...data } = evt;
       const validPriceOptions = priceOptions;
       const primaryPriceOption = validPriceOptions[0];
       if (primaryPriceOption) {
@@ -1207,6 +1222,19 @@ export default function EventsPage() {
       // Registrations can reference meeting points, so removed points must be
       // unlinked before deletion or Postgres will reject the delete.
       if (savedId) {
+        if (whatsappGroupUrl) {
+          const { error: whatsappUpsertError } = await supabase
+            .from("event_whatsapp_links" as any)
+            .upsert({ event_id: savedId, url: whatsappGroupUrl }, { onConflict: "event_id" });
+          if (whatsappUpsertError) throw whatsappUpsertError;
+        } else {
+          const { error: whatsappDeleteError } = await supabase
+            .from("event_whatsapp_links" as any)
+            .delete()
+            .eq("event_id", savedId);
+          if (whatsappDeleteError) throw whatsappDeleteError;
+        }
+
         const validMps = mps.filter(mp => mp.name.trim());
 
         const { data: existingMps, error: existingMpsError } = await supabase
@@ -1694,6 +1722,20 @@ export default function EventsPage() {
                     />
                   </div>
                   <div><Label>Etichetta luogo</Label><Input value={editEvent.location_label || ""} onChange={e => setEditEvent({ ...editEvent, location_label: e.target.value })} placeholder="es. Rifugio Rosso" /></div>
+                </div>
+                <div className="space-y-2 rounded-lg border bg-card p-3">
+                  <Label className="flex items-center gap-1.5 text-sm font-semibold">
+                    <MessageCircle className="h-4 w-4 text-[#25D366]" />
+                    Gruppo WhatsApp evento
+                  </Label>
+                  <Input
+                    value={editEvent.whatsapp_group_url || ""}
+                    onChange={e => setEditEvent({ ...editEvent, whatsapp_group_url: e.target.value })}
+                    placeholder="https://chat.whatsapp.com/..."
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Opzionale. Visibile solo ad admin, organizzatore e utenti con iscrizione confermata.
+                  </p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div><Label>Data</Label><Input type="date" value={editEvent.date || ""} onChange={e => setEditEvent({ ...editEvent, date: e.target.value })} /></div>
