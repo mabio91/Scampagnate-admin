@@ -15,9 +15,10 @@ import { getPriceOptionDisplayName } from "@/lib/priceOptions";
 import {
   ArrowLeft, MapPin, Calendar, Clock, Users, DollarSign,
   Eye, Shield, Image as ImageIcon, ChevronRight,
-  UserRound,
+  UserRound, Bookmark, BellRing, MousePointerClick,
 } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
+import { emptyEventEngagementMetrics, fetchEventEngagementMetrics } from "@/lib/eventEngagementMetrics";
 
 type Event = Tables<"events">;
 type EventWithCategory = Event & {
@@ -128,6 +129,14 @@ export default function EventDetailPage() {
       return data || [];
     },
   });
+  const { data: engagementMetrics } = useQuery({
+    queryKey: ["admin-event-engagement-metrics", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const metrics = await fetchEventEngagementMetrics([id!]);
+      return metrics[id!] || emptyEventEngagementMetrics(id!);
+    },
+  });
 
   if (isLoading) {
     return (
@@ -153,6 +162,8 @@ export default function EventDetailPage() {
   const registered = registrations.filter((r) => ["registered", "paid", "deposit_paid", "attended"].includes(r.status)).length;
   const galleryImages = normalizeGalleryImages(event.gallery_images);
   const priceOptions = [...((event.event_price_options as any[]) || [])].sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
+  const engagement = engagementMetrics || emptyEventEngagementMetrics(event.id);
+  const totalOpeningReminders = engagement.opening_reminder_active_count + engagement.opening_reminder_notified_count;
 
   return (
     <div className="space-y-6">
@@ -343,6 +354,49 @@ export default function EventDetailPage() {
                 <div>
                   <p className="text-2xl font-bold">{event.spots_total - event.spots_taken}</p>
                   <p className="text-xs text-muted-foreground">Disponibili</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle className="text-lg">Engagement</CardTitle></CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="rounded-lg border bg-muted/30 p-3">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Bookmark className="h-4 w-4" />
+                    <span>Salvati</span>
+                  </div>
+                  <p className="mt-2 text-2xl font-bold">{engagement.saved_count}</p>
+                </div>
+                <div className="rounded-lg border bg-muted/30 p-3">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <BellRing className="h-4 w-4" />
+                    <span>Reminder</span>
+                  </div>
+                  <p className="mt-2 text-2xl font-bold">{totalOpeningReminders}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {engagement.opening_reminder_active_count} attivi · {engagement.opening_reminder_notified_count} notificati
+                  </p>
+                </div>
+                <div className="rounded-lg border bg-muted/30 p-3">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <MousePointerClick className="h-4 w-4" />
+                    <span>Click apertura</span>
+                  </div>
+                  <p className="mt-2 text-2xl font-bold">{engagement.opening_notification_click_count}</p>
+                </div>
+                <div className="rounded-lg border bg-muted/30 p-3">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Eye className="h-4 w-4" />
+                    <span>Click rate</span>
+                  </div>
+                  <p className="mt-2 text-2xl font-bold">
+                    {engagement.opening_reminder_notified_count > 0
+                      ? `${Math.round((engagement.opening_notification_click_count / engagement.opening_reminder_notified_count) * 100)}%`
+                      : "0%"}
+                  </p>
                 </div>
               </div>
             </CardContent>

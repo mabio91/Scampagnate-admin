@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, MoreHorizontal, Eye, Edit2, Trash2, Plus, Upload, X, ArrowUp, ArrowDown, Image as ImageIcon, Loader2, Shield, Lock, Star, Users, Award, Crown, CheckCircle2, DollarSign, Tag, Sparkles, Copy, MessageCircle, CalendarX, CloudSun, Thermometer, MapPin, Package, Car, FileText } from "lucide-react";
+import { Search, MoreHorizontal, Eye, Edit2, Trash2, Plus, Upload, X, ArrowUp, ArrowDown, Image as ImageIcon, Loader2, Shield, Lock, Star, Users, Award, Crown, CheckCircle2, DollarSign, Tag, Sparkles, Copy, MessageCircle, CalendarX, CloudSun, Thermometer, MapPin, Package, Car, FileText, Bookmark, BellRing, MousePointerClick } from "lucide-react";
 import { MANUAL_BADGE_OPTIONS, EventBadgePills } from "@/components/EventBadges";
 import { RichTextEditor } from "@/components/RichTextEditor";
 import RefreshButton from "@/components/RefreshButton";
@@ -31,6 +31,7 @@ import { HOME_CARD_IMAGE_FIELD, getEventHomeCardImageUrl } from "@/lib/eventImag
 import { compressImageForUpload } from "@/lib/imageCompression";
 import { isGeneratedPriceOptionName } from "@/lib/priceOptions";
 import { normalizeWhatsappGroupUrl } from "@/lib/eventWhatsapp";
+import { fetchEventEngagementMetrics } from "@/lib/eventEngagementMetrics";
 import { FIT_SCORE_EVENT_SECONDARY_MAX, INTEREST_CATEGORY_OPTIONS } from "@/lib/fitScoreCategories";
 
 type Event = Tables<"events">;
@@ -681,6 +682,13 @@ export default function EventsPage() {
       return (data || []) as EventWithCategory[];
     },
   });
+  const eventIds = events.map((event) => event.id);
+  const eventIdsKey = eventIds.join(",");
+  const { data: eventEngagementMetrics = {} } = useQuery({
+    queryKey: ["admin-event-engagement-metrics", eventIdsKey],
+    queryFn: () => fetchEventEngagementMetrics(eventIds),
+    enabled: eventIds.length > 0,
+  });
   const { data: pendingEventIds = [] } = useQuery({
     queryKey: ["admin-events-pending-approvals"],
     queryFn: async () => {
@@ -812,6 +820,31 @@ export default function EventsPage() {
       </SelectContent>
     </Select>
   );
+  const renderEngagementChips = (event: EventWithCategory) => {
+    const metric = eventEngagementMetrics[event.id];
+    if (!metric) return null;
+    const reminderCount = metric.opening_reminder_active_count + metric.opening_reminder_notified_count;
+    const chips = [
+      { icon: Bookmark, label: "Salvati", value: metric.saved_count },
+      { icon: BellRing, label: "Reminder", value: reminderCount },
+      { icon: MousePointerClick, label: "Click", value: metric.opening_notification_click_count },
+    ];
+
+    return (
+      <div className="flex flex-wrap gap-1.5 pt-1">
+        {chips.map(({ icon: Icon, label, value }) => (
+          <span
+            key={label}
+            className="inline-flex min-h-6 items-center gap-1 rounded-md border border-border bg-muted/40 px-1.5 text-[10px] font-medium leading-none text-muted-foreground"
+            title={`${label}: ${value}`}
+          >
+            <Icon className="h-3 w-3" />
+            {value}
+          </span>
+        ))}
+      </div>
+    );
+  };
   const updateAF = (patch: Partial<AdditionalFields>) => {
     if (!editEvent) return;
     const rawCurrent = isPlainRecord(editEvent.additional_fields) ? editEvent.additional_fields : {};
@@ -1596,6 +1629,7 @@ export default function EventsPage() {
                         <div className="min-w-0 space-y-1">
                           <span className="block whitespace-normal break-words leading-snug">{event.title}</span>
                           <EventBadgePills event={event} className="flex-wrap" />
+                          {renderEngagementChips(event)}
                         </div>
                       </div>
                     </TableCell>
