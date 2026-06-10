@@ -31,7 +31,10 @@ const payment: RevenueTransaction = {
   registration_id: "reg-1",
   service_fee_amount: 1,
   source: "event_checkout",
+  stripe_balance_transaction_id: null,
   stripe_checkout_session_id: "cs_123",
+  stripe_fee_amount: 0,
+  stripe_net_amount: null,
   stripe_payment_intent_id: "pi_123",
   stripe_refund_id: null,
   user_id: "user-1",
@@ -44,10 +47,33 @@ describe("revenue export", () => {
     expect(rows).toHaveLength(3);
     expect(rows.map((row) => row.amount).sort((a, b) => a - b)).toEqual([1, 15, 25]);
     expect(rows.every((row) => row.transactionReference === "pi_123")).toBe(true);
+    expect(rows.every((row) => row.originalTransactionTotal === 41)).toBe(true);
     expect(rows.every((row) => row.paymentStatus === "paid")).toBe(true);
     expect(rows.find((row) => row.movementType === "membership_fee")?.movementLabel).toBe("Quota associativa");
     expect(rows.find((row) => row.movementType === "service_fee")?.movementLabel).toBe("Costo servizio");
     expect(rows.find((row) => row.movementType === "event_fee")?.movementLabel).toBe("Quota partecipazione evento");
+  });
+
+  it("adds Stripe fees as a negative row tied to the original transaction", () => {
+    const rows = buildRevenueExportRows([
+      {
+        ...payment,
+        stripe_balance_transaction_id: "txn_123",
+        stripe_fee_amount: 1.2,
+        stripe_net_amount: 39.8,
+      },
+    ], profiles, events);
+
+    const stripeFeeRow = rows.find((row) => row.movementType === "stripe_fee");
+
+    expect(rows).toHaveLength(4);
+    expect(stripeFeeRow).toMatchObject({
+      amount: -1.2,
+      movementLabel: "Commissioni Stripe",
+      originalTransactionTotal: 41,
+      stripeBalanceTransactionId: "txn_123",
+      transactionReference: "pi_123",
+    });
   });
 
   it("exports refunds as negative rows tied to the original payment reference", () => {
@@ -72,6 +98,7 @@ describe("revenue export", () => {
       paymentDate: payment.created_at,
       refundDate: refund.created_at,
       paymentStatus: "refunded",
+      originalTransactionTotal: 41,
       transactionReference: "pi_123",
       movementLabel: "Rimborso quota partecipazione evento",
     });
@@ -91,7 +118,7 @@ describe("revenue export", () => {
       stripe_refund_id: "re_123",
     };
     const rows = buildRevenueExportRows([payment, refund], profiles, events);
-    const serviceRows = filterRevenueRows(rows, { movementType: "service_fee", paymentStatus: "all", eventId: "all" });
+    const serviceRows = filterRevenueRows(rows, { movementTypes: ["service_fee"] });
     const summary = summarizeRevenueRows(rows);
 
     expect(serviceRows).toHaveLength(2);

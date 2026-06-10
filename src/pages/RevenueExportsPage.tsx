@@ -1,13 +1,13 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, CalendarDays, Download, Euro, FileSpreadsheet, FileText, Receipt, RotateCcw } from "lucide-react";
+import { AlertTriangle, CalendarDays, ChevronDown, Download, Euro, FileSpreadsheet, FileText, Receipt, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import RefreshButton from "@/components/RefreshButton";
@@ -19,11 +19,14 @@ import {
   filterRevenueRows,
   formatRevenueDate,
   formatRevenueDateTime,
+  revenueMoney,
   revenueMovementTypeOptions,
   revenuePaymentStatusOptions,
   revenueRowsToCsv,
   summarizeRevenueRows,
   type RevenueEvent,
+  type RevenueMovementType,
+  type RevenuePaymentStatus,
   type RevenueProfile,
   type RevenueTransaction,
 } from "@/lib/revenueExport";
@@ -35,7 +38,14 @@ type RevenueQueryData = {
   events: RevenueEvent[];
 };
 
-const TRANSACTION_SELECT = "id, amount, created_at, currency, event_amount, event_id, kind, membership_fee_amount, metadata, registration_id, service_fee_amount, source, stripe_checkout_session_id, stripe_payment_intent_id, stripe_refund_id, user_id";
+const TRANSACTION_SELECT = "id, amount, created_at, currency, event_amount, event_id, kind, membership_fee_amount, metadata, registration_id, service_fee_amount, source, stripe_balance_transaction_id, stripe_checkout_session_id, stripe_fee_amount, stripe_net_amount, stripe_payment_intent_id, stripe_refund_id, user_id";
+
+const quarterOptions = [
+  { value: "1", label: "Q1" },
+  { value: "2", label: "Q2" },
+  { value: "3", label: "Q3" },
+  { value: "4", label: "Q4" },
+];
 
 const euro = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" });
 
@@ -43,11 +53,11 @@ export default function RevenueExportsPage() {
   const currentQuarter = getCurrentQuarter();
   const [dateFrom, setDateFrom] = useState(currentQuarter.from);
   const [dateTo, setDateTo] = useState(currentQuarter.to);
-  const [quarter, setQuarter] = useState(String(currentQuarter.quarter));
+  const [quarters, setQuarters] = useState<string[]>([String(currentQuarter.quarter)]);
   const [year, setYear] = useState(String(currentQuarter.year));
-  const [eventId, setEventId] = useState("all");
-  const [movementType, setMovementType] = useState("all");
-  const [paymentStatus, setPaymentStatus] = useState("all");
+  const [eventIds, setEventIds] = useState<string[]>([]);
+  const [movementTypes, setMovementTypes] = useState<RevenueMovementType[]>([]);
+  const [paymentStatuses, setPaymentStatuses] = useState<RevenuePaymentStatus[]>([]);
 
   const { data: eventOptions = [] } = useQuery({
     queryKey: ["admin-revenue-events"],
@@ -63,8 +73,8 @@ export default function RevenueExportsPage() {
   });
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["admin-revenue-export", dateFrom, dateTo, eventId],
-    queryFn: () => fetchRevenueData(dateFrom, dateTo, eventId),
+    queryKey: ["admin-revenue-export", dateFrom, dateTo, eventIds],
+    queryFn: () => fetchRevenueData(dateFrom, dateTo, eventIds),
   });
 
   const allRows = useMemo(() => {
@@ -73,8 +83,14 @@ export default function RevenueExportsPage() {
   }, [data]);
 
   const rows = useMemo(
-    () => filterRevenueRows(allRows, { eventId, movementType, paymentStatus }),
-    [allRows, eventId, movementType, paymentStatus]
+    () => filterRevenueRows(allRows, {
+      eventIds,
+      movementTypes,
+      paymentStatuses,
+      quarterYear: Number(year),
+      quarters,
+    }),
+    [allRows, eventIds, movementTypes, paymentStatuses, quarters, year]
   );
 
   const summary = useMemo(() => summarizeRevenueRows(rows), [rows]);
@@ -83,12 +99,11 @@ export default function RevenueExportsPage() {
 
   const applyQuarter = () => {
     const parsedYear = Number(year);
-    const parsedQuarter = Number(quarter);
     if (!Number.isInteger(parsedYear) || parsedYear < 2000 || parsedYear > 2100) {
       toast.error("Anno non valido");
       return;
     }
-    const range = quarterRange(parsedYear, parsedQuarter);
+    const range = quarterRangeForSelection(parsedYear, quarters);
     setDateFrom(range.from);
     setDateTo(range.to);
   };
@@ -136,7 +151,7 @@ export default function RevenueExportsPage() {
 
       <Card>
         <CardHeader className="pb-3">
-          <div className="grid gap-4 lg:grid-cols-[1fr_1fr_1.2fr_1fr_1fr]">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
             <div className="space-y-2">
               <Label htmlFor="date-from">Da</Label>
               <Input id="date-from" type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
@@ -147,16 +162,13 @@ export default function RevenueExportsPage() {
             </div>
             <div className="grid grid-cols-[1fr_88px_auto] gap-2">
               <div className="space-y-2">
-                <Label>Trimestre</Label>
-                <Select value={quarter} onValueChange={setQuarter}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">Q1</SelectItem>
-                    <SelectItem value="2">Q2</SelectItem>
-                    <SelectItem value="3">Q3</SelectItem>
-                    <SelectItem value="4">Q4</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label>Trimestri</Label>
+                <MultiCheckboxFilter
+                  allLabel="Tutti"
+                  options={quarterOptions}
+                  selectedValues={quarters}
+                  onChange={setQuarters}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="quarter-year">Anno</Label>
@@ -168,46 +180,27 @@ export default function RevenueExportsPage() {
                 </Button>
               </div>
             </div>
-            <div className="space-y-2">
-              <Label>Evento</Label>
-              <Select value={eventId} onValueChange={setEventId}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tutti gli eventi</SelectItem>
-                  {eventOptions.map((event) => (
-                    <SelectItem key={event.id} value={event.id}>
-                      {event.title || event.id}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-2">
-                <Label>Tipo</Label>
-                <Select value={movementType} onValueChange={setMovementType}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tutti</SelectItem>
-                    {revenueMovementTypeOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Stato</Label>
-                <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tutti</SelectItem>
-                    {revenuePaymentStatusOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            <MultiCheckboxField
+              label="Eventi"
+              allLabel="Tutti gli eventi"
+              options={eventOptions.map((event) => ({ value: event.id, label: event.title || event.id }))}
+              selectedValues={eventIds}
+              onChange={setEventIds}
+            />
+            <MultiCheckboxField
+              label="Tipo"
+              allLabel="Tutti"
+              options={revenueMovementTypeOptions}
+              selectedValues={movementTypes}
+              onChange={(values) => setMovementTypes(values as RevenueMovementType[])}
+            />
+            <MultiCheckboxField
+              label="Stato"
+              allLabel="Tutti"
+              options={revenuePaymentStatusOptions}
+              selectedValues={paymentStatuses}
+              onChange={(values) => setPaymentStatuses(values as RevenuePaymentStatus[])}
+            />
           </div>
         </CardHeader>
         <CardContent className="overflow-x-auto">
@@ -232,6 +225,7 @@ export default function RevenueExportsPage() {
                   <TableHead>Transazione</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Stato</TableHead>
+                  <TableHead className="text-right">Totale orig.</TableHead>
                   <TableHead className="text-right">Importo</TableHead>
                 </TableRow>
               </TableHeader>
@@ -256,6 +250,9 @@ export default function RevenueExportsPage() {
                         {row.paymentStatusLabel}
                       </Badge>
                     </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {row.originalTransactionTotal == null ? "—" : euro.format(row.originalTransactionTotal)}
+                    </TableCell>
                     <TableCell className={`text-right font-semibold tabular-nums ${row.amount < 0 ? "text-destructive" : ""}`}>
                       {euro.format(row.amount)}
                     </TableCell>
@@ -273,7 +270,7 @@ export default function RevenueExportsPage() {
   );
 }
 
-async function fetchRevenueData(dateFrom: string, dateTo: string, eventId: string): Promise<RevenueQueryData> {
+async function fetchRevenueData(dateFrom: string, dateTo: string, eventIds: string[]): Promise<RevenueQueryData> {
   let query = supabase
     .from("user_payment_transactions")
     .select(TRANSACTION_SELECT)
@@ -281,22 +278,75 @@ async function fetchRevenueData(dateFrom: string, dateTo: string, eventId: strin
 
   if (dateFrom) query = query.gte("created_at", startOfLocalDayIso(dateFrom));
   if (dateTo) query = query.lte("created_at", endOfLocalDayIso(dateTo));
-  if (eventId !== "all") query = query.eq("event_id", eventId);
+  if (eventIds.length > 0) query = query.in("event_id", eventIds);
 
   const { data: transactionsData, error } = await query;
   if (error) throw error;
 
-  const transactions = (transactionsData || []) as RevenueTransaction[];
+  const transactions = await hydrateStripeFeeDetails((transactionsData || []) as RevenueTransaction[]);
   const lookupTransactions = await fetchLookupPayments(transactions);
   const userIds = unique(transactions.map((transaction) => transaction.user_id).filter(Boolean));
-  const eventIds = unique(transactions.map((transaction) => transaction.event_id).filter(Boolean) as string[]);
+  const lookupEventIds = unique(
+    [...transactions, ...lookupTransactions].map((transaction) => transaction.event_id).filter(Boolean) as string[]
+  );
 
   const [profiles, events] = await Promise.all([
     fetchProfiles(userIds),
-    fetchEvents(eventIds),
+    fetchEvents(lookupEventIds),
   ]);
 
   return { transactions, lookupTransactions: [...transactions, ...lookupTransactions], profiles, events };
+}
+
+type StripeFeeLookupResponse = {
+  fees?: Record<string, {
+    stripe_balance_transaction_id?: string | null;
+    stripe_fee_amount?: number | null;
+    stripe_net_amount?: number | null;
+  }>;
+};
+
+async function hydrateStripeFeeDetails(transactions: RevenueTransaction[]) {
+  const paymentIntentIds = unique(
+    transactions
+      .filter((transaction) =>
+        transaction.kind === "payment"
+        && transaction.stripe_payment_intent_id
+        && revenueMoney(transaction.stripe_fee_amount) <= 0
+      )
+      .map((transaction) => transaction.stripe_payment_intent_id as string)
+  );
+
+  if (paymentIntentIds.length === 0) return transactions;
+
+  const feeDetails = new Map<string, NonNullable<StripeFeeLookupResponse["fees"]>[string]>();
+
+  for (const chunk of chunkValues(paymentIntentIds, 100)) {
+    const { data, error } = await supabase.functions.invoke<StripeFeeLookupResponse>("admin-stripe-fees", {
+      body: { paymentIntentIds: chunk },
+    });
+    if (error) {
+      console.warn("Stripe fee lookup unavailable:", error.message);
+      continue;
+    }
+
+    for (const [paymentIntentId, details] of Object.entries(data?.fees || {})) {
+      feeDetails.set(paymentIntentId, details);
+    }
+  }
+
+  if (feeDetails.size === 0) return transactions;
+
+  return transactions.map((transaction) => {
+    const details = transaction.stripe_payment_intent_id ? feeDetails.get(transaction.stripe_payment_intent_id) : null;
+    if (!details) return transaction;
+    return {
+      ...transaction,
+      stripe_balance_transaction_id: details.stripe_balance_transaction_id || transaction.stripe_balance_transaction_id,
+      stripe_fee_amount: details.stripe_fee_amount ?? transaction.stripe_fee_amount,
+      stripe_net_amount: details.stripe_net_amount ?? transaction.stripe_net_amount,
+    };
+  });
 }
 
 async function fetchLookupPayments(transactions: RevenueTransaction[]) {
@@ -353,11 +403,102 @@ function SummaryCard({ icon: Icon, label, value, tone = "default" }: { icon: typ
   );
 }
 
+type MultiCheckboxOption = {
+  value: string;
+  label: string;
+};
+
+function MultiCheckboxField({
+  label,
+  options,
+  selectedValues,
+  onChange,
+  allLabel,
+}: {
+  label: string;
+  options: MultiCheckboxOption[];
+  selectedValues: string[];
+  onChange: (values: string[]) => void;
+  allLabel: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <MultiCheckboxFilter
+        allLabel={allLabel}
+        options={options}
+        selectedValues={selectedValues}
+        onChange={onChange}
+      />
+    </div>
+  );
+}
+
+function MultiCheckboxFilter({
+  options,
+  selectedValues,
+  onChange,
+  allLabel,
+}: {
+  options: MultiCheckboxOption[];
+  selectedValues: string[];
+  onChange: (values: string[]) => void;
+  allLabel: string;
+}) {
+  const selectedOptions = options.filter((option) => selectedValues.includes(option.value));
+  const label = selectedOptions.length === 0
+    ? allLabel
+    : selectedOptions.length === 1
+      ? selectedOptions[0].label
+      : `${selectedOptions.length} selezionati`;
+
+  const toggleValue = (value: string, checked: boolean) => {
+    const nextValues = checked
+      ? unique([...selectedValues, value])
+      : selectedValues.filter((selectedValue) => selectedValue !== value);
+    onChange(nextValues);
+  };
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" variant="outline" className="h-10 w-full justify-between gap-2 font-normal">
+          <span className="truncate">{label}</span>
+          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="max-h-72 w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto">
+        {options.map((option) => (
+          <DropdownMenuCheckboxItem
+            key={option.value}
+            checked={selectedValues.includes(option.value)}
+            onCheckedChange={(checked) => toggleValue(option.value, checked === true)}
+            onSelect={(event) => event.preventDefault()}
+          >
+            <span className="truncate">{option.label}</span>
+          </DropdownMenuCheckboxItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function getCurrentQuarter() {
   const now = new Date();
   const year = now.getFullYear();
   const quarter = Math.floor(now.getMonth() / 3) + 1;
   return { year, quarter, ...quarterRange(year, quarter) };
+}
+
+function quarterRangeForSelection(year: number, selectedQuarters: string[]) {
+  const parsedQuarters = selectedQuarters
+    .map((value) => Number(value))
+    .filter((value) => Number.isInteger(value) && value >= 1 && value <= 4)
+    .sort((a, b) => a - b);
+  const quarters = parsedQuarters.length > 0 ? parsedQuarters : [1, 2, 3, 4];
+  const from = quarterRange(year, quarters[0]).from;
+  const to = quarterRange(year, quarters[quarters.length - 1]).to;
+  return { from, to };
 }
 
 function quarterRange(year: number, quarter: number) {
@@ -387,4 +528,12 @@ function endOfLocalDayIso(value: string) {
 
 function unique<T>(values: T[]) {
   return [...new Set(values)];
+}
+
+function chunkValues<T>(values: T[], size: number) {
+  const chunks: T[][] = [];
+  for (let index = 0; index < values.length; index += size) {
+    chunks.push(values.slice(index, index + size));
+  }
+  return chunks;
 }

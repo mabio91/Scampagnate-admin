@@ -1,6 +1,6 @@
-import { createXlsxBlob, type XlsxCellValue } from "./simpleXlsx";
+import { createXlsxBlob, type XlsxCellObject, type XlsxCellValue } from "./simpleXlsx";
 
-export type RevenueMovementType = "membership_fee" | "event_fee" | "service_fee" | "unclassified";
+export type RevenueMovementType = "membership_fee" | "event_fee" | "service_fee" | "stripe_fee" | "unclassified";
 export type RevenuePaymentStatus = "paid" | "refunded" | "cancelled";
 export type RevenueFilterValue = "all" | string;
 
@@ -17,7 +17,10 @@ export type RevenueTransaction = {
   registration_id: string | null;
   service_fee_amount: number | string | null;
   source: string | null;
+  stripe_balance_transaction_id: string | null;
   stripe_checkout_session_id: string | null;
+  stripe_fee_amount: number | string | null;
+  stripe_net_amount: number | string | null;
   stripe_payment_intent_id: string | null;
   stripe_refund_id: string | null;
   user_id: string;
@@ -52,6 +55,7 @@ export type RevenueExportRow = {
   movementType: RevenueMovementType;
   movementLabel: string;
   amount: number;
+  originalTransactionTotal: number | null;
   refundedAmount: number;
   currency: string;
   paymentStatus: RevenuePaymentStatus;
@@ -60,6 +64,7 @@ export type RevenueExportRow = {
   sourceLabel: string;
   registrationId: string;
   stripeCheckoutSessionId: string;
+  stripeBalanceTransactionId: string;
   stripePaymentIntentId: string;
   stripeRefundId: string;
   notes: string;
@@ -67,9 +72,11 @@ export type RevenueExportRow = {
 };
 
 export type RevenueRowFilters = {
-  eventId?: RevenueFilterValue;
-  movementType?: RevenueFilterValue;
-  paymentStatus?: RevenueFilterValue;
+  eventIds?: string[];
+  movementTypes?: RevenueMovementType[];
+  paymentStatuses?: RevenuePaymentStatus[];
+  quarterYear?: number;
+  quarters?: string[];
 };
 
 const DETAIL_HEADERS = [
@@ -83,6 +90,7 @@ const DETAIL_HEADERS = [
   "ID transazione",
   "Tipo movimento",
   "Importo",
+  "Totale transazione originaria",
   "Valuta",
   "Stato pagamento",
   "Eventuale data rimborso",
@@ -91,13 +99,14 @@ const DETAIL_HEADERS = [
   "ID registrazione",
   "Stripe checkout session",
   "Stripe payment intent",
+  "Stripe balance transaction",
   "Stripe refund",
   "Origine",
   "Note interne / causale",
 ];
 
 const DETAIL_COLUMN_WIDTHS = [
-  18, 18, 18, 30, 32, 24, 14, 34, 30, 12, 10, 16, 18, 18, 34, 34, 34, 34, 30, 24, 38,
+  18, 18, 18, 30, 32, 24, 14, 34, 30, 12, 24, 10, 16, 18, 18, 34, 34, 34, 34, 34, 30, 24, 38,
 ];
 
 const SUMMARY_COLUMN_WIDTHS = [34, 18, 12, 34, 34];
@@ -106,6 +115,7 @@ const MOVEMENT_LABELS: Record<RevenueMovementType, string> = {
   membership_fee: "Quota associativa",
   event_fee: "Quota partecipazione evento",
   service_fee: "Costo servizio",
+  stripe_fee: "Commissioni Stripe",
   unclassified: "Movimento non classificato",
 };
 
@@ -113,7 +123,16 @@ const REFUND_MOVEMENT_LABELS: Record<RevenueMovementType, string> = {
   membership_fee: "Rimborso quota associativa",
   event_fee: "Rimborso quota partecipazione evento",
   service_fee: "Rimborso costo servizio",
+  stripe_fee: "Commissioni Stripe",
   unclassified: "Rimborso non classificato",
+};
+
+const MOVEMENT_SORT_ORDER: Record<RevenueMovementType, number> = {
+  membership_fee: 1,
+  service_fee: 2,
+  event_fee: 3,
+  stripe_fee: 4,
+  unclassified: 5,
 };
 
 const PAYMENT_STATUS_LABELS: Record<RevenuePaymentStatus, string> = {
@@ -156,10 +175,22 @@ const dateFormatter = new Intl.DateTimeFormat("it-IT", {
   day: "2-digit",
 });
 
+const excelDatePartsFormatter = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Europe/Rome",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hourCycle: "h23",
+});
+
 export const revenueMovementTypeOptions = [
   { value: "membership_fee", label: MOVEMENT_LABELS.membership_fee },
   { value: "event_fee", label: MOVEMENT_LABELS.event_fee },
   { value: "service_fee", label: MOVEMENT_LABELS.service_fee },
+  { value: "stripe_fee", label: MOVEMENT_LABELS.stripe_fee },
 ];
 
 export const revenuePaymentStatusOptions = [
@@ -177,30 +208,37 @@ export function buildRevenueExportRows(
   const profileMap = new Map(profiles.map((profile) => [profile.id, profile]));
   const eventMap = new Map(events.map((event) => [event.id, event]));
   const paymentDateByReference = buildPaymentDateByReference(lookupTransactions);
+  const originalTotalByReference = buildOriginalTotalByReference(lookupTransactions);
 
   return transactions
-    .flatMap((transaction) => buildRowsForTransaction(transaction, profileMap, eventMap, paymentDateByReference))
+    .flatMap((transaction) => buildRowsForTransaction(transaction, profileMap, eventMap, paymentDateByReference, originalTotalByReference))
     .sort((a, b) => {
       const dateDiff = new Date(a.sortDate || 0).getTime() - new Date(b.sortDate || 0).getTime();
       if (dateDiff !== 0) return dateDiff;
-      return a.transactionReference.localeCompare(b.transactionReference) || a.movementLabel.localeCompare(b.movementLabel);
+      return a.transactionReference.localeCompare(b.transactionReference) || MOVEMENT_SORT_ORDER[a.movementType] - MOVEMENT_SORT_ORDER[b.movementType];
     });
 }
 
 export function filterRevenueRows(rows: RevenueExportRow[], filters: RevenueRowFilters) {
   return rows.filter((row) => {
-    if (filters.eventId && filters.eventId !== "all" && row.eventId !== filters.eventId) return false;
-    if (filters.movementType && filters.movementType !== "all" && row.movementType !== filters.movementType) return false;
-    if (filters.paymentStatus && filters.paymentStatus !== "all" && row.paymentStatus !== filters.paymentStatus) return false;
+    if (filters.eventIds?.length && !filters.eventIds.includes(row.eventId)) return false;
+    if (filters.movementTypes?.length && !filters.movementTypes.includes(row.movementType)) return false;
+    if (filters.paymentStatuses?.length && !filters.paymentStatuses.includes(row.paymentStatus)) return false;
+    if (filters.quarters?.length && filters.quarterYear && !rowMatchesQuarter(row, filters.quarters, filters.quarterYear)) return false;
     return true;
   });
 }
 
 export function summarizeRevenueRows(rows: RevenueExportRow[]) {
-  const total = rows.reduce((sum, row) => sum + row.amount, 0);
+  const total = rows
+    .filter((row) => row.movementType !== "stripe_fee")
+    .reduce((sum, row) => sum + row.amount, 0);
+  const stripeFees = sumByMovement(rows, "stripe_fee");
   const refunded = rows.reduce((sum, row) => sum + row.refundedAmount, 0);
   return {
     total,
+    stripeFees,
+    net: total + stripeFees,
     refunded,
     membership: sumByMovement(rows, "membership_fee"),
     events: sumByMovement(rows, "event_fee"),
@@ -215,7 +253,7 @@ export function createRevenueExportXlsxBlob(rows: RevenueExportRow[]) {
     sheets: [
       {
         name: "Dettaglio incassi",
-        rows: [DETAIL_HEADERS, ...rows.map(revenueRowToSheetRow)],
+        rows: [DETAIL_HEADERS, ...rows.map(revenueRowToXlsxSheetRow)],
         columnWidths: DETAIL_COLUMN_WIDTHS,
         freezeRows: 1,
         headerRows: 1,
@@ -237,7 +275,7 @@ export function exportRevenueXlsx(filename: string, rows: RevenueExportRow[]) {
 }
 
 export function revenueRowsToCsv(rows: RevenueExportRow[]) {
-  return [DETAIL_HEADERS, ...rows.map((row) => revenueRowToSheetRow(row).map((value) => String(value ?? "")))];
+  return [DETAIL_HEADERS, ...rows.map((row) => revenueRowToCsvSheetRow(row).map((value) => String(value ?? "")))];
 }
 
 export function formatRevenueDateTime(value: string | null | undefined) {
@@ -256,6 +294,61 @@ export function formatRevenueDate(value: string | null | undefined) {
   return dateFormatter.format(date);
 }
 
+function excelDateCell(value: string | null | undefined, style: "date" | "datetime"): XlsxCellObject | "" {
+  const serial = excelDateSerial(value, style);
+  return serial == null ? "" : { value: serial, style };
+}
+
+function excelDateSerial(value: string | null | undefined, style: "date" | "datetime") {
+  if (!value) return null;
+  const dateOnly = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateOnly) {
+    return excelSerialFromParts(Number(dateOnly[1]), Number(dateOnly[2]), Number(dateOnly[3]));
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  const parts = datePartsInRome(date);
+  if (!parts) return null;
+  return excelSerialFromParts(
+    parts.year,
+    parts.month,
+    parts.day,
+    style === "datetime" ? parts.hour : 0,
+    style === "datetime" ? parts.minute : 0,
+    style === "datetime" ? parts.second : 0
+  );
+}
+
+function datePartsInRome(date: Date) {
+  const values: Record<string, number> = {};
+  for (const part of excelDatePartsFormatter.formatToParts(date)) {
+    if (part.type !== "literal") values[part.type] = Number(part.value);
+  }
+  if (!values.year || !values.month || !values.day) return null;
+  return {
+    year: values.year,
+    month: values.month,
+    day: values.day,
+    hour: values.hour || 0,
+    minute: values.minute || 0,
+    second: values.second || 0,
+  };
+}
+
+function excelSerialFromParts(year: number, month: number, day: number, hour = 0, minute = 0, second = 0) {
+  return Date.UTC(year, month - 1, day, hour, minute, second) / 86_400_000 + 25_569;
+}
+
+function rowMatchesQuarter(row: RevenueExportRow, quarters: string[], year: number) {
+  const date = new Date(row.paymentDate);
+  if (Number.isNaN(date.getTime())) return false;
+  const parts = datePartsInRome(date);
+  if (!parts || parts.year !== year) return false;
+  const quarter = String(Math.floor((parts.month - 1) / 3) + 1);
+  return quarters.includes(quarter);
+}
+
 export function revenueMoney(value: unknown) {
   const amount = Number(value || 0);
   return Number.isFinite(amount) ? amount : 0;
@@ -270,7 +363,8 @@ function buildRowsForTransaction(
   transaction: RevenueTransaction,
   profileMap: Map<string, RevenueProfile>,
   eventMap: Map<string, RevenueEvent>,
-  paymentDateByReference: Map<string, string>
+  paymentDateByReference: Map<string, string>,
+  originalTotalByReference: Map<string, number>
 ) {
   const paymentStatus = normalizePaymentStatus(transaction.kind);
   const transactionReference = transactionReferenceFor(transaction);
@@ -278,12 +372,22 @@ function buildRowsForTransaction(
     ? paymentDateByReference.get(transactionReference) || transaction.created_at
     : transaction.created_at;
   const refundDate = paymentStatus === "refunded" ? transaction.created_at : "";
+  const originalTransactionTotal = paymentStatus === "paid"
+    ? revenueMoney(transaction.amount)
+    : originalTotalByReference.get(transactionReference) ?? null;
   const components = COMPONENTS
     .map((component) => ({
       type: component.type,
       amount: signedComponentAmount(transaction[component.field], paymentStatus),
     }))
     .filter((component) => component.amount !== 0);
+
+  if (paymentStatus === "paid" && revenueMoney(transaction.stripe_fee_amount) > 0) {
+    components.push({
+      type: "stripe_fee",
+      amount: -revenueMoney(transaction.stripe_fee_amount),
+    });
+  }
 
   if (components.length === 0 && revenueMoney(transaction.amount) !== 0) {
     components.push({
@@ -315,6 +419,7 @@ function buildRowsForTransaction(
       movementType: component.type,
       movementLabel,
       amount: roundMoney(component.amount),
+      originalTransactionTotal: originalTransactionTotal == null ? null : roundMoney(originalTransactionTotal),
       refundedAmount: isRefund ? roundMoney(Math.abs(component.amount)) : 0,
       currency: (transaction.currency || "EUR").toUpperCase(),
       paymentStatus,
@@ -323,6 +428,7 @@ function buildRowsForTransaction(
       sourceLabel: revenueSourceLabel(transaction.source),
       registrationId: transaction.registration_id || "",
       stripeCheckoutSessionId: transaction.stripe_checkout_session_id || "",
+      stripeBalanceTransactionId: transaction.stripe_balance_transaction_id || "",
       stripePaymentIntentId: transaction.stripe_payment_intent_id || "",
       stripeRefundId: transaction.stripe_refund_id || "",
       notes: notes || (component.type === "unclassified" ? "Componente economica non disponibile" : ""),
@@ -342,6 +448,19 @@ function buildPaymentDateByReference(transactions: RevenueTransaction[]) {
       }
     });
   return dates;
+}
+
+function buildOriginalTotalByReference(transactions: RevenueTransaction[]) {
+  const totals = new Map<string, number>();
+  transactions
+    .filter((transaction) => normalizePaymentStatus(transaction.kind) === "paid")
+    .forEach((transaction) => {
+      const reference = transactionReferenceFor(transaction);
+      const amount = revenueMoney(transaction.amount);
+      if (amount <= 0) return;
+      if (!totals.has(reference)) totals.set(reference, amount);
+    });
+  return totals;
 }
 
 function transactionReferenceFor(transaction: RevenueTransaction) {
@@ -412,7 +531,35 @@ function signedComponentAmount(value: unknown, status: RevenuePaymentStatus) {
   return amount;
 }
 
-function revenueRowToSheetRow(row: RevenueExportRow): XlsxCellValue[] {
+function revenueRowToXlsxSheetRow(row: RevenueExportRow): XlsxCellValue[] {
+  return [
+    excelDateCell(row.paymentDate, "datetime"),
+    row.firstName,
+    row.lastName,
+    row.email,
+    row.eventTitle,
+    row.eventId,
+    excelDateCell(row.eventDate, "date"),
+    row.transactionReference,
+    row.movementLabel,
+    row.amount,
+    row.originalTransactionTotal ?? "",
+    row.currency,
+    row.paymentStatusLabel,
+    excelDateCell(row.refundDate, "datetime"),
+    row.refundedAmount || "",
+    row.transactionRowId,
+    row.registrationId,
+    row.stripeCheckoutSessionId,
+    row.stripePaymentIntentId,
+    row.stripeBalanceTransactionId,
+    row.stripeRefundId,
+    row.sourceLabel,
+    row.notes,
+  ];
+}
+
+function revenueRowToCsvSheetRow(row: RevenueExportRow): XlsxCellValue[] {
   return [
     formatRevenueDateTime(row.paymentDate),
     row.firstName,
@@ -424,6 +571,7 @@ function revenueRowToSheetRow(row: RevenueExportRow): XlsxCellValue[] {
     row.transactionReference,
     row.movementLabel,
     row.amount,
+    row.originalTransactionTotal ?? "",
     row.currency,
     row.paymentStatusLabel,
     formatRevenueDateTime(row.refundDate),
@@ -432,6 +580,7 @@ function revenueRowToSheetRow(row: RevenueExportRow): XlsxCellValue[] {
     row.registrationId,
     row.stripeCheckoutSessionId,
     row.stripePaymentIntentId,
+    row.stripeBalanceTransactionId,
     row.stripeRefundId,
     row.sourceLabel,
     row.notes,
@@ -450,7 +599,9 @@ function buildRevenueSummarySheetRows(rows: RevenueExportRow[]): XlsxCellValue[]
     ["Totale quote associative incassate", roundMoney(summary.membership), "", "", ""],
     ["Totale quote evento incassate", roundMoney(summary.events), "", "", ""],
     ["Totale costi servizio incassati", roundMoney(summary.serviceFees), "", "", ""],
+    ["Totale commissioni Stripe", roundMoney(summary.stripeFees), "", "", ""],
     ["Totale rimborsi", roundMoney(summary.refunded), "", "", ""],
+    ["Totale netto piattaforma", roundMoney(summary.net), "", "", ""],
     [],
     ["Totali per tipologia", "Valore", "Righe", "ID", "Dettaglio"],
     ...byMovement,

@@ -1,4 +1,9 @@
-export type XlsxCellValue = string | number | boolean | null | undefined;
+export type XlsxCellStyle = "date" | "datetime";
+export type XlsxCellObject = {
+  value: string | number | boolean | null | undefined;
+  style?: XlsxCellStyle;
+};
+export type XlsxCellValue = string | number | boolean | XlsxCellObject | null | undefined;
 
 export type XlsxWorksheet = {
   name: string;
@@ -76,23 +81,34 @@ function cellStyleIndex(rowNumber: number, headerRows: number) {
 }
 
 function cellXml(value: XlsxCellValue, rowNumber: number, columnNumber: number, styleIndex: number) {
-  if (value === null || value === undefined || value === "") return "";
+  const cell = normalizeCell(value);
+  if (cell.value === null || cell.value === undefined || cell.value === "") return "";
   const ref = `${columnName(columnNumber)}${rowNumber}`;
-  const style = styleIndex ? ` s="${styleIndex}"` : "";
+  const resolvedStyleIndex = cell.style === "date" ? 3 : cell.style === "datetime" ? 4 : styleIndex;
+  const style = resolvedStyleIndex ? ` s="${resolvedStyleIndex}"` : "";
 
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return `<c r="${ref}"${style}><v>${value}</v></c>`;
+  if (typeof cell.value === "number" && Number.isFinite(cell.value)) {
+    return `<c r="${ref}"${style}><v>${cell.value}</v></c>`;
   }
 
-  if (typeof value === "boolean") {
-    return `<c r="${ref}" t="b"${style}><v>${value ? 1 : 0}</v></c>`;
+  if (typeof cell.value === "boolean") {
+    return `<c r="${ref}" t="b"${style}><v>${cell.value ? 1 : 0}</v></c>`;
   }
 
-  return `<c r="${ref}" t="inlineStr"${style}><is><t>${escapeXml(String(value))}</t></is></c>`;
+  return `<c r="${ref}" t="inlineStr"${style}><is><t>${escapeXml(String(cell.value))}</t></is></c>`;
+}
+
+function normalizeCell(value: XlsxCellValue): XlsxCellObject {
+  if (isCellObject(value)) return value;
+  return { value };
+}
+
+function isCellObject(value: XlsxCellValue): value is XlsxCellObject {
+  return typeof value === "object" && value !== null && !Array.isArray(value) && "value" in value;
 }
 
 function stylesXml() {
-  return xmlDocument('<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFD9EAF7"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color indexed="64"/></left><right style="thin"><color indexed="64"/></right><top style="thin"><color indexed="64"/></top><bottom style="thin"><color indexed="64"/></bottom><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="1" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles><dxfs count="0"/><tableStyles count="0" defaultTableStyle="TableStyleMedium2" defaultPivotStyle="PivotStyleLight16"/></styleSheet>');
+  return xmlDocument('<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="2"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/><numFmt numFmtId="165" formatCode="dd/mm/yyyy hh:mm"/></numFmts><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFD9EAF7"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color indexed="64"/></left><right style="thin"><color indexed="64"/></right><top style="thin"><color indexed="64"/></top><bottom style="thin"><color indexed="64"/></bottom><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="5"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="1" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="165" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles><dxfs count="0"/><tableStyles count="0" defaultTableStyle="TableStyleMedium2" defaultPivotStyle="PivotStyleLight16"/></styleSheet>');
 }
 
 function workbookXml(sheets: XlsxWorksheet[]) {
