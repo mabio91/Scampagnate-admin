@@ -51,7 +51,7 @@ const quarterOptions = [
 ];
 
 const euro = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" });
-const DEFAULT_SORT: RevenueSortConfig = { key: "date", direction: "asc" };
+const DEFAULT_SORT: RevenueSortConfig = { key: "date", direction: "desc" };
 
 export default function RevenueExportsPage() {
   const currentQuarter = getCurrentQuarter();
