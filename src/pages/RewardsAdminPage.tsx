@@ -1,13 +1,19 @@
+import { useState, type ReactNode } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import RefreshButton from "@/components/RefreshButton";
 import { Gift, Ticket, Award, CheckCircle, Clock, Package } from "lucide-react";
+
+type Reward = Tables<"user_rewards">;
+type RewardProfile = Pick<Tables<"profiles">, "id" | "first_name" | "last_name" | "email">;
 
 const statusLabels: Record<string, string> = {
   active: "Attivo",
@@ -17,7 +23,24 @@ const statusLabels: Record<string, string> = {
   redeemed: "Riscattato",
 };
 
-const typeIcons: Record<string, React.ReactNode> = {
+type RewardTypeFilter = "all" | "points" | "physical" | "badge" | "coupon";
+
+const rewardTypeOptions: { value: RewardTypeFilter; label: string }[] = [
+  { value: "all", label: "Tutte" },
+  { value: "points", label: "Punti" },
+  { value: "physical", label: "Ricompense fisiche" },
+  { value: "badge", label: "Badge" },
+  { value: "coupon", label: "Coupon" },
+];
+
+const typeLabels: Record<string, string> = {
+  coupon: "Coupon",
+  badge: "Badge",
+  physical: "Ricompensa fisica",
+  points: "Punti",
+};
+
+const typeIcons: Record<string, ReactNode> = {
   coupon: <Ticket className="h-5 w-5" />,
   badge: <Award className="h-5 w-5" />,
   physical: <Gift className="h-5 w-5" />,
@@ -26,8 +49,9 @@ const typeIcons: Record<string, React.ReactNode> = {
 
 export default function RewardsAdminPage() {
   const queryClient = useQueryClient();
+  const [rewardTypeFilter, setRewardTypeFilter] = useState<RewardTypeFilter>("all");
 
-  const { data: rewards = [] } = useQuery({
+  const { data: rewards = [] } = useQuery<Reward[]>({
     queryKey: ["admin-rewards"],
     queryFn: async () => {
       const { data } = await supabase
@@ -38,7 +62,7 @@ export default function RewardsAdminPage() {
     },
   });
 
-  const { data: profiles = [] } = useQuery({
+  const { data: profiles = [] } = useQuery<RewardProfile[]>({
     queryKey: ["profiles-for-rewards"],
     queryFn: async () => {
       const { data } = await supabase.from("profiles").select("id, first_name, last_name, email");
@@ -60,12 +84,15 @@ export default function RewardsAdminPage() {
   });
 
   const getProfileName = (userId: string) => {
-    const p = profiles.find((p: any) => p.id === userId);
+    const p = profiles.find((p) => p.id === userId);
     return p ? `${p.first_name} ${p.last_name}` : userId.slice(0, 8);
   };
 
-  const activeRewards = rewards.filter((r: any) => r.status === "active" || r.status === "pending");
-  const historyRewards = rewards.filter((r: any) => r.status === "used" || r.status === "expired" || r.status === "redeemed");
+  const activeRewards = rewards.filter((r) => r.status === "active" || r.status === "pending");
+  const historyRewards = rewards.filter((r) => r.status === "used" || r.status === "expired" || r.status === "redeemed");
+  const selectedRewardTypeLabel = rewardTypeOptions.find((option) => option.value === rewardTypeFilter)?.label || "";
+  const activeRewardsByType = rewardTypeFilter === "all" ? activeRewards : activeRewards.filter((r) => r.type === rewardTypeFilter);
+  const historyRewardsByType = rewardTypeFilter === "all" ? historyRewards : historyRewards.filter((r) => r.type === rewardTypeFilter);
 
   return (
     <div className="space-y-6">
@@ -94,7 +121,7 @@ export default function RewardsAdminPage() {
         <Card>
           <CardContent className="p-4 text-center">
             <div className="text-2xl font-bold text-primary">
-              {rewards.filter((r: any) => r.status === "pending").length}
+              {rewards.filter((r) => r.status === "pending").length}
             </div>
             <div className="text-xs text-muted-foreground uppercase tracking-wider">Da ritirare</div>
           </CardContent>
@@ -108,10 +135,28 @@ export default function RewardsAdminPage() {
       </div>
 
       <Tabs defaultValue="active">
-        <TabsList>
-          <TabsTrigger value="active">Attive ({activeRewards.length})</TabsTrigger>
-          <TabsTrigger value="history">Storico ({historyRewards.length})</TabsTrigger>
-        </TabsList>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <TabsList>
+            <TabsTrigger value="active">Attive ({activeRewardsByType.length})</TabsTrigger>
+            <TabsTrigger value="history">Storico ({historyRewardsByType.length})</TabsTrigger>
+          </TabsList>
+
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground">Tipologia</span>
+            <Select value={rewardTypeFilter} onValueChange={(value) => setRewardTypeFilter(value as RewardTypeFilter)}>
+              <SelectTrigger className="w-full sm:w-[220px]" aria-label="Tipologia ricompensa">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {rewardTypeOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
 
         <TabsContent value="active" className="mt-4">
           <Card>
@@ -129,21 +174,23 @@ export default function RewardsAdminPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {activeRewards.length === 0 ? (
+                    {activeRewardsByType.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
                           <Gift className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                          Nessuna ricompensa attiva
+                          {rewardTypeFilter === "all"
+                            ? "Nessuna ricompensa attiva"
+                            : `Nessuna ricompensa attiva per ${selectedRewardTypeLabel.toLowerCase()}`}
                         </TableCell>
                       </TableRow>
                     ) : (
-                      activeRewards.map((r: any) => (
+                      activeRewardsByType.map((r) => (
                         <TableRow key={r.id}>
                           <TableCell className="font-medium">{getProfileName(r.user_id)}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1.5 text-muted-foreground">
                               {typeIcons[r.type]}
-                              <span className="text-sm capitalize">{r.type}</span>
+                              <span className="text-sm">{typeLabels[r.type] || r.type}</span>
                             </div>
                           </TableCell>
                           <TableCell>{r.title || r.value || "—"}</TableCell>
@@ -204,21 +251,23 @@ export default function RewardsAdminPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {historyRewards.length === 0 ? (
+                    {historyRewardsByType.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
                           <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                          Nessun elemento nello storico
+                          {rewardTypeFilter === "all"
+                            ? "Nessun elemento nello storico"
+                            : `Nessun elemento nello storico per ${selectedRewardTypeLabel.toLowerCase()}`}
                         </TableCell>
                       </TableRow>
                     ) : (
-                      historyRewards.map((r: any) => (
+                      historyRewardsByType.map((r) => (
                         <TableRow key={r.id}>
                           <TableCell className="font-medium">{getProfileName(r.user_id)}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1.5 text-muted-foreground">
                               {typeIcons[r.type]}
-                              <span className="text-sm capitalize">{r.type}</span>
+                              <span className="text-sm">{typeLabels[r.type] || r.type}</span>
                             </div>
                           </TableCell>
                           <TableCell>{r.title || r.value || "—"}</TableCell>
