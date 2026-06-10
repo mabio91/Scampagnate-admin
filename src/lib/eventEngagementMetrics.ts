@@ -30,21 +30,16 @@ type RawMetric = {
   opening_notification_click_count?: unknown;
 };
 
-type EngagementSourceRow = {
+type RawAudienceRow = {
   id?: unknown;
   user_id?: unknown;
-  created_at?: unknown;
-  notified_at?: unknown;
-};
-
-type EngagementProfileRow = {
-  id?: unknown;
-  first_name?: unknown;
-  last_name?: unknown;
+  display_name?: unknown;
   email?: unknown;
   phone?: unknown;
   instagram_handle?: unknown;
   avatar_url?: unknown;
+  created_at?: unknown;
+  status?: unknown;
 };
 
 const toCount = (value: unknown) => Number(value || 0);
@@ -59,32 +54,9 @@ const toMetric = (row: RawMetric): EventEngagementMetrics => ({
   opening_notification_click_count: toCount(row.opening_notification_click_count),
 });
 
-const toProfileMap = (rows: EngagementProfileRow[]) =>
-  rows.reduce<Record<string, EngagementProfileRow>>((acc, profile) => {
-    const id = toOptionalString(profile.id);
-    if (id) acc[id] = profile;
-    return acc;
-  }, {});
-
-const getProfileDisplayName = (profile: EngagementProfileRow | undefined, userId: string) => {
-  const name = [profile?.first_name, profile?.last_name]
-    .map(toOptionalString)
-    .filter(Boolean)
-    .join(" ")
-    .trim();
-  return name || `Utente ${userId.slice(0, 8)}`;
-};
-
-const fetchProfilesByUserIds = async (userIds: string[]) => {
-  if (userIds.length === 0) return {};
-
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id, first_name, last_name, email, phone, instagram_handle, avatar_url")
-    .in("id", userIds);
-  if (error) throw error;
-
-  return toProfileMap((data || []) as EngagementProfileRow[]);
+const toAudienceStatus = (value: unknown, fallback: EventEngagementAudienceType): EventEngagementAudienceMember["status"] => {
+  if (value === "active_reminder" || value === "notified_reminder" || value === "saved") return value;
+  return fallback === "saved" ? "saved" : "active_reminder";
 };
 
 export const fetchEventEngagementMetrics = async (eventIds: string[]) => {
@@ -118,44 +90,28 @@ export const fetchEventEngagementAudience = async (
 ): Promise<EventEngagementAudienceMember[]> => {
   if (!eventId) return [];
 
-  const query =
-    type === "saved"
-      ? supabase
-          .from("saved_events")
-          .select("id, user_id, created_at")
-          .eq("event_id", eventId)
-          .order("created_at", { ascending: false })
-      : supabase
-          .from("event_opening_reminders")
-          .select("id, user_id, created_at, notified_at")
-          .eq("event_id", eventId)
-          .is("cancelled_at", null)
-          .order("created_at", { ascending: false });
-
-  const { data, error } = await query;
+  const { data, error } = await supabase.rpc("get_event_engagement_audience" as never, {
+    p_event_id: eventId,
+    p_kind: type,
+  } as never);
   if (error) throw error;
 
-  const rows = (data || []) as EngagementSourceRow[];
-  const userIds = [...new Set(rows.map((row) => toOptionalString(row.user_id)).filter(Boolean))] as string[];
-  const profilesById = await fetchProfilesByUserIds(userIds);
-
+  const rows = Array.isArray(data) ? (data as RawAudienceRow[]) : [];
   return rows.flatMap((row) => {
     const userId = toOptionalString(row.user_id);
     const id = toOptionalString(row.id);
     if (!userId || !id) return [];
 
-    const profile = profilesById[userId];
-    const notifiedAt = toOptionalString(row.notified_at);
     return {
       id,
       user_id: userId,
-      display_name: getProfileDisplayName(profile, userId),
-      email: toOptionalString(profile?.email),
-      phone: toOptionalString(profile?.phone),
-      instagram_handle: toOptionalString(profile?.instagram_handle),
-      avatar_url: toOptionalString(profile?.avatar_url),
+      display_name: toOptionalString(row.display_name) || `Utente ${userId.slice(0, 8)}`,
+      email: toOptionalString(row.email),
+      phone: toOptionalString(row.phone),
+      instagram_handle: toOptionalString(row.instagram_handle),
+      avatar_url: toOptionalString(row.avatar_url),
       created_at: toOptionalString(row.created_at),
-      status: type === "saved" ? "saved" : notifiedAt ? "notified_reminder" : "active_reminder",
+      status: toAudienceStatus(row.status, type),
     };
   });
 };

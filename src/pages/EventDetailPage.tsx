@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { EventParticipantsList } from "@/components/participants/EventParticipantsList";
 import { EventBadgePills } from "@/components/EventBadges";
 import { EventShareLinks } from "@/components/EventShareLinks";
@@ -14,11 +17,17 @@ import { renderEventDescriptionHtml } from "@/lib/eventDescription";
 import { getPriceOptionDisplayName } from "@/lib/priceOptions";
 import {
   ArrowLeft, MapPin, Calendar, Clock, Users, DollarSign,
-  Eye, Shield, Image as ImageIcon, ChevronRight,
-  UserRound, Bookmark, BellRing, MousePointerClick,
+  Eye, Image as ImageIcon,
+  UserRound, Bookmark, BellRing,
 } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
-import { emptyEventEngagementMetrics, fetchEventEngagementMetrics } from "@/lib/eventEngagementMetrics";
+import {
+  emptyEventEngagementMetrics,
+  fetchEventEngagementAudience,
+  fetchEventEngagementMetrics,
+  type EventEngagementAudienceMember,
+  type EventEngagementAudienceType,
+} from "@/lib/eventEngagementMetrics";
 
 type Event = Tables<"events">;
 type EventWithCategory = Event & {
@@ -72,10 +81,49 @@ const getPriceOptionPaymentSummary = (option: any, event: Event) => {
   return `€${price.toFixed(2)} online`;
 };
 
+const engagementAudienceLabels: Record<EventEngagementAudienceType, { title: string; empty: string }> = {
+  saved: {
+    title: "Utenti che hanno salvato",
+    empty: "Nessun utente ha ancora salvato questo evento.",
+  },
+  reminder: {
+    title: "Utenti con reminder",
+    empty: "Nessun utente ha ancora attivato il reminder.",
+  },
+};
+
+const formatEngagementAudienceDate = (value: string | null) => {
+  if (!value) return "Data non disponibile";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Data non disponibile";
+  return new Intl.DateTimeFormat("it-IT", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+};
+
+const getEngagementContactText = (member: EventEngagementAudienceMember) => {
+  const instagram = member.instagram_handle
+    ? member.instagram_handle.startsWith("@")
+      ? member.instagram_handle
+      : `@${member.instagram_handle}`
+    : null;
+  return [member.phone, member.email, instagram].filter(Boolean).join(" · ");
+};
+
+const getEngagementInitials = (name: string) => {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  return (words[0]?.[0] || "U") + (words[1]?.[0] || "");
+};
+
 export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: difficultyLevels } = useTrekkingDifficultyLevels();
+  const [engagementDetail, setEngagementDetail] = useState<EventEngagementAudienceType | null>(null);
 
   const { data: event, isLoading } = useQuery({
     queryKey: ["event-detail", id],
@@ -137,6 +185,11 @@ export default function EventDetailPage() {
       return metrics[id!] || emptyEventEngagementMetrics(id!);
     },
   });
+  const { data: engagementAudience = [], isLoading: isEngagementAudienceLoading } = useQuery({
+    queryKey: ["admin-event-detail-engagement-audience", id, engagementDetail],
+    enabled: !!id && !!engagementDetail,
+    queryFn: () => fetchEventEngagementAudience(id!, engagementDetail!),
+  });
 
   if (isLoading) {
     return (
@@ -164,8 +217,10 @@ export default function EventDetailPage() {
   const priceOptions = [...((event.event_price_options as any[]) || [])].sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
   const engagement = engagementMetrics || emptyEventEngagementMetrics(event.id);
   const totalOpeningReminders = engagement.opening_reminder_active_count + engagement.opening_reminder_notified_count;
+  const engagementDetailCopy = engagementDetail ? engagementAudienceLabels[engagementDetail] : null;
 
   return (
+    <>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
@@ -363,41 +418,28 @@ export default function EventDetailPage() {
             <CardHeader><CardTitle className="text-lg">Engagement</CardTitle></CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="rounded-lg border bg-muted/30 p-3">
+                <button
+                  type="button"
+                  onClick={() => setEngagementDetail("saved")}
+                  className="rounded-lg border bg-muted/30 p-3 text-left transition-colors hover:border-primary/50 hover:bg-primary/5"
+                >
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Bookmark className="h-4 w-4" />
                     <span>Salvati</span>
                   </div>
                   <p className="mt-2 text-2xl font-bold">{engagement.saved_count}</p>
-                </div>
-                <div className="rounded-lg border bg-muted/30 p-3">
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEngagementDetail("reminder")}
+                  className="rounded-lg border bg-muted/30 p-3 text-left transition-colors hover:border-primary/50 hover:bg-primary/5"
+                >
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <BellRing className="h-4 w-4" />
                     <span>Reminder</span>
                   </div>
                   <p className="mt-2 text-2xl font-bold">{totalOpeningReminders}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {engagement.opening_reminder_active_count} attivi · {engagement.opening_reminder_notified_count} notificati
-                  </p>
-                </div>
-                <div className="rounded-lg border bg-muted/30 p-3">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <MousePointerClick className="h-4 w-4" />
-                    <span>Click apertura</span>
-                  </div>
-                  <p className="mt-2 text-2xl font-bold">{engagement.opening_notification_click_count}</p>
-                </div>
-                <div className="rounded-lg border bg-muted/30 p-3">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Eye className="h-4 w-4" />
-                    <span>Click rate</span>
-                  </div>
-                  <p className="mt-2 text-2xl font-bold">
-                    {engagement.opening_reminder_notified_count > 0
-                      ? `${Math.round((engagement.opening_notification_click_count / engagement.opening_reminder_notified_count) * 100)}%`
-                      : "0%"}
-                  </p>
-                </div>
+                </button>
               </div>
             </CardContent>
           </Card>
@@ -456,5 +498,50 @@ export default function EventDetailPage() {
         </div>
       </div>
     </div>
+
+      <Dialog open={!!engagementDetail} onOpenChange={(open) => !open && setEngagementDetail(null)}>
+        <DialogContent className="flex max-h-[85vh] max-w-lg flex-col overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>{engagementDetailCopy?.title || "Engagement"}</DialogTitle>
+          </DialogHeader>
+          <div className="min-h-40 space-y-2 overflow-y-auto pr-1">
+            {isEngagementAudienceLoading ? (
+              <div className="space-y-2">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <Skeleton key={index} className="h-16 rounded-lg" />
+                ))}
+              </div>
+            ) : engagementAudience.length === 0 ? (
+              <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                {engagementDetailCopy?.empty || "Nessun utente trovato."}
+              </p>
+            ) : (
+              engagementAudience.map((member) => {
+                const contactText = getEngagementContactText(member);
+                return (
+                  <button
+                    key={member.id}
+                    type="button"
+                    onClick={() => navigate(`/users/${member.user_id}`)}
+                    className="flex w-full items-center gap-3 rounded-lg border bg-card p-3 text-left transition-colors hover:bg-muted/50"
+                  >
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={member.avatar_url || undefined} alt={member.display_name} />
+                      <AvatarFallback>{getEngagementInitials(member.display_name)}</AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{member.display_name}</p>
+                      <p className="text-xs text-muted-foreground">{formatEngagementAudienceDate(member.created_at)}</p>
+                      {contactText && <p className="truncate text-xs text-muted-foreground">{contactText}</p>}
+                    </div>
+                    <Eye className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
