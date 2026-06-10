@@ -33,6 +33,12 @@ import { isGeneratedPriceOptionName } from "@/lib/priceOptions";
 import { normalizeWhatsappGroupUrl } from "@/lib/eventWhatsapp";
 import { fetchEventEngagementAudience, fetchEventEngagementMetrics, type EventEngagementAudienceType } from "@/lib/eventEngagementMetrics";
 import { FIT_SCORE_EVENT_SECONDARY_MAX, INTEREST_CATEGORY_OPTIONS } from "@/lib/fitScoreCategories";
+import {
+  computeEventNoShowStats,
+  HIGH_NO_SHOW_EVENT_FILTER,
+  isNoShowAlertEligibleEvent,
+  NO_SHOW_ALERT_REGISTRATION_STATUSES,
+} from "@/lib/eventNoShowAlerts";
 
 type Event = Tables<"events">;
 type EventWithCategory = Event & {
@@ -660,6 +666,8 @@ export default function EventsPage() {
   const dashboardFilter = searchParams.get("filter");
   const periodParam = searchParams.get("period") as EventPeriodFilter | null;
   const eventPeriod = periodParam && EVENT_PERIOD_FILTERS.includes(periodParam) ? periodParam : "upcoming";
+  const highNoShowFilterActive = dashboardFilter === HIGH_NO_SHOW_EVENT_FILTER;
+  const today = getLocalDateString();
   const [editEvent, setEditEvent] = useState<(Record<string, any> & { isNew?: boolean }) | null>(null);
   const [localMeetingPoints, setLocalMeetingPoints] = useState<LocalMeetingPoint[]>([]);
   const [localPriceOptions, setLocalPriceOptions] = useState<PricingRule[]>([]);
@@ -713,10 +721,31 @@ export default function EventsPage() {
   });
   const eventIds = events.map((event) => event.id);
   const eventIdsKey = eventIds.join(",");
+  const noShowEligibleEventIds = events
+    .filter((event) => isNoShowAlertEligibleEvent(event, today))
+    .map((event) => event.id);
+  const noShowEligibleEventIdsKey = noShowEligibleEventIds.join(",");
   const { data: eventEngagementMetrics = {} } = useQuery({
     queryKey: ["admin-event-engagement-metrics", eventIdsKey],
     queryFn: () => fetchEventEngagementMetrics(eventIds),
     enabled: eventIds.length > 0,
+  });
+  const { data: highNoShowEventIds = [], isLoading: isLoadingHighNoShowEvents } = useQuery({
+    queryKey: ["admin-events-high-no-show", noShowEligibleEventIdsKey],
+    queryFn: async () => {
+      if (noShowEligibleEventIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from("event_registrations")
+        .select("event_id, status")
+        .in("event_id", noShowEligibleEventIds)
+        .in("status", NO_SHOW_ALERT_REGISTRATION_STATUSES);
+      if (error) throw error;
+
+      return Object.values(computeEventNoShowStats(data || []))
+        .filter((stats) => stats.isHighNoShow)
+        .map((stats) => stats.eventId);
+    },
+    enabled: highNoShowFilterActive && noShowEligibleEventIds.length > 0,
   });
   const { data: engagementAudience = [], isLoading: isEngagementAudienceLoading } = useQuery({
     queryKey: ["admin-event-engagement-audience", engagementDetail?.event.id, engagementDetail?.type],
@@ -1486,7 +1515,6 @@ export default function EventsPage() {
   });
 
   /* ── Filtering ── */
-  const today = getLocalDateString();
   const filtered = events.filter(e => {
     if (!e.title.toLowerCase().includes(search.toLowerCase())) return false;
     const pastEvent = isEventPast(e, today);
@@ -1496,9 +1524,17 @@ export default function EventsPage() {
       return e.date >= today && ["published", "available", "open"].includes(e.status) && e.spots_taken === 0;
     }
     if (dashboardFilter === "pending") return pendingEventIds.includes(e.id);
+    if (highNoShowFilterActive) return highNoShowEventIds.includes(e.id);
     return true;
   });
   const getCategoryName = (id: string | null) => categories.find(c => c.id === id)?.name || "—";
+  const dashboardFilterLabel =
+    dashboardFilter === "empty" ? "Filtro attivo: eventi senza iscritti"
+    : dashboardFilter === "pending" ? "Filtro attivo: iscrizioni in attesa"
+    : highNoShowFilterActive ? "Filtro attivo: eventi con no-show superiore al 40%"
+    : dashboardFilter ? `Filtro: ${dashboardFilter}`
+    : "";
+  const isEventsTableLoading = isLoading || (highNoShowFilterActive && isLoadingHighNoShowEvents);
 
   /* ══════ RENDER ══════ */
   const sortedEvents = [...filtered].sort((a, b) => {
@@ -1577,7 +1613,7 @@ export default function EventsPage() {
         <div className="flex items-center gap-2 p-3 rounded-lg border border-warning/30 bg-warning/5">
           <CalendarX className="h-4 w-4 text-warning shrink-0" />
           <p className="text-sm text-foreground flex-1">
-            {dashboardFilter === "empty" ? "Filtro attivo: eventi senza iscritti" : dashboardFilter === "pending" ? "Filtro attivo: iscrizioni in attesa" : `Filtro: ${dashboardFilter}`}
+            {dashboardFilterLabel}
           </p>
           <Button variant="ghost" size="sm" onClick={() => navigate("/events")}>Rimuovi filtro</Button>
         </div>
@@ -1608,7 +1644,7 @@ export default function EventsPage() {
           </div>
         </CardHeader>
         <CardContent className="overflow-hidden px-2 sm:px-6">
-          {isLoading ? (
+          {isEventsTableLoading ? (
             <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16" />)}</div>
           ) : (
             <Table className="table-fixed text-xs sm:text-sm">

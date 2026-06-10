@@ -22,6 +22,12 @@ import { format, subMonths, startOfMonth } from "date-fns";
 import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
+import {
+  computeEventNoShowStats,
+  HIGH_NO_SHOW_EVENT_FILTER,
+  isNoShowAlertEligibleEvent,
+  NO_SHOW_ALERT_REGISTRATION_STATUSES,
+} from "@/lib/eventNoShowAlerts";
 
 const PIE_COLORS = [
   "hsl(150, 40%, 20%)",
@@ -713,34 +719,30 @@ export default function Dashboard() {
         });
       }
 
-      // 2. Events with high no-show rate (>40%)
-      const { data: recentEventsForNoShow } = await supabase
+      // 2. Events with high explicit no-show rate (>40%)
+      const noShowAlertToday = format(new Date(), "yyyy-MM-dd");
+      const { data: eventsForNoShow } = await supabase
         .from("events")
-        .select("id, title")
-        .in("status", ["past", "completed", "closed"])
-        .order("date", { ascending: false })
-        .limit(50);
-      if (recentEventsForNoShow && recentEventsForNoShow.length > 0) {
-        const eventIds = recentEventsForNoShow.map(e => e.id);
+        .select("id, title, date, status");
+      const noShowEligibleEvents = (eventsForNoShow || []).filter((event) =>
+        isNoShowAlertEligibleEvent(event, noShowAlertToday)
+      );
+      if (noShowEligibleEvents.length > 0) {
+        const eventIds = noShowEligibleEvents.map(e => e.id);
         const { data: regsForNoShow } = await supabase
           .from("event_registrations")
-          .select("event_id, checked_in, status")
+          .select("event_id, status")
           .in("event_id", eventIds)
-          .in("status", ["registered", "paid", "attended", "no_show"]);
+          .in("status", NO_SHOW_ALERT_REGISTRATION_STATUSES);
         if (regsForNoShow) {
-          const byEvent: Record<string, { total: number; noShow: number }> = {};
-          regsForNoShow.forEach(r => {
-            if (!byEvent[r.event_id]) byEvent[r.event_id] = { total: 0, noShow: 0 };
-            byEvent[r.event_id].total++;
-            if (!r.checked_in && r.status !== "cancelled") byEvent[r.event_id].noShow++;
-          });
-          const highNoShow = Object.entries(byEvent).filter(([_, v]) => v.total >= 3 && (v.noShow / v.total) > 0.4).length;
+          const statsByEvent = computeEventNoShowStats(regsForNoShow);
+          const highNoShow = Object.values(statsByEvent).filter((stats) => stats.isHighNoShow).length;
           if (highNoShow > 0) {
             alertItems.push({
               id: "high-no-show",
               message: `${highNoShow} eventi con no-show superiore al 40%`,
               severity: "danger",
-              route: "/events?sort=no-show",
+              route: `/events?filter=${HIGH_NO_SHOW_EVENT_FILTER}&period=past`,
               icon: "noshow",
             });
           }
