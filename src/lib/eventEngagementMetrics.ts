@@ -16,17 +16,7 @@ type RawMetric = {
   opening_notification_click_count?: unknown;
 };
 
-type RpcResult = {
-  data: unknown;
-  error: Error | null;
-};
-
 const toCount = (value: unknown) => Number(value || 0);
-
-const fetchMetricsRpc = supabase.rpc as unknown as (
-  functionName: string,
-  args: { p_event_ids: string[] },
-) => Promise<RpcResult>;
 
 const toMetric = (row: RawMetric): EventEngagementMetrics => ({
   event_id: String(row.event_id),
@@ -40,9 +30,9 @@ export const fetchEventEngagementMetrics = async (eventIds: string[]) => {
   const ids = [...new Set(eventIds.filter(Boolean))];
   if (ids.length === 0) return {} as Record<string, EventEngagementMetrics>;
 
-  const { data, error } = await fetchMetricsRpc("get_event_engagement_metrics", {
+  const { data, error } = await supabase.rpc("get_event_engagement_metrics" as never, {
     p_event_ids: ids,
-  });
+  } as never);
   if (error) throw error;
 
   const rows = Array.isArray(data) ? (data as RawMetric[]) : [];
