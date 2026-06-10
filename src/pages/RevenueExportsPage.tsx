@@ -169,17 +169,17 @@ export default function RevenueExportsPage() {
 
       <Card>
         <CardHeader className="pb-3">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-7">
-            <div className="space-y-2">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-[minmax(7.5rem,1fr)_minmax(7.5rem,1fr)_minmax(15rem,1.45fr)_minmax(12rem,1.3fr)_minmax(8rem,1fr)_minmax(8rem,1fr)_minmax(9rem,1fr)]">
+            <div className="min-w-0 space-y-2">
               <Label htmlFor="date-from">Da</Label>
               <Input id="date-from" type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
             </div>
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <Label htmlFor="date-to">A</Label>
               <Input id="date-to" type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
             </div>
-            <div className="grid grid-cols-[1fr_88px_auto] gap-2">
-              <div className="space-y-2">
+            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_88px_auto] gap-2">
+              <div className="min-w-0 space-y-2">
                 <Label>Trimestri</Label>
                 <MultiCheckboxFilter
                   allLabel="Tutti"
@@ -188,7 +188,7 @@ export default function RevenueExportsPage() {
                   onChange={setQuarters}
                 />
               </div>
-              <div className="space-y-2">
+              <div className="min-w-0 space-y-2">
                 <Label htmlFor="quarter-year">Anno</Label>
                 <Input id="quarter-year" inputMode="numeric" value={year} onChange={(event) => setYear(event.target.value)} />
               </div>
@@ -219,7 +219,7 @@ export default function RevenueExportsPage() {
               selectedValues={paymentStatuses}
               onChange={(values) => setPaymentStatuses(values as RevenuePaymentStatus[])}
             />
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <Label htmlFor="user-search">Nome utente</Label>
               <Input
                 id="user-search"
@@ -482,7 +482,7 @@ function MultiCheckboxField({
   allLabel: string;
 }) {
   return (
-    <div className="space-y-2">
+    <div className="min-w-0 space-y-2">
       <Label>{label}</Label>
       <MultiCheckboxFilter
         allLabel={allLabel}
