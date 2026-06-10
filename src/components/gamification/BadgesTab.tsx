@@ -16,6 +16,7 @@ import { Plus, Trash2, Pencil, UserPlus } from "lucide-react";
 import IconPicker from "@/components/IconPicker";
 import DynamicIcon from "@/components/DynamicIcon";
 import { INTEREST_CATEGORY_OPTIONS, extractFitScoreCategoryNames, normalizeFitScoreCategoryName, sortFitScoreCategoryNames } from "@/lib/fitScoreCategories";
+import { useTrekkingDifficultyLevels } from "@/hooks/useTrekkingDifficultyLevels";
 
 interface BadgeForm {
   name: string;
@@ -24,6 +25,7 @@ interface BadgeForm {
   category: string;
   requirement_type: string;
   required_events: number;
+  min_difficulty: string;
 }
 
 type BadgeCategorySource = "system" | "event" | "fit_score";
@@ -41,6 +43,7 @@ const emptyBadge: BadgeForm = {
   category: "",
   requirement_type: "events_attended",
   required_events: 1,
+  min_difficulty: "",
 };
 
 const SYSTEM_BADGE_CATEGORY_OPTIONS: BadgeCategoryOption[] = [
@@ -103,6 +106,53 @@ const getRequirementLabel = (requirementType: string | null | undefined) => {
   }
 };
 
+const getBadgeEventFilters = (badge: { event_filters?: unknown }) => {
+  const filters = badge.event_filters;
+  if (!filters || typeof filters !== "object" || Array.isArray(filters)) return {};
+  return filters as Record<string, unknown>;
+};
+
+const getBadgeMinDifficulty = (badge: { event_filters?: unknown }) => {
+  const value = getBadgeEventFilters(badge).min_difficulty;
+  const numeric = typeof value === "number" ? value : typeof value === "string" ? Number(value) : null;
+  return numeric && numeric >= 1 && numeric <= 5 ? String(numeric) : "";
+};
+
+const isEventCategoryBadge = (category: string | null | undefined) => {
+  return Boolean(category && category !== "general" && category !== "special");
+};
+
+const isEventBasedRequirement = (requirementType: string | null | undefined) => {
+  return !requirementType || requirementType === "events_attended" || requirementType === "category_events";
+};
+
+const buildBadgeEventFilters = (form: BadgeForm) => {
+  if (!isEventCategoryBadge(form.category) || !isEventBasedRequirement(form.requirement_type)) return {};
+
+  const minDifficulty = Number(form.min_difficulty);
+  if (!Number.isInteger(minDifficulty) || minDifficulty < 1 || minDifficulty > 5) return {};
+
+  return { min_difficulty: minDifficulty };
+};
+
+const getDifficultyOptionLabel = (
+  value: string | null | undefined,
+  levels: { level_number: number; label: string }[] | undefined,
+) => {
+  if (!value) return null;
+  const level = levels?.find((item) => String(item.level_number) === String(value));
+  return level ? level.label.trim() : `Livello ${value}/5`;
+};
+
+const getBadgeFilterLabel = (
+  badge: { category?: string | null; requirement_type?: string | null; event_filters?: unknown },
+  levels: { level_number: number; label: string }[] | undefined,
+) => {
+  const minDifficulty = getBadgeMinDifficulty(badge);
+  if (!minDifficulty) return "—";
+  return `Difficolta >= ${getDifficultyOptionLabel(minDifficulty, levels)}`;
+};
+
 export default function BadgesTab() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -112,6 +162,7 @@ export default function BadgesTab() {
   const [assignBadgeId, setAssignBadgeId] = useState<string | null>(null);
   const [assignSearch, setAssignSearch] = useState("");
   const [assignUserId, setAssignUserId] = useState<string | null>(null);
+  const { data: difficultyLevels = [] } = useTrekkingDifficultyLevels();
 
   const { data: badges = [] } = useQuery({
     queryKey: ["badges-admin"],
@@ -181,6 +232,7 @@ export default function BadgesTab() {
         category: form.category || null,
         requirement_type: form.requirement_type || null,
         required_events: form.required_events,
+        event_filters: buildBadgeEventFilters(form),
       };
       if (editingId) {
         const { error } = await supabase.from("badges").update(payload).eq("id", editingId);
@@ -266,6 +318,7 @@ export default function BadgesTab() {
       category: badge.category || "",
       requirement_type: badge.requirement_type || "events_attended",
       required_events: badge.required_events,
+      min_difficulty: getBadgeMinDifficulty(badge),
     });
     setDialogOpen(true);
   };
@@ -287,7 +340,7 @@ export default function BadgesTab() {
             </Button>
           </DialogTrigger>
           <DialogContent
-            className="max-w-md"
+            className="max-w-lg"
             onOpenAutoFocus={(event) => {
               if (editingId) event.preventDefault();
             }}
@@ -311,7 +364,14 @@ export default function BadgesTab() {
                 </div>
                 <div>
                   <Label>Categoria</Label>
-                  <Select value={form.category} onValueChange={(v) => setForm((p) => ({ ...p, category: v }))}>
+                  <Select
+                    value={form.category}
+                    onValueChange={(v) => setForm((p) => ({
+                      ...p,
+                      category: v,
+                      min_difficulty: isEventCategoryBadge(v) ? p.min_difficulty : "",
+                    }))}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Generale" />
                     </SelectTrigger>
@@ -353,7 +413,14 @@ export default function BadgesTab() {
               </div>
               <div>
                 <Label>Tipo requisito</Label>
-                <Select value={form.requirement_type} onValueChange={(v) => setForm((p) => ({ ...p, requirement_type: v }))}>
+                <Select
+                  value={form.requirement_type}
+                  onValueChange={(v) => setForm((p) => ({
+                    ...p,
+                    requirement_type: v,
+                    min_difficulty: isEventBasedRequirement(v) ? p.min_difficulty : "",
+                  }))}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -373,6 +440,24 @@ export default function BadgesTab() {
                   onChange={(e) => setForm((p) => ({ ...p, required_events: parseInt(e.target.value) || 1 }))}
                 />
               </div>
+              {isEventCategoryBadge(form.category) && isEventBasedRequirement(form.requirement_type) && (
+                <div>
+                  <Label>Difficolta minima</Label>
+                  <Select value={form.min_difficulty || "none"} onValueChange={(v) => setForm((p) => ({ ...p, min_difficulty: v === "none" ? "" : v }))}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nessuna</SelectItem>
+                      {difficultyLevels.map((level) => (
+                        <SelectItem key={level.id} value={String(level.level_number)}>
+                          {level.icon} {level.label.trim()}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <Button className="w-full" onClick={() => saveMutation.mutate()} disabled={!form.name || saveMutation.isPending}>
                 {editingId ? "Aggiorna" : "Crea"} badge
               </Button>
@@ -388,6 +473,7 @@ export default function BadgesTab() {
               <TableHead>Nome</TableHead>
               <TableHead>Categoria</TableHead>
               <TableHead>Requisito</TableHead>
+              <TableHead>Filtri</TableHead>
               <TableHead className="w-20">Eventi</TableHead>
               <TableHead className="w-24"></TableHead>
             </TableRow>
@@ -410,6 +496,7 @@ export default function BadgesTab() {
                   )}
                 </TableCell>
                 <TableCell className="text-sm">{getRequirementLabel(b.requirement_type)}</TableCell>
+                <TableCell className="text-xs text-muted-foreground">{getBadgeFilterLabel(b, difficultyLevels)}</TableCell>
                 <TableCell className="text-center">{b.required_events}</TableCell>
                 <TableCell>
                   <div className="flex gap-1">
@@ -446,7 +533,7 @@ export default function BadgesTab() {
             ))}
             {badges.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                   Nessun badge configurato. Crea il primo badge!
                 </TableCell>
               </TableRow>
