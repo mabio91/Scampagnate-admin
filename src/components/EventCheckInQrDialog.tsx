@@ -42,6 +42,12 @@ const formatEventDate = (value?: string | null) => {
   return `${day}/${month}/${year}`;
 };
 
+const toWebOnlyCheckInUrl = (value: string, eventId: string) => {
+  const url = new URL(value);
+  url.pathname = `/check-in/event/${eventId}`;
+  return url.toString();
+};
+
 export function EventCheckInQrDialog({
   eventId,
   eventTitle,
@@ -71,8 +77,9 @@ export function EventCheckInQrDialog({
         origin: PUBLIC_APP_ORIGIN,
       });
       if (!result.checkInUrl) throw new Error("SELF_CHECKIN_LINK_MISSING");
+      const webOnlyCheckInUrl = toWebOnlyCheckInUrl(result.checkInUrl, eventId);
 
-      const qr = await QRCode.toDataURL(result.checkInUrl, {
+      const qr = await QRCode.toDataURL(webOnlyCheckInUrl, {
         width: 640,
         margin: 2,
         errorCorrectionLevel: "M",
@@ -82,7 +89,7 @@ export function EventCheckInQrDialog({
         },
       });
 
-      setCheckInUrl(result.checkInUrl);
+      setCheckInUrl(webOnlyCheckInUrl);
       setQrDataUrl(qr);
       setExpiresAt(result.expiresAt || null);
     } catch (error) {
