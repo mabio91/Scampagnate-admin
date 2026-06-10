@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, MoreHorizontal, Eye, Edit2, Trash2, Plus, Upload, X, ArrowUp, ArrowDown, Image as ImageIcon, Loader2, Shield, Lock, Star, Users, Award, Crown, CheckCircle2, DollarSign, Tag, Sparkles, Copy, MessageCircle, CalendarX, CloudSun, Thermometer, MapPin, Package, Car, FileText, Bookmark, BellRing, MousePointerClick } from "lucide-react";
+import { Search, MoreHorizontal, Eye, Edit2, Trash2, Plus, Upload, X, ArrowUp, ArrowDown, Image as ImageIcon, Loader2, Shield, Lock, Star, Users, Award, Crown, CheckCircle2, DollarSign, Tag, Sparkles, Copy, MessageCircle, CalendarX, CloudSun, Thermometer, MapPin, Package, Car, FileText, Bookmark, BellRing } from "lucide-react";
 import { MANUAL_BADGE_OPTIONS, EventBadgePills } from "@/components/EventBadges";
 import { RichTextEditor } from "@/components/RichTextEditor";
 import RefreshButton from "@/components/RefreshButton";
@@ -31,13 +31,17 @@ import { HOME_CARD_IMAGE_FIELD, getEventHomeCardImageUrl } from "@/lib/eventImag
 import { compressImageForUpload } from "@/lib/imageCompression";
 import { isGeneratedPriceOptionName } from "@/lib/priceOptions";
 import { normalizeWhatsappGroupUrl } from "@/lib/eventWhatsapp";
-import { fetchEventEngagementMetrics } from "@/lib/eventEngagementMetrics";
+import { fetchEventEngagementAudience, fetchEventEngagementMetrics, type EventEngagementAudienceType } from "@/lib/eventEngagementMetrics";
 import { FIT_SCORE_EVENT_SECONDARY_MAX, INTEREST_CATEGORY_OPTIONS } from "@/lib/fitScoreCategories";
 
 type Event = Tables<"events">;
 type EventWithCategory = Event & {
   event_categories: { name: string; icon: string } | null;
   event_price_options?: { id: string }[] | null;
+};
+type EngagementDetailSelection = {
+  event: EventWithCategory;
+  type: EventEngagementAudienceType;
 };
 type PaymentType = "free" | "paid" | "deposit" | "location";
 type BalancePaymentMode = "online" | "on_site";
@@ -85,6 +89,30 @@ const normalizeEditableEventStatus = (status?: string | null) => {
 
 const canSaveIncompleteEventDraft = (status?: string | null) =>
   normalizeEditableEventStatus(status) === "draft";
+
+const engagementAudienceLabels: Record<EventEngagementAudienceType, { title: string; empty: string }> = {
+  saved: {
+    title: "Utenti che hanno salvato",
+    empty: "Nessun utente ha ancora salvato questo evento.",
+  },
+  reminder: {
+    title: "Utenti con reminder",
+    empty: "Nessun utente ha ancora attivato il reminder.",
+  },
+};
+
+const formatEngagementAudienceDate = (value: string | null) => {
+  if (!value) return "Data non disponibile";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Data non disponibile";
+  return new Intl.DateTimeFormat("it-IT", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+};
 
 /* ══════ Types ══════ */
 type PricingRule = {
@@ -641,6 +669,7 @@ export default function EventsPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [imageCropTarget, setImageCropTarget] = useState<{ file: File; type: "cover" | "coverHome"; coverFile?: File } | null>(null);
   const [convertProposalId, setConvertProposalId] = useState<string | null>(null);
+  const [engagementDetail, setEngagementDetail] = useState<EngagementDetailSelection | null>(null);
   const queryClient = useQueryClient();
   const { data: difficultyLevels = [] } = useTrekkingDifficultyLevels();
 
@@ -688,6 +717,11 @@ export default function EventsPage() {
     queryKey: ["admin-event-engagement-metrics", eventIdsKey],
     queryFn: () => fetchEventEngagementMetrics(eventIds),
     enabled: eventIds.length > 0,
+  });
+  const { data: engagementAudience = [], isLoading: isEngagementAudienceLoading } = useQuery({
+    queryKey: ["admin-event-engagement-audience", engagementDetail?.event.id, engagementDetail?.type],
+    queryFn: () => fetchEventEngagementAudience(engagementDetail!.event.id, engagementDetail!.type),
+    enabled: !!engagementDetail,
   });
   const { data: pendingEventIds = [] } = useQuery({
     queryKey: ["admin-events-pending-approvals"],
@@ -825,22 +859,26 @@ export default function EventsPage() {
     if (!metric) return null;
     const reminderCount = metric.opening_reminder_active_count + metric.opening_reminder_notified_count;
     const chips = [
-      { icon: Bookmark, label: "Salvati", value: metric.saved_count },
-      { icon: BellRing, label: "Reminder", value: reminderCount },
-      { icon: MousePointerClick, label: "Click", value: metric.opening_notification_click_count },
+      { icon: Bookmark, label: "Salvati", value: metric.saved_count, type: "saved" as const },
+      { icon: BellRing, label: "Reminder", value: reminderCount, type: "reminder" as const },
     ];
 
     return (
       <div className="flex flex-wrap gap-1.5 pt-1">
-        {chips.map(({ icon: Icon, label, value }) => (
-          <span
+        {chips.map(({ icon: Icon, label, value, type }) => (
+          <button
             key={label}
-            className="inline-flex min-h-6 items-center gap-1 rounded-md border border-border bg-muted/40 px-1.5 text-[10px] font-medium leading-none text-muted-foreground"
+            type="button"
+            className="inline-flex min-h-6 items-center gap-1 rounded-md border border-border bg-muted/40 px-1.5 text-[10px] font-medium leading-none text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
             title={`${label}: ${value}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setEngagementDetail({ event, type });
+            }}
           >
             <Icon className="h-3 w-3" />
             {value}
-          </span>
+          </button>
         ))}
       </div>
     );
@@ -1517,6 +1555,7 @@ export default function EventsPage() {
     }
     saveMutation.mutate({ evt: editEvent, mps: localMeetingPoints, priceOptions: localPriceOptions });
   };
+  const engagementDetailCopy = engagementDetail ? engagementAudienceLabels[engagementDetail.type] : null;
 
   return (
     <>
@@ -2713,6 +2752,74 @@ export default function EventsPage() {
         </DialogContent>
       </Dialog>
     </div>
+    <Dialog open={!!engagementDetail} onOpenChange={(open) => { if (!open) setEngagementDetail(null); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{engagementDetailCopy?.title || "Dettaglio interesse"}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          {engagementDetail && (
+            <div>
+              <p className="text-sm font-medium text-foreground">{engagementDetail.event.title}</p>
+              <p className="text-xs text-muted-foreground">
+                {engagementAudience.length} {engagementAudience.length === 1 ? "utente" : "utenti"}
+              </p>
+            </div>
+          )}
+
+          {isEngagementAudienceLoading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <Skeleton key={index} className="h-14 w-full" />
+              ))}
+            </div>
+          ) : engagementAudience.length === 0 ? (
+            <p className="rounded-md border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+              {engagementDetailCopy?.empty || "Nessun dettaglio disponibile."}
+            </p>
+          ) : (
+            <div className="max-h-[55vh] space-y-2 overflow-y-auto pr-1">
+              {engagementAudience.map((member) => {
+                const contacts = [member.phone, member.email, member.instagram_handle ? `@${member.instagram_handle}` : null].filter(Boolean);
+                return (
+                  <div key={member.id} className="flex items-start justify-between gap-3 rounded-md border border-border p-3">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="truncate text-sm font-semibold text-foreground">{member.display_name}</p>
+                        {engagementDetail?.type === "reminder" && (
+                          <Badge variant="outline" className="text-[10px]">
+                            {member.status === "notified_reminder" ? "Gia avvisato" : "Attivo"}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {formatEngagementAudienceDate(member.created_at)}
+                      </p>
+                      {contacts.length > 0 && (
+                        <p className="mt-1 truncate text-xs text-muted-foreground">{contacts.join(" · ")}</p>
+                      )}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 shrink-0 text-xs"
+                      onClick={() => {
+                        const userId = member.user_id;
+                        setEngagementDetail(null);
+                        navigate(`/users/${userId}`);
+                      }}
+                    >
+                      Apri profilo
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
     <ImageCropDialog
       open={!!imageCropTarget}
       file={imageCropTarget?.file || null}
