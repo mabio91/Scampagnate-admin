@@ -22,6 +22,7 @@ import { format, subMonths, startOfMonth } from "date-fns";
 import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { applyAnalyticsEventStatusFilter } from "@/lib/analyticsEvents";
 import {
   computeEventNoShowStats,
   HIGH_NO_SHOW_EVENT_FILTER,
@@ -293,12 +294,22 @@ export default function Dashboard() {
       const { count: membersPrevYear } = await supabase.from("profiles").select("*", { count: "exact", head: true }).eq("membership_status", "Active").eq("membership_year", currentYear - 1);
 
       // Events this month vs last month
-      const { count: eventsCur } = await supabase.from("events").select("*", { count: "exact", head: true }).gte("date", curMonthStart);
-      const { count: eventsPrev } = await supabase.from("events").select("*", { count: "exact", head: true }).gte("date", prevMonthStart).lt("date", curMonthStart);
+      const { count: eventsCur } = await applyAnalyticsEventStatusFilter(
+        supabase.from("events").select("*", { count: "exact", head: true }),
+      ).gte("date", curMonthStart);
+      const { count: eventsPrev } = await applyAnalyticsEventStatusFilter(
+        supabase.from("events").select("*", { count: "exact", head: true }),
+      ).gte("date", prevMonthStart).lt("date", curMonthStart);
 
       // Registrations current month vs previous month (for attendance/participation trends)
-      const { data: regsCur } = await supabase.from("event_registrations").select("user_id, checked_in, status, sport_level, events!inner(date)").gte("events.date", curMonthStart);
-      const { data: regsPrev } = await supabase.from("event_registrations").select("user_id, checked_in, status, sport_level, events!inner(date)").gte("events.date", prevMonthStart).lt("events.date", curMonthStart);
+      const { data: regsCur } = await applyAnalyticsEventStatusFilter(
+        supabase.from("event_registrations").select("user_id, checked_in, status, sport_level, events!inner(date, status)"),
+        "events.status",
+      ).gte("events.date", curMonthStart);
+      const { data: regsPrev } = await applyAnalyticsEventStatusFilter(
+        supabase.from("event_registrations").select("user_id, checked_in, status, sport_level, events!inner(date, status)"),
+        "events.status",
+      ).gte("events.date", prevMonthStart).lt("events.date", curMonthStart);
 
       const calcAttendance = (regs: any[] | null) => {
         if (!regs || regs.length === 0) return null;
@@ -313,16 +324,26 @@ export default function Dashboard() {
       };
 
       // Fill rate current vs previous
-      const { data: fillCurEvents } = await supabase.from("events").select("spots_taken, spots_total").gte("date", curMonthStart).gt("spots_total", 0);
-      const { data: fillPrevEvents } = await supabase.from("events").select("spots_taken, spots_total").gte("date", prevMonthStart).lt("date", curMonthStart).gt("spots_total", 0);
+      const { data: fillCurEvents } = await applyAnalyticsEventStatusFilter(
+        supabase.from("events").select("spots_taken, spots_total"),
+      ).gte("date", curMonthStart).gt("spots_total", 0);
+      const { data: fillPrevEvents } = await applyAnalyticsEventStatusFilter(
+        supabase.from("events").select("spots_taken, spots_total"),
+      ).gte("date", prevMonthStart).lt("date", curMonthStart).gt("spots_total", 0);
       const calcFill = (evts: any[] | null) => {
         if (!evts || evts.length === 0) return null;
         return Math.round(evts.reduce((s, e) => s + (e.spots_taken / e.spots_total), 0) / evts.length * 100);
       };
 
       // Waitlist current vs previous
-      const { count: waitCur } = await supabase.from("event_registrations").select("*, events!inner(date)", { count: "exact", head: true }).eq("status", "waitlist").gte("events.date", curMonthStart);
-      const { count: waitPrev } = await supabase.from("event_registrations").select("*, events!inner(date)", { count: "exact", head: true }).eq("status", "waitlist").gte("events.date", prevMonthStart).lt("events.date", curMonthStart);
+      const { count: waitCur } = await applyAnalyticsEventStatusFilter(
+        supabase.from("event_registrations").select("*, events!inner(date, status)", { count: "exact", head: true }),
+        "events.status",
+      ).eq("status", "waitlist").gte("events.date", curMonthStart);
+      const { count: waitPrev } = await applyAnalyticsEventStatusFilter(
+        supabase.from("event_registrations").select("*, events!inner(date, status)", { count: "exact", head: true }),
+        "events.status",
+      ).eq("status", "waitlist").gte("events.date", prevMonthStart).lt("events.date", curMonthStart);
 
       // Repeat participants (>3 check-ins) — compare year-over-year
       // Open issues current vs previous month
@@ -427,6 +448,7 @@ export default function Dashboard() {
         .from("event_registrations")
         .select("user_id, sport_level, events!inner(date, category_id, organizer_id, status)")
         .eq("checked_in", true);
+      q = applyAnalyticsEventStatusFilter(q, "events.status");
       if (filters.dateFrom) q = q.gte("events.date", format(filters.dateFrom, "yyyy-MM-dd"));
       else q = q.gte("events.date", yearStart);
       if (filters.dateTo) q = q.lte("events.date", format(filters.dateTo, "yyyy-MM-dd"));
@@ -446,6 +468,7 @@ export default function Dashboard() {
       let q = supabase
         .from("events")
         .select("*", { count: "exact", head: true });
+      q = applyAnalyticsEventStatusFilter(q);
       if (filters.dateFrom) q = q.gte("date", format(filters.dateFrom, "yyyy-MM-dd"));
       else q = q.gte("date", yearStart);
       if (filters.dateTo) q = q.lte("date", format(filters.dateTo, "yyyy-MM-dd"));
@@ -464,6 +487,7 @@ export default function Dashboard() {
         .from("event_registrations")
         .select("user_id, sport_level, events!inner(date, category_id, organizer_id, status)")
         .in("status", ["registered", "paid", "attended"]);
+      q = applyAnalyticsEventStatusFilter(q, "events.status");
       if (filters.dateFrom) q = q.gte("events.date", format(filters.dateFrom, "yyyy-MM-dd"));
       if (filters.dateTo) q = q.lte("events.date", format(filters.dateTo, "yyyy-MM-dd"));
       if (filters.categoryId) q = q.eq("events.category_id", filters.categoryId);
@@ -480,22 +504,25 @@ export default function Dashboard() {
   const { data: attendanceRate = "0%", isLoading: l6 } = useQuery({
     queryKey: ["kpi-attendance-rate", filters],
     queryFn: async () => {
-      const qTotal = supabase
+      let qTotal = supabase
         .from("event_registrations")
         .select("id, events!inner(date, category_id, organizer_id, status)")
         .in("status", ["registered", "paid", "attended"]);
-      const qChecked = supabase
+      let qChecked = supabase
         .from("event_registrations")
         .select("id, events!inner(date, category_id, organizer_id, status)")
         .eq("checked_in", true);
-        
-      [qTotal, qChecked].forEach((q: any) => {
+      const applyRegistrationFilters = (q: any) => {
+        q = applyAnalyticsEventStatusFilter(q, "events.status");
         if (filters.dateFrom) q = q.gte("events.date", format(filters.dateFrom, "yyyy-MM-dd"));
         if (filters.dateTo) q = q.lte("events.date", format(filters.dateTo, "yyyy-MM-dd"));
         if (filters.categoryId) q = q.eq("events.category_id", filters.categoryId);
         if (filters.organizerId) q = q.eq("events.organizer_id", filters.organizerId);
         if (filters.eventStatus) q = q.eq("events.status", filters.eventStatus as any);
-      });
+        return q;
+      };
+      qTotal = applyRegistrationFilters(qTotal);
+      qChecked = applyRegistrationFilters(qChecked);
 
       const [{ data: totalRegs }, { data: checkedIn }] = await Promise.all([qTotal, qChecked]);
       if (!totalRegs || totalRegs.length === 0) return "0%";
@@ -512,6 +539,7 @@ export default function Dashboard() {
         .from("events")
         .select("spots_taken, spots_total")
         .gt("spots_total", 0);
+      q = applyAnalyticsEventStatusFilter(q);
       if (filters.dateFrom) q = q.gte("date", format(filters.dateFrom, "yyyy-MM-dd"));
       if (filters.dateTo) q = q.lte("date", format(filters.dateTo, "yyyy-MM-dd"));
       if (filters.categoryId) q = q.eq("category_id", filters.categoryId);
@@ -532,6 +560,7 @@ export default function Dashboard() {
         .from("event_registrations")
         .select("id, events!inner(date, category_id, organizer_id, status)")
         .eq("status", "waitlist");
+      q = applyAnalyticsEventStatusFilter(q, "events.status");
       if (filters.dateFrom) q = q.gte("events.date", format(filters.dateFrom, "yyyy-MM-dd"));
       if (filters.dateTo) q = q.lte("events.date", format(filters.dateTo, "yyyy-MM-dd"));
       if (filters.categoryId) q = q.eq("events.category_id", filters.categoryId);
@@ -549,6 +578,7 @@ export default function Dashboard() {
         .from("event_registrations")
         .select("user_id, sport_level, events!inner(date, category_id, organizer_id, status)")
         .eq("checked_in", true);
+      q = applyAnalyticsEventStatusFilter(q, "events.status");
       if (filters.dateFrom) q = q.gte("events.date", format(filters.dateFrom, "yyyy-MM-dd"));
       if (filters.dateTo) q = q.lte("events.date", format(filters.dateTo, "yyyy-MM-dd"));
       if (filters.categoryId) q = q.eq("events.category_id", filters.categoryId);
@@ -581,7 +611,7 @@ export default function Dashboard() {
   const { data: topCategory = "N/A" } = useQuery({
     queryKey: ["kpi-top-category", filters],
     queryFn: async () => {
-      let q = supabase.from("events").select("category_id");
+      let q = applyAnalyticsEventStatusFilter(supabase.from("events").select("category_id"));
       if (filters.dateFrom) q = q.gte("date", format(filters.dateFrom, "yyyy-MM-dd"));
       if (filters.dateTo) q = q.lte("date", format(filters.dateTo, "yyyy-MM-dd"));
       if (filters.categoryId) q = q.eq("category_id", filters.categoryId);
@@ -622,7 +652,7 @@ export default function Dashboard() {
   const { data: categoryData = [] } = useQuery({
     queryKey: ["stats-categories", filters],
     queryFn: async () => {
-      let q = supabase.from("events").select("category_id");
+      let q = applyAnalyticsEventStatusFilter(supabase.from("events").select("category_id"));
       if (filters.dateFrom) q = q.gte("date", format(filters.dateFrom, "yyyy-MM-dd"));
       if (filters.dateTo) q = q.lte("date", format(filters.dateTo, "yyyy-MM-dd"));
       if (filters.categoryId) q = q.eq("category_id", filters.categoryId);
@@ -643,13 +673,16 @@ export default function Dashboard() {
   const { data: eventsByMonth = [] } = useQuery({
     queryKey: ["stats-events-month", filters],
     queryFn: async () => {
-      let eq = supabase.from("events").select("date, id");
+      let eq = applyAnalyticsEventStatusFilter(supabase.from("events").select("date, id, status"));
       if (filters.categoryId) eq = eq.eq("category_id", filters.categoryId);
       if (filters.organizerId) eq = eq.eq("organizer_id", filters.organizerId);
       if (filters.eventStatus) eq = eq.eq("status", filters.eventStatus as any);
       const { data: events } = await eq;
 
-      let rq = supabase.from("event_registrations").select("created_at, events!inner(category_id, organizer_id, status)");
+      let rq = applyAnalyticsEventStatusFilter(
+        supabase.from("event_registrations").select("created_at, events!inner(category_id, organizer_id, status)"),
+        "events.status",
+      );
       if (filters.categoryId) rq = rq.eq("events.category_id", filters.categoryId);
       if (filters.organizerId) rq = rq.eq("events.organizer_id", filters.organizerId);
       if (filters.eventStatus) rq = rq.eq("events.status", filters.eventStatus as any) as any;
@@ -721,9 +754,9 @@ export default function Dashboard() {
 
       // 2. Events with high explicit no-show rate (>40%)
       const noShowAlertToday = format(new Date(), "yyyy-MM-dd");
-      const { data: eventsForNoShow } = await supabase
-        .from("events")
-        .select("id, title, date, status");
+      const { data: eventsForNoShow } = await applyAnalyticsEventStatusFilter(
+        supabase.from("events").select("id, title, date, status"),
+      );
       const noShowEligibleEvents = (eventsForNoShow || []).filter((event) =>
         isNoShowAlertEligibleEvent(event, noShowAlertToday)
       );
@@ -769,9 +802,9 @@ export default function Dashboard() {
 
       // 4. Events with 0 registrations (upcoming)
       const today = format(new Date(), "yyyy-MM-dd");
-      const { count: emptyEvents } = await supabase
-        .from("events")
-        .select("*", { count: "exact", head: true })
+      const { count: emptyEvents } = await applyAnalyticsEventStatusFilter(
+        supabase.from("events").select("*", { count: "exact", head: true }),
+      )
         .gte("date", today)
         .in("status", ["published", "available"])
         .eq("spots_taken", 0);
@@ -786,9 +819,10 @@ export default function Dashboard() {
       }
 
       // 5. Pending approval registrations
-      const { count: pendingApprovals } = await supabase
-        .from("event_registrations")
-        .select("*", { count: "exact", head: true })
+      const { count: pendingApprovals } = await applyAnalyticsEventStatusFilter(
+        supabase.from("event_registrations").select("*, events!inner(status)", { count: "exact", head: true }),
+        "events.status",
+      )
         .eq("status", "pending_approval");
       if (pendingApprovals && pendingApprovals > 0) {
         alertItems.push({
@@ -823,7 +857,9 @@ export default function Dashboard() {
       });
 
       // Events created / updated / cancelled
-      const { data: recentEvents } = await supabase.from("events").select("id, title, created_at, updated_at, status").order("updated_at", { ascending: false }).limit(5);
+      const { data: recentEvents } = await applyAnalyticsEventStatusFilter(
+        supabase.from("events").select("id, title, created_at, updated_at, status"),
+      ).order("updated_at", { ascending: false }).limit(5);
       recentEvents?.forEach((e) => {
         activities.push({ action: "event_created", detail: e.title, time: e.created_at, type: "event", entityId: e.id, route: `/events` });
         if (e.status === "cancelled") {
@@ -841,9 +877,10 @@ export default function Dashboard() {
       });
 
       // Waitlist registrations
-      const { data: waitlistRegs } = await supabase
-        .from("event_registrations")
-        .select("id, created_at, status, user_id, events!inner(title)")
+      const { data: waitlistRegs } = await applyAnalyticsEventStatusFilter(
+        supabase.from("event_registrations").select("id, created_at, status, user_id, events!inner(title, status)"),
+        "events.status",
+      )
         .eq("status", "waitlist")
         .order("created_at", { ascending: false })
         .limit(3);
@@ -852,9 +889,10 @@ export default function Dashboard() {
       });
 
       // Pending approvals
-      const { data: pendingRegs } = await supabase
-        .from("event_registrations")
-        .select("id, created_at, status, events!inner(title)")
+      const { data: pendingRegs } = await applyAnalyticsEventStatusFilter(
+        supabase.from("event_registrations").select("id, created_at, status, events!inner(title, status)"),
+        "events.status",
+      )
         .eq("status", "pending_approval")
         .order("created_at", { ascending: false })
         .limit(3);
@@ -863,9 +901,10 @@ export default function Dashboard() {
       });
 
       // Paid registrations
-      const { data: paidRegs } = await supabase
-        .from("event_registrations")
-        .select("id, created_at, payment_status, events!inner(title)")
+      const { data: paidRegs } = await applyAnalyticsEventStatusFilter(
+        supabase.from("event_registrations").select("id, created_at, payment_status, events!inner(title, status)"),
+        "events.status",
+      )
         .eq("payment_status", "paid")
         .order("created_at", { ascending: false })
         .limit(3);

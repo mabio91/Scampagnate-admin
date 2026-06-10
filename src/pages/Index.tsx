@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserCheck, CalendarDays, Ticket, Activity, Crown, AlertCircle, RefreshCw, UserPlus, Trophy, UsersRound } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { applyAnalyticsEventStatusFilter } from "@/lib/analyticsEvents";
 
 export default function Index() {
   const currentYear = new Date().getFullYear();
@@ -43,9 +44,11 @@ export default function Index() {
     queryFn: async () => {
       const startOfYear = new Date(currentYear, 0, 1).toISOString();
       
-      const { data: allEvents } = await supabase
-        .from("events")
-        .select("id, spots_total, spots_taken, category_id, date");
+      const { data: allEvents } = await applyAnalyticsEventStatusFilter(
+        supabase
+          .from("events")
+          .select("id, spots_total, spots_taken, category_id, date, status")
+      );
         
       const currentYearEvents = (allEvents || []).filter(e => e.date >= startOfYear.split('T')[0]);
       
@@ -99,9 +102,12 @@ export default function Index() {
   const { data: registrationStats } = useQuery({
     queryKey: ["dashboard-registrations", currentYear],
     queryFn: async () => {
-      const { data: regs } = await supabase
-        .from("event_registrations")
-        .select("user_id, status, checked_in, sport_level, events!inner(date)");
+      const { data: regs } = await applyAnalyticsEventStatusFilter(
+        supabase
+          .from("event_registrations")
+          .select("user_id, status, checked_in, sport_level, events!inner(date, status)"),
+        "events.status"
+      );
 
       if (!regs) return { participationRate: 0, attendanceRate: 0, waitlistCount: 0, repeatCount: 0, attendedAtLeastOneCount: 0 };
 

@@ -11,6 +11,7 @@ import { format, differenceInDays, differenceInHours, subMonths, startOfMonth } 
 import { Ruler, TrendingUp, Calendar, Star, Users, CreditCard, ClipboardList, FolderOpen, User, Medal, Trophy, BarChart3, CheckCircle2, XCircle, Wrench, Landmark, ArrowUp, ArrowDown } from "lucide-react";
 import type { DashboardFilterValues } from "./DashboardFilters";
 import { formatMembershipId } from "@/lib/membership";
+import { applyAnalyticsEventStatusFilter, isAnalyticsEventStatus } from "@/lib/analyticsEvents";
 
 const isRealUserRegistration = (registration: any) =>
   Boolean(registration.user_id) && !registration.sport_level?.startsWith("manual:");
@@ -468,7 +469,10 @@ function ParticipatingUsersDetail({ filters }: { filters: DashboardFilterValues 
   const { data, isLoading } = useQuery({
     queryKey: ["kpi-detail-participating-full", filters],
     queryFn: async () => {
-      let q = supabase.from("event_registrations").select("user_id, status, checked_in, created_at, event_id, sport_level, events!inner(date, title, category_id)");
+      let q = applyAnalyticsEventStatusFilter(
+        supabase.from("event_registrations").select("user_id, status, checked_in, created_at, event_id, sport_level, events!inner(date, title, category_id, status)"),
+        "events.status",
+      );
       if (filters.dateFrom) q = q.gte("events.date", format(filters.dateFrom, "yyyy-MM-dd"));
       if (filters.dateTo) q = q.lte("events.date", format(filters.dateTo, "yyyy-MM-dd"));
       if (filters.categoryId) q = q.eq("events.category_id", filters.categoryId);
@@ -572,7 +576,9 @@ function EventsCreatedDetail({ filters }: { filters: DashboardFilterValues }) {
   const { data, isLoading } = useQuery({
     queryKey: ["kpi-detail-events-full", filters],
     queryFn: async () => {
-      let q = supabase.from("events").select("id, title, date, time, location, status, spots_total, spots_taken, reserved_spots, category_id, organizer_name, organizer_id, payment_type, price, deposit, difficulty, visibility, featured, created_at");
+      let q = applyAnalyticsEventStatusFilter(
+        supabase.from("events").select("id, title, date, time, location, status, spots_total, spots_taken, reserved_spots, category_id, organizer_name, organizer_id, payment_type, price, deposit, difficulty, visibility, featured, created_at"),
+      );
       if (filters.dateFrom) q = q.gte("date", format(filters.dateFrom, "yyyy-MM-dd"));
       if (filters.dateTo) q = q.lte("date", format(filters.dateTo, "yyyy-MM-dd"));
       if (filters.categoryId) q = q.eq("category_id", filters.categoryId);
@@ -693,12 +699,16 @@ function ParticipationRateDetail({ filters }: { filters: DashboardFilterValues }
     queryKey: ["kpi-detail-participation-rate-full", filters],
     queryFn: async () => {
       const { count: totalUsers } = await supabase.from("profiles").select("*", { count: "exact", head: true });
-      const { data: regs } = await supabase.from("event_registrations").select("user_id, created_at, sport_level, events!inner(date, category_id, organizer_id, organizer_name)").in("status", ["registered", "paid", "attended"]);
+      const { data: regs } = await applyAnalyticsEventStatusFilter(
+        supabase.from("event_registrations").select("user_id, created_at, sport_level, events!inner(date, category_id, organizer_id, organizer_name, status)"),
+        "events.status",
+      ).in("status", ["registered", "paid", "attended"]);
       const { data: cats } = await supabase.from("event_categories").select("id, name");
       const catMap = Object.fromEntries((cats || []).map(c => [c.id, c.name]));
 
       const filtered = (regs || []).filter((r: any) => {
         if (!isRealUserRegistration(r)) return false;
+        if (!isAnalyticsEventStatus(r.events?.status)) return false;
         if (filters.dateFrom && r.events.date < format(filters.dateFrom, "yyyy-MM-dd")) return false;
         if (filters.dateTo && r.events.date > format(filters.dateTo, "yyyy-MM-dd")) return false;
         if (filters.categoryId && r.events.category_id !== filters.categoryId) return false;
@@ -829,13 +839,17 @@ function AttendanceRateDetail({ filters }: { filters: DashboardFilterValues }) {
   const { data, isLoading } = useQuery({
     queryKey: ["kpi-detail-attendance-rate-full", filters],
     queryFn: async () => {
-      const { data: regs } = await supabase.from("event_registrations")
-        .select("status, checked_in, user_id, events!inner(id, title, date, category_id, organizer_id, organizer_name)")
+      const { data: regs } = await applyAnalyticsEventStatusFilter(
+        supabase.from("event_registrations")
+        .select("status, checked_in, user_id, events!inner(id, title, date, category_id, organizer_id, organizer_name, status)"),
+        "events.status",
+      )
         .in("status", ["registered", "paid", "attended", "no_show", "cancelled"]);
       const { data: cats } = await supabase.from("event_categories").select("id, name");
       const catMap = Object.fromEntries((cats || []).map(c => [c.id, c.name]));
 
       const filtered = (regs || []).filter((r: any) => {
+        if (!isAnalyticsEventStatus(r.events?.status)) return false;
         if (filters.dateFrom && r.events.date < format(filters.dateFrom, "yyyy-MM-dd")) return false;
         if (filters.dateTo && r.events.date > format(filters.dateTo, "yyyy-MM-dd")) return false;
         if (filters.categoryId && r.events.category_id !== filters.categoryId) return false;
@@ -1002,7 +1016,9 @@ function FillRateDetail({ filters }: { filters: DashboardFilterValues }) {
   const { data, isLoading } = useQuery({
     queryKey: ["kpi-detail-fill-rate-full", filters],
     queryFn: async () => {
-      let q = supabase.from("events").select("id, title, spots_total, spots_taken, category_id, organizer_name, date, status").gt("spots_total", 0);
+      let q = applyAnalyticsEventStatusFilter(
+        supabase.from("events").select("id, title, spots_total, spots_taken, category_id, organizer_name, date, status"),
+      ).gt("spots_total", 0);
       if (filters.dateFrom) q = q.gte("date", format(filters.dateFrom, "yyyy-MM-dd"));
       if (filters.dateTo) q = q.lte("date", format(filters.dateTo, "yyyy-MM-dd"));
       if (filters.categoryId) q = q.eq("category_id", filters.categoryId);
@@ -1173,8 +1189,11 @@ function WaitlistDetail({ filters }: { filters: DashboardFilterValues }) {
     queryKey: ["kpi-detail-waitlist-full", filters],
     queryFn: async () => {
       // Get all registrations for waitlist analysis
-      const { data: regs } = await supabase.from("event_registrations")
-        .select("user_id, status, created_at, sport_level, events!inner(id, title, date, spots_total, spots_taken, organizer_name, category_id)");
+      const { data: regs } = await applyAnalyticsEventStatusFilter(
+        supabase.from("event_registrations")
+        .select("user_id, status, created_at, sport_level, events!inner(id, title, date, spots_total, spots_taken, organizer_name, category_id, status)"),
+        "events.status",
+      );
 
       const { data: cats } = await supabase.from("event_categories").select("id, name");
       const catMap = Object.fromEntries((cats || []).map(c => [c.id, c.name]));
@@ -1182,6 +1201,7 @@ function WaitlistDetail({ filters }: { filters: DashboardFilterValues }) {
       if (!regs) return { events: [], waitlistUsers: [], totalWaitlist: 0, totalPromoted: 0 };
 
       const filtered = regs.filter((r: any) => {
+        if (!isAnalyticsEventStatus(r.events?.status)) return false;
         if (filters.dateFrom && r.events.date < format(filters.dateFrom, "yyyy-MM-dd")) return false;
         if (filters.dateTo && r.events.date > format(filters.dateTo, "yyyy-MM-dd")) return false;
         if (filters.categoryId && r.events.category_id !== filters.categoryId) return false;
@@ -1307,14 +1327,18 @@ function RepeatParticipantsDetail({ filters }: { filters: DashboardFilterValues 
   const { data, isLoading } = useQuery({
     queryKey: ["kpi-detail-repeat-full", filters],
     queryFn: async () => {
-      const { data: regs } = await supabase.from("event_registrations")
-        .select("user_id, checked_in, created_at, sport_level, events!inner(date, title)")
+      const { data: regs } = await applyAnalyticsEventStatusFilter(
+        supabase.from("event_registrations")
+        .select("user_id, checked_in, created_at, sport_level, events!inner(date, title, status)"),
+        "events.status",
+      )
         .eq("checked_in", true);
       if (!regs) return { users: [], threshold: 3 };
 
       const counts: Record<string, { count: number; lastDate: string; lastEvent: string; firstDate: string }> = {};
       (regs as any[]).forEach(r => {
         if (!isRealUserRegistration(r)) return;
+        if (!isAnalyticsEventStatus(r.events?.status)) return;
         if (filters.dateFrom && r.events.date < format(filters.dateFrom, "yyyy-MM-dd")) return;
         if (filters.dateTo && r.events.date > format(filters.dateTo, "yyyy-MM-dd")) return;
         if (!counts[r.user_id]) counts[r.user_id] = { count: 0, lastDate: "", lastEvent: "", firstDate: r.events.date };
@@ -1421,7 +1445,9 @@ function TopCategoryDetail({ filters }: { filters: DashboardFilterValues }) {
     queryKey: ["kpi-detail-top-category-full", filters],
     queryFn: async () => {
       const { data: cats } = await supabase.from("event_categories").select("id, name, icon, description");
-      let eq = supabase.from("events").select("id, category_id, spots_total, spots_taken, date, title, organizer_name, status");
+      let eq = applyAnalyticsEventStatusFilter(
+        supabase.from("events").select("id, category_id, spots_total, spots_taken, date, title, organizer_name, status"),
+      );
       if (filters.dateFrom) eq = eq.gte("date", format(filters.dateFrom, "yyyy-MM-dd"));
       if (filters.dateTo) eq = eq.lte("date", format(filters.dateTo, "yyyy-MM-dd"));
       const { data: events } = await eq;
@@ -1638,11 +1664,20 @@ function CommunityHealthDetail({ filters }: { filters: DashboardFilterValues }) 
   const { data, isLoading } = useQuery({
     queryKey: ["kpi-detail-health-full", filters],
     queryFn: async () => {
-      const { count: totalRegs } = await supabase.from("event_registrations").select("*", { count: "exact", head: true }).in("status", ["registered", "paid", "attended"]);
-      const { count: checkedIn } = await supabase.from("event_registrations").select("*", { count: "exact", head: true }).eq("checked_in", true);
-      const { count: noShows } = await supabase.from("event_registrations").select("*", { count: "exact", head: true }).eq("status", "no_show");
-      const { count: cancelled } = await supabase.from("event_registrations").select("*", { count: "exact", head: true }).eq("status", "cancelled");
-      const { count: waitlist } = await supabase.from("event_registrations").select("*", { count: "exact", head: true }).eq("status", "waitlist");
+      const analyticsRegistrationCount = async (applyStatus: (query: any) => any) => {
+        const query = applyAnalyticsEventStatusFilter(
+          supabase.from("event_registrations").select("*, events!inner(status)", { count: "exact", head: true }),
+          "events.status",
+        );
+        const { count } = await applyStatus(query);
+        return count || 0;
+      };
+
+      const totalRegs = await analyticsRegistrationCount((query) => query.in("status", ["registered", "paid", "attended"]));
+      const checkedIn = await analyticsRegistrationCount((query) => query.eq("checked_in", true));
+      const noShows = await analyticsRegistrationCount((query) => query.eq("status", "no_show"));
+      const cancelled = await analyticsRegistrationCount((query) => query.eq("status", "cancelled"));
+      const waitlist = await analyticsRegistrationCount((query) => query.eq("status", "waitlist"));
       const { count: totalUsers } = await supabase.from("profiles").select("*", { count: "exact", head: true });
       const { count: activeUsers } = await supabase.from("profiles").select("*", { count: "exact", head: true }).eq("account_status", "Active");
       const { count: suspendedUsers } = await supabase.from("profiles").select("*", { count: "exact", head: true }).eq("account_status", "Suspended");
@@ -1651,10 +1686,13 @@ function CommunityHealthDetail({ filters }: { filters: DashboardFilterValues }) 
       const { count: totalIssues } = await supabase.from("issues").select("*", { count: "exact", head: true });
       const { count: resolvedIssues } = await supabase.from("issues").select("*", { count: "exact", head: true }).eq("status", "resolved");
       const { count: activeMembers } = await supabase.from("profiles").select("*", { count: "exact", head: true }).eq("membership_status", "Active");
-      const { count: totalEvents } = await supabase.from("events").select("*", { count: "exact", head: true });
+      const { count: totalEvents } = await applyAnalyticsEventStatusFilter(supabase.from("events").select("*", { count: "exact", head: true }));
 
       // Participating users
-      const { data: regUsers } = await supabase.from("event_registrations").select("user_id, sport_level").in("status", ["registered", "paid", "attended"]);
+      const { data: regUsers } = await applyAnalyticsEventStatusFilter(
+        supabase.from("event_registrations").select("user_id, sport_level, events!inner(status)"),
+        "events.status",
+      ).in("status", ["registered", "paid", "attended"]);
       const participatingUsers = new Set(regUsers?.filter(isRealUserRegistration).map(r => r.user_id)).size;
 
       const attendanceRate = (totalRegs || 0) > 0 ? Math.round(((checkedIn || 0) / (totalRegs || 1)) * 100) : 0;

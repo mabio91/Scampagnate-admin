@@ -9,6 +9,7 @@ import { ArrowLeft, ChevronRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { isAnalyticsEventStatus } from "@/lib/analyticsEvents";
 
 export default function OrganizerDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -59,7 +60,10 @@ export default function OrganizerDetailPage() {
   });
 
   // Fetch registrations for attendance data on past events
-  const pastEventIds = orgEvents.filter((e: any) => new Date(e.date) < new Date(new Date().setHours(0, 0, 0, 0))).map((e: any) => e.id);
+  const analyticsEvents = orgEvents.filter((e: any) => isAnalyticsEventStatus(e.status));
+  const pastEventIds = analyticsEvents
+    .filter((e: any) => new Date(e.date) < new Date(new Date().setHours(0, 0, 0, 0)))
+    .map((e: any) => e.id);
   
   const { data: registrations = [] } = useQuery({
     queryKey: ["organizer-detail-regs", pastEventIds],
@@ -95,12 +99,12 @@ export default function OrganizerDetailPage() {
   }
 
   // Performance metrics
-  const totalEvents = orgEvents.length;
-  const pastEvents = orgEvents.filter((e: any) => new Date(e.date) < new Date(new Date().setHours(0, 0, 0, 0)));
-  const cancelledEvents = orgEvents.filter((e: any) => e.status === "cancelled");
+  const totalEvents = analyticsEvents.length;
+  const pastEvents = analyticsEvents.filter((e: any) => new Date(e.date) < new Date(new Date().setHours(0, 0, 0, 0)));
+  const cancelledEvents = analyticsEvents.filter((e: any) => e.status === "cancelled");
   const cancellationRate = totalEvents > 0 ? ((cancelledEvents.length / totalEvents) * 100).toFixed(1) : "0";
 
-  const fillRates = orgEvents
+  const fillRates = analyticsEvents
     .filter((e: any) => e.spots_total > 0 && e.status !== "cancelled")
     .map((e: any) => (e.spots_taken / e.spots_total) * 100);
   const avgFillRate = fillRates.length > 0 ? (fillRates.reduce((a: number, b: number) => a + b, 0) / fillRates.length).toFixed(1) : "0";
@@ -209,7 +213,8 @@ export default function OrganizerDetailPage() {
                   </TableHeader>
                   <TableBody>
                     {orgEvents.map((event: any) => {
-                      const fillRate = event.spots_total > 0 ? ((event.spots_taken / event.spots_total) * 100).toFixed(0) : "0";
+                      const isAnalyticsEvent = isAnalyticsEventStatus(event.status);
+                      const fillRate = isAnalyticsEvent && event.spots_total > 0 ? ((event.spots_taken / event.spots_total) * 100).toFixed(0) : null;
                       const isPast = new Date(event.date) < new Date(new Date().setHours(0, 0, 0, 0));
                       const eventRegs = regsByEvent[event.id];
                       const attRate = eventRegs && eventRegs.total > 0 ? ((eventRegs.checkedIn / eventRegs.total) * 100).toFixed(0) : null;
@@ -236,8 +241,8 @@ export default function OrganizerDetailPage() {
                             </Badge>
                           </TableCell>
                           <TableCell>{event.spots_taken}/{event.spots_total}</TableCell>
-                          <TableCell>{fillRate}%</TableCell>
-                          <TableCell>{isPast && attRate ? `${attRate}%` : "—"}</TableCell>
+                          <TableCell>{fillRate ? `${fillRate}%` : "—"}</TableCell>
+                          <TableCell>{isAnalyticsEvent && isPast && attRate ? `${attRate}%` : "—"}</TableCell>
                           <TableCell>
                             <ChevronRight className="h-4 w-4 text-muted-foreground" />
                           </TableCell>

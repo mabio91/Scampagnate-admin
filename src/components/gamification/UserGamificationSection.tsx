@@ -16,6 +16,7 @@ import { LevelBadgeAvatar, useUserLevel } from "./LevelBadgeAvatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useLanguage } from "@/i18n/LanguageContext";
 import DynamicIcon from "@/components/DynamicIcon";
+import { isAnalyticsRegistration } from "@/lib/analyticsEvents";
 
 interface UserGamificationSectionProps {
   userId: string;
@@ -93,15 +94,16 @@ export function UserGamificationSection({
     queryFn: async () => {
       const { data: registrations } = await supabase
         .from("event_registrations")
-        .select("status, checked_in, events:event_id(date)")
+        .select("status, checked_in, events:event_id(date, status)")
         .eq("user_id", userId);
 
-      if (!registrations || registrations.length === 0) return null;
+      const analyticsRegistrations = (registrations || []).filter(isAnalyticsRegistration);
+      if (analyticsRegistrations.length === 0) return null;
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      const pastRegs = registrations.filter((r: any) => {
+      const pastRegs = analyticsRegistrations.filter((r: any) => {
         const d = r.events?.date;
         return d && new Date(d) < today && (r.status === "registered" || r.status === "paid" || r.status === "cancelled" || r.status === "no_show");
       });

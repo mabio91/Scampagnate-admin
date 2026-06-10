@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { exportToCsv } from "@/lib/exportUtils";
+import { isAnalyticsEventStatus, isAnalyticsRegistration } from "@/lib/analyticsEvents";
 
 interface OrgUser {
   id: string; first_name: string; last_name: string; phone: string; email: string;
@@ -57,7 +58,7 @@ export default function OrganizersPage() {
       if (!orgRoles?.length) return [];
       const orgIds = [...new Set(orgRoles.map((r) => r.user_id))];
       const { data: profiles } = await supabase.from("profiles").select("*").in("id", orgIds);
-      const { data: events } = await supabase.from("events").select("organizer_id");
+      const { data: events } = await supabase.from("events").select("organizer_id, status");
       const { data: allRoles } = await supabase.from("user_roles").select("user_id, role").in("user_id", orgIds);
       let authUsers: { id: string; email: string; last_sign_in_at: string | null }[] = [];
       try {
@@ -70,7 +71,7 @@ export default function OrganizersPage() {
       return (profiles || []).map((p) => ({
         ...p,
         roles: (allRoles || []).filter((r) => r.user_id === p.id).map((r) => r.role) || [],
-        eventCount: events?.filter((e) => e.organizer_id === p.id).length || 0,
+        eventCount: events?.filter((e) => e.organizer_id === p.id && isAnalyticsEventStatus(e.status)).length || 0,
         email: authMap.get(p.id)?.email || p.email || "—",
         last_sign_in_at: authMap.get(p.id)?.last_sign_in_at || null,
       })) as OrgUser[];
@@ -89,8 +90,8 @@ export default function OrganizersPage() {
   const { data: allRegs = [] } = useQuery({
     queryKey: ["admin-org-all-regs"],
     queryFn: async () => {
-      const { data } = await supabase.from("event_registrations").select("event_id, status, checked_in");
-      return data || [];
+      const { data } = await supabase.from("event_registrations").select("event_id, status, checked_in, events(status)");
+      return (data || []).filter(isAnalyticsRegistration);
     },
   });
 
@@ -157,7 +158,7 @@ export default function OrganizersPage() {
 
   // Performance data calculation
   const getOrgPerf = (orgId: string) => {
-    const orgEvts = allEvents.filter((e) => e.organizer_id === orgId);
+    const orgEvts = allEvents.filter((e) => e.organizer_id === orgId && isAnalyticsEventStatus(e.status));
     const totalEvents = orgEvts.length;
     const cancelledEvents = orgEvts.filter((e) => e.status === "cancelled").length;
     const nonCancelled = orgEvts.filter((e) => e.status !== "cancelled" && e.spots_total > 0);

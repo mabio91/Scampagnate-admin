@@ -14,6 +14,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { formatMembershipId } from "@/lib/membership";
 import { instagramProfileUrl } from "@/lib/instagram";
 import { sortEventActivitiesByRelevantDate } from "@/lib/eventActivitySorting";
+import { isAnalyticsRegistration } from "@/lib/analyticsEvents";
 
 type UserPaymentTransaction = {
   id: string;
@@ -85,7 +86,7 @@ export default function UserDetailPage() {
         .or("sport_level.is.null,sport_level.not.like.manual:%")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return sortEventActivitiesByRelevantDate(data || []);
+      return sortEventActivitiesByRelevantDate((data || []).filter(isAnalyticsRegistration));
     },
     enabled: !!id,
   });

@@ -39,6 +39,7 @@ import {
   isNoShowAlertEligibleEvent,
   NO_SHOW_ALERT_REGISTRATION_STATUSES,
 } from "@/lib/eventNoShowAlerts";
+import { isAnalyticsEventStatus } from "@/lib/analyticsEvents";
 
 type Event = Tables<"events">;
 type EventWithCategory = Event & {
@@ -722,7 +723,7 @@ export default function EventsPage() {
   const eventIds = events.map((event) => event.id);
   const eventIdsKey = eventIds.join(",");
   const noShowEligibleEventIds = events
-    .filter((event) => isNoShowAlertEligibleEvent(event, today))
+    .filter((event) => isAnalyticsEventStatus(event.status) && isNoShowAlertEligibleEvent(event, today))
     .map((event) => event.id);
   const noShowEligibleEventIdsKey = noShowEligibleEventIds.join(",");
   const { data: eventEngagementMetrics = {} } = useQuery({

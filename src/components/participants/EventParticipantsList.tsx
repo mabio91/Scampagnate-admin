@@ -8,6 +8,7 @@ import { Download, Users } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { exportToCsv } from "@/lib/exportUtils";
+import { isAnalyticsRegistration } from "@/lib/analyticsEvents";
 
 interface EventParticipantsListProps {
   eventId: string;
@@ -57,7 +58,7 @@ type UserRegistrationStatsRow = {
   user_id: string | null;
   status: string | null;
   checked_in: boolean | null;
-  events: { date: string | null } | null;
+  events: { date: string | null; status: string | null } | null;
 };
 
 const CONFIRMED_REGISTRATION_STATUSES = ["registered", "deposit_paid", "paid", "attended", "no_show"];
@@ -138,9 +139,9 @@ export function EventParticipantsList({ eventId, isAdmin = false }: EventPartici
     queryFn: async () => {
       const { data } = await supabase
         .from("event_registrations")
-        .select("user_id, status, checked_in, events:event_id(date)")
+        .select("user_id, status, checked_in, events:event_id(date, status)")
         .in("user_id", userIds);
-      return (data || []) as UserRegistrationStatsRow[];
+      return (data || []).filter(isAnalyticsRegistration) as UserRegistrationStatsRow[];
     },
   });
 

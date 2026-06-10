@@ -136,7 +136,6 @@ export function DashboardFilters({ filters, onChange }: DashboardFiltersProps) {
         <SelectContent>
           <SelectItem value="all">Tutti gli stati</SelectItem>
           <SelectItem value="published">Pubblicato</SelectItem>
-          <SelectItem value="draft">Bozza</SelectItem>
           <SelectItem value="available">Disponibile</SelectItem>
           <SelectItem value="full">Completo</SelectItem>
           <SelectItem value="closed">Chiuso</SelectItem>
