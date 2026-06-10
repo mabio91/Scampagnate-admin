@@ -4,6 +4,7 @@ import {
   createRevenueExportXlsxBlob,
   filterRevenueRows,
   revenueRowsToCsv,
+  sortRevenueRows,
   summarizeRevenueRows,
   type RevenueEvent,
   type RevenueProfile,
@@ -12,6 +13,7 @@ import {
 
 const profiles: RevenueProfile[] = [
   { id: "user-1", first_name: "Mario", last_name: "Rossi", email: "mario@example.com" },
+  { id: "user-2", first_name: "Anna", last_name: "Bianchi", email: "anna@example.com" },
 ];
 
 const events: RevenueEvent[] = [
@@ -125,6 +127,31 @@ describe("revenue export", () => {
     expect(summary.total).toBe(40);
     expect(summary.refunded).toBe(1);
     expect(summary.serviceFees).toBe(0);
+  });
+
+  it("filters rows by user name or email and sorts by visible columns", () => {
+    const secondPayment: RevenueTransaction = {
+      ...payment,
+      id: "pay-2",
+      amount: 20,
+      created_at: "2026-06-09T10:00:00.000Z",
+      event_amount: 19,
+      membership_fee_amount: 0,
+      service_fee_amount: 1,
+      stripe_checkout_session_id: "cs_456",
+      stripe_payment_intent_id: "pi_456",
+      user_id: "user-2",
+    };
+    const rows = buildRevenueExportRows([payment, secondPayment], profiles, events);
+    const annaRows = filterRevenueRows(rows, { userSearch: "bianchi" });
+    const emailRows = filterRevenueRows(rows, { userSearch: "anna@example.com" });
+    const amountDescRows = sortRevenueRows(rows, { key: "amount", direction: "desc" });
+    const userAscRows = sortRevenueRows(rows, { key: "user", direction: "asc" });
+
+    expect(annaRows).toHaveLength(2);
+    expect(emailRows).toHaveLength(2);
+    expect(amountDescRows[0].amount).toBe(25);
+    expect(`${userAscRows[0].firstName} ${userAscRows[0].lastName}`).toBe("Anna Bianchi");
   });
 
   it("creates a two-sheet XLSX payload and matching CSV rows", async () => {

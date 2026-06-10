@@ -3,6 +3,12 @@ import { createXlsxBlob, type XlsxCellObject, type XlsxCellValue } from "./simpl
 export type RevenueMovementType = "membership_fee" | "event_fee" | "service_fee" | "stripe_fee" | "unclassified";
 export type RevenuePaymentStatus = "paid" | "refunded" | "cancelled";
 export type RevenueFilterValue = "all" | string;
+export type RevenueSortKey = "date" | "user" | "event" | "movement" | "status" | "originalTotal" | "amount";
+export type RevenueSortDirection = "asc" | "desc";
+export type RevenueSortConfig = {
+  key: RevenueSortKey;
+  direction: RevenueSortDirection;
+};
 
 export type RevenueTransaction = {
   id: string;
@@ -77,6 +83,7 @@ export type RevenueRowFilters = {
   paymentStatuses?: RevenuePaymentStatus[];
   quarterYear?: number;
   quarters?: string[];
+  userSearch?: string;
 };
 
 const DETAIL_HEADERS = [
@@ -220,12 +227,25 @@ export function buildRevenueExportRows(
 }
 
 export function filterRevenueRows(rows: RevenueExportRow[], filters: RevenueRowFilters) {
+  const userSearch = normalizeSearchText(filters.userSearch || "");
   return rows.filter((row) => {
     if (filters.eventIds?.length && !filters.eventIds.includes(row.eventId)) return false;
     if (filters.movementTypes?.length && !filters.movementTypes.includes(row.movementType)) return false;
     if (filters.paymentStatuses?.length && !filters.paymentStatuses.includes(row.paymentStatus)) return false;
     if (filters.quarters?.length && filters.quarterYear && !rowMatchesQuarter(row, filters.quarters, filters.quarterYear)) return false;
+    if (userSearch && !normalizeSearchText(`${row.firstName} ${row.lastName} ${row.email}`).includes(userSearch)) return false;
     return true;
+  });
+}
+
+export function sortRevenueRows(rows: RevenueExportRow[], sort: RevenueSortConfig) {
+  const direction = sort.direction === "desc" ? -1 : 1;
+  return [...rows].sort((a, b) => {
+    const valueDiff = compareRevenueRows(a, b, sort.key);
+    if (valueDiff !== 0) return valueDiff * direction;
+    return compareRevenueRows(a, b, "date")
+      || a.transactionReference.localeCompare(b.transactionReference)
+      || MOVEMENT_SORT_ORDER[a.movementType] - MOVEMENT_SORT_ORDER[b.movementType];
   });
 }
 
@@ -347,6 +367,53 @@ function rowMatchesQuarter(row: RevenueExportRow, quarters: string[], year: numb
   if (!parts || parts.year !== year) return false;
   const quarter = String(Math.floor((parts.month - 1) / 3) + 1);
   return quarters.includes(quarter);
+}
+
+function compareRevenueRows(a: RevenueExportRow, b: RevenueExportRow, key: RevenueSortKey) {
+  switch (key) {
+    case "date":
+      return compareDateValues(a.refundDate || a.paymentDate || a.sortDate, b.refundDate || b.paymentDate || b.sortDate);
+    case "user":
+      return compareTextValues(userSortValue(a), userSortValue(b));
+    case "event":
+      return compareTextValues(`${a.eventTitle} ${a.eventDate}`, `${b.eventTitle} ${b.eventDate}`);
+    case "movement":
+      return compareTextValues(a.movementLabel, b.movementLabel);
+    case "status":
+      return compareTextValues(a.paymentStatusLabel, b.paymentStatusLabel);
+    case "originalTotal":
+      return compareNullableNumbers(a.originalTransactionTotal, b.originalTransactionTotal);
+    case "amount":
+      return a.amount - b.amount;
+  }
+}
+
+function userSortValue(row: RevenueExportRow) {
+  return `${row.firstName} ${row.lastName} ${row.email}`.trim();
+}
+
+function compareTextValues(a: string, b: string) {
+  return a.localeCompare(b, "it-IT", { numeric: true, sensitivity: "base" });
+}
+
+function compareDateValues(a: string, b: string) {
+  return dateValue(a) - dateValue(b);
+}
+
+function compareNullableNumbers(a: number | null, b: number | null) {
+  if (a == null && b == null) return 0;
+  if (a == null) return 1;
+  if (b == null) return -1;
+  return a - b;
+}
+
+function dateValue(value: string) {
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? 0 : time;
+}
+
+function normalizeSearchText(value: string) {
+  return value.trim().toLocaleLowerCase("it-IT");
 }
 
 export function revenueMoney(value: unknown) {

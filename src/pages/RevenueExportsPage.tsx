@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, CalendarDays, ChevronDown, Download, Euro, FileSpreadsheet, FileText, Receipt, RotateCcw } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown, CalendarDays, ChevronDown, Download, Euro, FileSpreadsheet, FileText, Receipt, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,11 +23,14 @@ import {
   revenueMovementTypeOptions,
   revenuePaymentStatusOptions,
   revenueRowsToCsv,
+  sortRevenueRows,
   summarizeRevenueRows,
   type RevenueEvent,
   type RevenueMovementType,
   type RevenuePaymentStatus,
   type RevenueProfile,
+  type RevenueSortConfig,
+  type RevenueSortKey,
   type RevenueTransaction,
 } from "@/lib/revenueExport";
 
@@ -48,6 +51,7 @@ const quarterOptions = [
 ];
 
 const euro = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" });
+const DEFAULT_SORT: RevenueSortConfig = { key: "date", direction: "asc" };
 
 export default function RevenueExportsPage() {
   const currentQuarter = getCurrentQuarter();
@@ -58,6 +62,9 @@ export default function RevenueExportsPage() {
   const [eventIds, setEventIds] = useState<string[]>([]);
   const [movementTypes, setMovementTypes] = useState<RevenueMovementType[]>([]);
   const [paymentStatuses, setPaymentStatuses] = useState<RevenuePaymentStatus[]>([]);
+  const [userSearch, setUserSearch] = useState("");
+  const [sortConfig, setSortConfig] = useState<RevenueSortConfig>(DEFAULT_SORT);
+  const deferredUserSearch = useDeferredValue(userSearch);
 
   const { data: eventOptions = [] } = useQuery({
     queryKey: ["admin-revenue-events"],
@@ -82,20 +89,29 @@ export default function RevenueExportsPage() {
     return buildRevenueExportRows(data.transactions, data.profiles, data.events, data.lookupTransactions);
   }, [data]);
 
-  const rows = useMemo(
+  const filteredRows = useMemo(
     () => filterRevenueRows(allRows, {
       eventIds,
       movementTypes,
       paymentStatuses,
       quarterYear: Number(year),
       quarters,
+      userSearch: deferredUserSearch,
     }),
-    [allRows, eventIds, movementTypes, paymentStatuses, quarters, year]
+    [allRows, deferredUserSearch, eventIds, movementTypes, paymentStatuses, quarters, year]
   );
 
+  const rows = useMemo(() => sortRevenueRows(filteredRows, sortConfig), [filteredRows, sortConfig]);
   const summary = useMemo(() => summarizeRevenueRows(rows), [rows]);
   const previewRows = rows.slice(0, 100);
   const isExportDisabled = rows.length === 0;
+
+  const handleSort = (key: RevenueSortKey) => {
+    setSortConfig((current) => ({
+      key,
+      direction: current.key === key && current.direction === "asc" ? "desc" : "asc",
+    }));
+  };
 
   const applyQuarter = () => {
     const parsedYear = Number(year);
@@ -126,7 +142,9 @@ export default function RevenueExportsPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold">Export incassi ASD</h1>
-          <p className="text-muted-foreground mt-1">{rows.length} righe economiche nel perimetro selezionato</p>
+          <p className="text-muted-foreground mt-1">
+            {isLoading ? "Caricamento incassi..." : `${rows.length} righe economiche nel perimetro selezionato`}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <RefreshButton queryKeys={[["admin-revenue-export"], ["admin-revenue-events"]]} />
@@ -142,16 +160,16 @@ export default function RevenueExportsPage() {
       </div>
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-        <SummaryCard icon={Euro} label="Totale piattaforma" value={euro.format(summary.total)} />
-        <SummaryCard icon={Receipt} label="Quote evento" value={euro.format(summary.events)} />
-        <SummaryCard icon={FileSpreadsheet} label="Quote associative" value={euro.format(summary.membership)} />
-        <SummaryCard icon={CalendarDays} label="Costi servizio" value={euro.format(summary.serviceFees)} />
-        <SummaryCard icon={RotateCcw} label="Rimborsi" value={euro.format(summary.refunded)} tone="warning" />
+        <SummaryCard icon={Euro} label="Totale piattaforma" value={isLoading ? "..." : euro.format(summary.total)} />
+        <SummaryCard icon={Receipt} label="Quote evento" value={isLoading ? "..." : euro.format(summary.events)} />
+        <SummaryCard icon={FileSpreadsheet} label="Quote associative" value={isLoading ? "..." : euro.format(summary.membership)} />
+        <SummaryCard icon={CalendarDays} label="Costi servizio" value={isLoading ? "..." : euro.format(summary.serviceFees)} />
+        <SummaryCard icon={RotateCcw} label="Rimborsi" value={isLoading ? "..." : euro.format(summary.refunded)} tone="warning" />
       </div>
 
       <Card>
         <CardHeader className="pb-3">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-7">
             <div className="space-y-2">
               <Label htmlFor="date-from">Da</Label>
               <Input id="date-from" type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
@@ -201,6 +219,15 @@ export default function RevenueExportsPage() {
               selectedValues={paymentStatuses}
               onChange={(values) => setPaymentStatuses(values as RevenuePaymentStatus[])}
             />
+            <div className="space-y-2">
+              <Label htmlFor="user-search">Nome utente</Label>
+              <Input
+                id="user-search"
+                value={userSearch}
+                onChange={(event) => setUserSearch(event.target.value)}
+                placeholder="Nome o email"
+              />
+            </div>
           </div>
         </CardHeader>
         <CardContent className="overflow-x-auto">
@@ -219,14 +246,13 @@ export default function RevenueExportsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Utente</TableHead>
-                  <TableHead>Evento</TableHead>
-                  <TableHead>Transazione</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Stato</TableHead>
-                  <TableHead className="text-right">Totale orig.</TableHead>
-                  <TableHead className="text-right">Importo</TableHead>
+                  <SortableTableHead label="Data" sortKey="date" sortConfig={sortConfig} onSort={handleSort} />
+                  <SortableTableHead label="Utente" sortKey="user" sortConfig={sortConfig} onSort={handleSort} />
+                  <SortableTableHead label="Evento" sortKey="event" sortConfig={sortConfig} onSort={handleSort} />
+                  <SortableTableHead label="Tipo" sortKey="movement" sortConfig={sortConfig} onSort={handleSort} />
+                  <SortableTableHead label="Stato" sortKey="status" sortConfig={sortConfig} onSort={handleSort} />
+                  <SortableTableHead label="Totale orig." sortKey="originalTotal" sortConfig={sortConfig} onSort={handleSort} align="right" />
+                  <SortableTableHead label="Importo" sortKey="amount" sortConfig={sortConfig} onSort={handleSort} align="right" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -241,7 +267,6 @@ export default function RevenueExportsPage() {
                       <div className="min-w-[220px] font-medium">{row.eventTitle || "Nessun evento"}</div>
                       {row.eventDate && <div className="text-xs text-muted-foreground">{formatRevenueDate(row.eventDate)}</div>}
                     </TableCell>
-                    <TableCell className="font-mono text-xs">{row.transactionReference}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="whitespace-nowrap">{row.movementLabel}</Badge>
                     </TableCell>
@@ -400,6 +425,41 @@ function SummaryCard({ icon: Icon, label, value, tone = "default" }: { icon: typ
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function SortableTableHead({
+  label,
+  sortKey,
+  sortConfig,
+  onSort,
+  align = "left",
+}: {
+  label: string;
+  sortKey: RevenueSortKey;
+  sortConfig: RevenueSortConfig;
+  onSort: (key: RevenueSortKey) => void;
+  align?: "left" | "right";
+}) {
+  const isActive = sortConfig.key === sortKey;
+  const Icon = isActive ? (sortConfig.direction === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;
+  const ariaSort: "ascending" | "descending" | "none" = isActive
+    ? (sortConfig.direction === "asc" ? "ascending" : "descending")
+    : "none";
+
+  return (
+    <TableHead className={align === "right" ? "text-right" : undefined} aria-sort={ariaSort}>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className={`h-8 gap-1 px-2 text-xs font-medium text-muted-foreground ${align === "right" ? "ml-auto -mr-2" : "-ml-2"}`}
+        onClick={() => onSort(sortKey)}
+      >
+        {label}
+        <Icon className="h-3.5 w-3.5" />
+      </Button>
+    </TableHead>
   );
 }
 
