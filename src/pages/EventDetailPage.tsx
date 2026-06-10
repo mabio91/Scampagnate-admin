@@ -12,13 +12,14 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { EventParticipantsList } from "@/components/participants/EventParticipantsList";
 import { EventBadgePills } from "@/components/EventBadges";
 import { EventShareLinks } from "@/components/EventShareLinks";
+import { EventCheckInQrDialog } from "@/components/EventCheckInQrDialog";
 import { useTrekkingDifficultyLevels, getDifficultyByValue } from "@/hooks/useTrekkingDifficultyLevels";
 import { renderEventDescriptionHtml } from "@/lib/eventDescription";
 import { getPriceOptionDisplayName } from "@/lib/priceOptions";
 import {
   ArrowLeft, MapPin, Calendar, Clock, Users, DollarSign,
   Eye, Image as ImageIcon,
-  UserRound, Bookmark, BellRing,
+  UserRound, Bookmark, BellRing, QrCode,
 } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import {
@@ -124,6 +125,7 @@ export default function EventDetailPage() {
   const navigate = useNavigate();
   const { data: difficultyLevels } = useTrekkingDifficultyLevels();
   const [engagementDetail, setEngagementDetail] = useState<EventEngagementAudienceType | null>(null);
+  const [showCheckInQr, setShowCheckInQr] = useState(false);
 
   const { data: event, isLoading } = useQuery({
     queryKey: ["event-detail", id],
@@ -237,6 +239,10 @@ export default function EventDetailPage() {
             <Badge variant="outline">{event.visibility}</Badge>
           </div>
         </div>
+        <Button type="button" className="shrink-0 gap-2" onClick={() => setShowCheckInQr(true)}>
+          <QrCode className="h-4 w-4" />
+          QR check-in
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -498,6 +504,16 @@ export default function EventDetailPage() {
         </div>
       </div>
     </div>
+
+      <EventCheckInQrDialog
+        eventId={event.id}
+        eventTitle={event.title}
+        eventDate={event.date}
+        eventTime={event.time}
+        eventLocation={event.location}
+        open={showCheckInQr}
+        onOpenChange={setShowCheckInQr}
+      />
 
       <Dialog open={!!engagementDetail} onOpenChange={(open) => !open && setEngagementDetail(null)}>
         <DialogContent className="flex max-h-[85vh] max-w-lg flex-col overflow-hidden">
