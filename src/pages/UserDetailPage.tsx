@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { formatMembershipId } from "@/lib/membership";
 import { instagramProfileUrl } from "@/lib/instagram";
+import { sortEventActivitiesByRelevantDate } from "@/lib/eventActivitySorting";
 
 type UserPaymentTransaction = {
   id: string;
@@ -84,7 +85,7 @@ export default function UserDetailPage() {
         .or("sport_level.is.null,sport_level.not.like.manual:%")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data || [];
+      return sortEventActivitiesByRelevantDate(data || []);
     },
     enabled: !!id,
   });

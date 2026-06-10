@@ -14,6 +14,7 @@ import { toast } from "@/hooks/use-toast";
 import { Camera, Loader2, Save, KeyRound, User, Activity } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import ImageCropDialog from "@/components/ImageCropDialog";
+import { sortEventActivitiesByRelevantDate } from "@/lib/eventActivitySorting";
 
 export default function ProfilePage() {
   const { t } = useLanguage();
@@ -76,7 +77,7 @@ export default function ProfilePage() {
         .order("created_at", { ascending: false });
       
       if (error) throw error;
-      return data || [];
+      return sortEventActivitiesByRelevantDate(data || []);
     },
     enabled: !!userId,
   });
