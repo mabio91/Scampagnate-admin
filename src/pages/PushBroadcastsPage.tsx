@@ -24,6 +24,10 @@ type BroadcastResponse = {
   sent_count?: number;
   failed_count?: number;
   expired_count?: number;
+  ios_target_count?: number;
+  ios_user_count?: number;
+  onesignal_target_count?: number;
+  onesignal_user_count?: number;
   error?: string | null;
   campaign?: IOSPushBroadcast;
 };
@@ -105,6 +109,10 @@ const PushBroadcastsPage = () => {
     return {
       targets: Number(estimate.target_count || 0),
       users: Number(estimate.unique_user_count || 0),
+      iosTargets: Number(estimate.ios_target_count || 0),
+      iosUsers: Number(estimate.ios_user_count || 0),
+      webTargets: Number(estimate.onesignal_target_count || 0),
+      webUsers: Number(estimate.onesignal_user_count || 0),
     };
   }, [estimate]);
 
@@ -112,7 +120,7 @@ const PushBroadcastsPage = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl md:text-3xl font-bold">Broadcast Push</h1>
-        <p className="text-sm text-muted-foreground mt-1">Invio notifiche iOS tramite funzione Edge gia deployata sul target EU.</p>
+        <p className="text-sm text-muted-foreground mt-1">Invio notifiche iOS e Web/PWA tramite funzione Edge deployata sul target EU.</p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
@@ -190,7 +198,7 @@ const PushBroadcastsPage = () => {
         <Card>
           <CardHeader>
             <CardTitle>Stima</CardTitle>
-            <CardDescription>Risultato dry-run della funzione send-ios-broadcast.</CardDescription>
+            <CardDescription>Risultato dry-run del broadcast push multi-canale.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {previewCount ? (
@@ -203,6 +211,18 @@ const PushBroadcastsPage = () => {
                   <p className="text-xs text-muted-foreground">Device target</p>
                   <p className="text-2xl font-bold">{previewCount.targets}</p>
                 </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-lg bg-muted/50 p-3">
+                    <p className="text-xs text-muted-foreground">iOS</p>
+                    <p className="text-lg font-semibold">{previewCount.iosUsers}</p>
+                    <p className="text-xs text-muted-foreground">{previewCount.iosTargets} device</p>
+                  </div>
+                  <div className="rounded-lg bg-muted/50 p-3">
+                    <p className="text-xs text-muted-foreground">Web/PWA</p>
+                    <p className="text-lg font-semibold">{previewCount.webUsers}</p>
+                    <p className="text-xs text-muted-foreground">{previewCount.webTargets} subscription</p>
+                  </div>
+                </div>
                 <Badge variant="outline">{estimate?.environment || "production"}</Badge>
               </>
             ) : (
@@ -214,8 +234,8 @@ const PushBroadcastsPage = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Storico broadcast iOS</CardTitle>
-          <CardDescription>Ultimi invii registrati nel backend EU.</CardDescription>
+          <CardTitle>Storico broadcast push</CardTitle>
+          <CardDescription>Ultimi broadcast accodati dal backend EU.</CardDescription>
         </CardHeader>
         <CardContent className="overflow-x-auto">
           {isLoading ? (
@@ -229,7 +249,7 @@ const PushBroadcastsPage = () => {
                   <TableHead>Titolo</TableHead>
                   <TableHead>Stato</TableHead>
                   <TableHead>Utenti</TableHead>
-                  <TableHead>Inviate</TableHead>
+                  <TableHead>Accodate</TableHead>
                   <TableHead>Fallite</TableHead>
                   <TableHead>Scadute</TableHead>
                   <TableHead>Data</TableHead>
