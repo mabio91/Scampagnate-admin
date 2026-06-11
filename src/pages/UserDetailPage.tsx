@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { AlertTriangle, ArrowLeft, Instagram, Landmark, Car, Target, Activity, TrendingUp, Calendar, MapPin, ChevronRight, Gamepad2, Pill, ShieldCheck, CreditCard } from "lucide-react";
 import { UserGamificationSection } from "@/components/gamification/UserGamificationSection";
+import { MembershipDossier } from "@/components/members/MembershipDossier";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/i18n/LanguageContext";
@@ -209,9 +210,10 @@ export default function UserDetailPage() {
       </div>
 
       <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 max-w-2xl">
+        <TabsList className="grid w-full grid-cols-5 max-w-3xl">
           <TabsTrigger value="profile">{t("users.profileOverview")}</TabsTrigger>
           <TabsTrigger value="activity">{t("users.activityHistory")}</TabsTrigger>
+          <TabsTrigger value="membership" className="gap-1"><ShieldCheck className="h-3.5 w-3.5" /> Tesseramento</TabsTrigger>
           <TabsTrigger value="payments" className="gap-1"><CreditCard className="h-3.5 w-3.5" /> Pagamenti</TabsTrigger>
           <TabsTrigger value="gamification" className="gap-1"><Gamepad2 className="h-3.5 w-3.5" /> Gamification</TabsTrigger>
         </TabsList>
@@ -446,6 +448,14 @@ export default function UserDetailPage() {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        <TabsContent value="membership" className="mt-6">
+          <MembershipDossier
+            profile={user}
+            payments={userPayments}
+            paymentsLoading={loadingPayments}
+          />
         </TabsContent>
 
         <TabsContent value="payments" className="space-y-6 mt-6">

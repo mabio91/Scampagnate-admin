@@ -1,16 +1,18 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, MoreHorizontal, Edit2, Download, CreditCard, AlertTriangle, Bell, CalendarX, Award, Shield, Euro, Save, Pencil, ArrowUp, ArrowDown } from "lucide-react";
+import { Search, MoreHorizontal, Edit2, Download, CreditCard, AlertTriangle, Bell, CalendarX, Award, Shield, Euro, Save, Pencil, ArrowUp, ArrowDown, Eye, FileWarning, UserRound } from "lucide-react";
 import RefreshButton from "@/components/RefreshButton";
 import { RowActionButton, RowActionCell } from "@/components/RowActions";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,14 +23,18 @@ import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { exportAicsMembershipXlsx } from "@/lib/aicsMembershipExport";
+import { exportToCsv } from "@/lib/exportUtils";
 import { FOUNDING_MEMBER_BADGE_NAME, countMembersWithFoundingMemberBadge, hasFoundingMemberBadge } from "@/lib/foundingMember";
 import { formatMembershipId } from "@/lib/membership";
+import { getMembershipCompleteness, hasActiveMembership, membershipDataFieldLabels } from "@/lib/membershipProfile";
+import { MembershipDossier, type MembershipPaymentRow } from "@/components/members/MembershipDossier";
 import { PrepaidMembershipImport } from "@/components/members/PrepaidMembershipImport";
 
 type Profile = Tables<"profiles">;
 type SortDirection = "asc" | "desc";
-type MemberSortField = "membershipId" | "name" | "phone" | "year" | "badges" | "accountStatus" | "membershipStatus";
+type MemberSortField = "membershipId" | "name" | "phone" | "year" | "badges" | "accountStatus" | "membershipStatus" | "completeness";
 type MemberSort = { field: MemberSortField; direction: SortDirection } | null;
+type MemberSegment = "all" | "active" | "expired" | "currentYear" | "incomplete" | "withoutId" | "founding";
 type UserBadgeRow = {
   user_id: string;
   badge_id: string;
@@ -48,9 +54,12 @@ const getMemberSex = (profile: Profile) => getOptionalProfileString(profile, ["g
 
 export default function MembersPage() {
   const { t } = useLanguage();
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
+  const [segment, setSegment] = useState<MemberSegment>("all");
   const [sort, setSort] = useState<MemberSort>(null);
   const [editMember, setEditMember] = useState<Profile | null>(null);
+  const [selectedMember, setSelectedMember] = useState<Profile | null>(null);
   const [editForm, setEditForm] = useState({
     membership_id: "",
     membership_status: "Inactive",
@@ -102,6 +111,21 @@ export default function MembersPage() {
       });
       return map;
     },
+  });
+
+  const { data: selectedMemberPayments = [], isLoading: selectedMemberPaymentsLoading } = useQuery({
+    queryKey: ["admin-member-payments", selectedMember?.id],
+    queryFn: async () => {
+      if (!selectedMember?.id) return [];
+      const { data, error } = await supabase
+        .from("user_payment_transactions")
+        .select("id, kind, source, amount, membership_fee_amount, created_at, stripe_payment_intent_id, stripe_refund_id")
+        .eq("user_id", selectedMember.id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data || []) as MembershipPaymentRow[];
+    },
+    enabled: !!selectedMember?.id,
   });
 
   // Fetch membership price from platform_settings
@@ -303,14 +327,33 @@ export default function MembersPage() {
     });
   };
 
-  const filtered = members.filter((m) =>
-    `${m.first_name} ${m.last_name}`.toLowerCase().includes(search.toLowerCase()) ||
-    m.phone.toLowerCase().includes(search.toLowerCase()) ||
-    (m.membership_id?.toString() || "").includes(search)
-  );
-
   const getMemberName = (member: Profile) => `${member.first_name ?? ""} ${member.last_name ?? ""}`.trim();
   const getMemberBadgeText = (memberId: string) => (userBadgesMap[memberId] || []).map((badge) => badge.name).join(", ");
+  const getCompleteness = (member: Profile) => getMembershipCompleteness(member);
+  const isMembershipRelevant = (member: Profile) =>
+    member.membership_status === "Active" || member.membership_status === "Pending" || member.membership_id != null;
+
+  const matchesSegment = (member: Profile) => {
+    if (segment === "active") return member.membership_status === "Active";
+    if (segment === "expired") return member.membership_status === "Expired";
+    if (segment === "currentYear") return hasActiveMembership(member, currentYear);
+    if (segment === "incomplete") return isMembershipRelevant(member) && !getCompleteness(member).isComplete;
+    if (segment === "withoutId") return !member.membership_id;
+    if (segment === "founding") return member.is_founding_member || hasFoundingMemberBadge(userBadgesMap[member.id]);
+    return true;
+  };
+
+  const filtered = members.filter((m) => {
+    const normalizedSearch = search.toLowerCase().trim();
+    const searchable = [
+      getMemberName(m),
+      m.phone || "",
+      m.email || "",
+      m.membership_id?.toString() || "",
+    ].join(" ").toLowerCase();
+
+    return matchesSegment(m) && (!normalizedSearch || searchable.includes(normalizedSearch));
+  });
 
   const compareText = (a: string | null | undefined, b: string | null | undefined) => {
     const valueA = (a || "").trim();
@@ -343,6 +386,7 @@ export default function MembersPage() {
         else if (sort.field === "badges") comparison = compareText(getMemberBadgeText(a.id), getMemberBadgeText(b.id));
         else if (sort.field === "accountStatus") comparison = compareText(a.account_status || "Active", b.account_status || "Active");
         else if (sort.field === "membershipStatus") comparison = compareText(a.membership_status || "Inactive", b.membership_status || "Inactive");
+        else if (sort.field === "completeness") comparison = compareNumber(getCompleteness(a).percentage, getCompleteness(b).percentage);
 
         const directedComparison = applySortDirection(comparison, sort.direction);
         return directedComparison || compareText(getMemberName(a), getMemberName(b));
@@ -382,8 +426,31 @@ export default function MembersPage() {
 
   const activeCount = members.filter((m) => m.membership_status === "Active").length;
   const expiredCount = members.filter((m) => m.membership_status === "Expired").length;
-  const currentYearCount = members.filter((m) => m.membership_year === currentYear && m.membership_status === "Active").length;
+  const currentYearCount = members.filter((m) => hasActiveMembership(m, currentYear)).length;
   const foundingCount = countMembersWithFoundingMemberBadge(members, userBadgesMap);
+  const incompleteCount = members.filter((m) => isMembershipRelevant(m) && !getCompleteness(m).isComplete).length;
+
+  const exportIncompleteMembers = () => {
+    const incompleteMembers = members
+      .map((member) => ({ member, completeness: getCompleteness(member) }))
+      .filter(({ member, completeness }) => isMembershipRelevant(member) && !completeness.isComplete);
+
+    exportToCsv(
+      "tesserati_dati_incompleti",
+      ["ID tessera", "Nome", "Email", "Telefono", "Stato tessera", "Anno", "Completezza", "Campi mancanti"],
+      incompleteMembers.map(({ member, completeness }) => [
+        formatMembershipId(member.membership_id),
+        getMemberName(member),
+        member.email || "",
+        member.phone || "",
+        member.membership_status || "",
+        member.membership_year?.toString() || "",
+        `${completeness.percentage}%`,
+        completeness.missingFields.map((field) => membershipDataFieldLabels[field.key]).join("; "),
+      ]),
+    );
+    toast.success(`${incompleteMembers.length} tesserati con dati incompleti esportati in CSV`);
+  };
 
   return (
     <div className="space-y-6">
@@ -400,6 +467,9 @@ export default function MembersPage() {
           <Button variant="secondary" className="gap-2" onClick={() => setShowRenewalDialog(true)}>
             <Bell className="h-4 w-4" /> {t("members.sendRenewalReminders")}
           </Button>
+          <Button variant="outline" className="gap-2" onClick={exportIncompleteMembers}>
+            <FileWarning className="h-4 w-4" /> Esporta incompleti
+          </Button>
           <Button variant="outline" className="gap-2" onClick={exportMembers}>
             <Download className="h-4 w-4" /> {t("members.exportExcel")}
           </Button>
@@ -407,7 +477,7 @@ export default function MembersPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-green-600">{activeCount}</div>
@@ -509,18 +579,40 @@ export default function MembersPage() {
             <p className="text-sm text-muted-foreground mt-1">Quota Tessera</p>
           </CardContent>
         </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-yellow-600">{incompleteCount}</div>
+            <p className="text-sm text-muted-foreground">Dati incompleti</p>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
         <CardHeader className="pb-3 text-2l font-bold">
-          <div className="relative max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder={t("members.searchPlaceholder")}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
-            />
+          <div className="flex flex-col gap-3 md:flex-row md:items-center">
+            <div className="relative max-w-sm flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder={t("members.searchPlaceholder")}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <Select value={segment} onValueChange={(value) => setSegment(value as MemberSegment)}>
+              <SelectTrigger className="w-full md:w-[220px]" aria-label="Filtra tesserati">
+                <SelectValue placeholder="Segmento tesserati" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tutti</SelectItem>
+                <SelectItem value="active">Tessera attiva</SelectItem>
+                <SelectItem value="expired">Tessera scaduta</SelectItem>
+                <SelectItem value="currentYear">Attivi {currentYear}</SelectItem>
+                <SelectItem value="incomplete">Dati incompleti</SelectItem>
+                <SelectItem value="withoutId">Senza ID tessera</SelectItem>
+                <SelectItem value="founding">Soci fondatori</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardHeader>
         <CardContent className="overflow-x-auto">
@@ -538,6 +630,7 @@ export default function MembersPage() {
                   {renderSortableHead("name", t("common.name"), "Ordina tesserati per nome")}
                   {renderSortableHead("phone", t("common.phone"), "Ordina tesserati per telefono")}
                   {renderSortableHead("year", t("members.year"), "Ordina tesserati per anno")}
+                  {renderSortableHead("completeness", "Dati AICS", "Ordina tesserati per completezza dati AICS")}
                   {renderSortableHead("badges", t("members.badges"), "Ordina tesserati per badge")}
                   {renderSortableHead("accountStatus", t("users.accountStatus"), "Ordina tesserati per stato account")}
                   {renderSortableHead("membershipStatus", t("members.membershipStatus"), "Ordina tesserati per stato tessera")}
@@ -545,65 +638,87 @@ export default function MembersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sortedMembers.map((member) => (
-                  <TableRow key={member.id}>
-                    <TableCell className="font-mono">
-                      {formatMembershipId(member.membership_id)}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {member.first_name} {member.last_name}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{member.phone || "—"}</TableCell>
-                    <TableCell>{member.membership_year || "—"}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-1 flex-wrap">
-                        {(userBadgesMap[member.id] || []).map((b) => (
-                          <Badge key={b.badge_id} variant="outline" className="text-xs gap-1">
-                            <span>{b.icon}</span> {b.name}
-                          </Badge>
-                        ))}
-                        {!(userBadgesMap[member.id] || []).length && <span className="text-muted-foreground text-sm">—</span>}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge 
-                        variant={member.account_status === "Active" ? "outline" : "default"}
-                        className={
-                          member.account_status === "Active" ? "bg-green-500/10 text-green-500 hover:bg-green-500/20" :
-                          member.account_status === "Suspended" ? "bg-yellow-500 hover:bg-yellow-600" :
-                          "bg-destructive hover:bg-destructive/90"
-                        }
-                      >
-                        {member.account_status || "Active"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={member.membership_status === "Active" ? "default" : "secondary"}
-                        className={member.membership_status === "Active" ? "bg-green-500 hover:bg-green-600" : ""}
-                      >
-                        {member.membership_status}
-                      </Badge>
-                    </TableCell>
-                    <RowActionCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <RowActionButton aria-label="Azioni tesserato">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </RowActionButton>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEdit(member)}>
-                            <Edit2 className="h-4 w-4 mr-2" /> {t("members.editMembership")}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </RowActionCell>
-                  </TableRow>
-                ))}
+                {sortedMembers.map((member) => {
+                  const completeness = getCompleteness(member);
+
+                  return (
+                    <TableRow key={member.id}>
+                      <TableCell className="font-mono">
+                        {formatMembershipId(member.membership_id)}
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {member.first_name} {member.last_name}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{member.phone || "—"}</TableCell>
+                      <TableCell>{member.membership_year || "—"}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={completeness.isComplete ? "outline" : "secondary"}
+                          className={
+                            completeness.isComplete
+                              ? "border-green-500/25 bg-green-500/10 text-green-700"
+                              : "border-yellow-500/25 bg-yellow-500/10 text-yellow-700"
+                          }
+                        >
+                          {completeness.percentage}%
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1 flex-wrap">
+                          {(userBadgesMap[member.id] || []).map((b) => (
+                            <Badge key={b.badge_id} variant="outline" className="text-xs gap-1">
+                              <span>{b.icon}</span> {b.name}
+                            </Badge>
+                          ))}
+                          {!(userBadgesMap[member.id] || []).length && <span className="text-muted-foreground text-sm">—</span>}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={member.account_status === "Active" ? "outline" : "default"}
+                          className={
+                            member.account_status === "Active" ? "bg-green-500/10 text-green-500 hover:bg-green-500/20" :
+                            member.account_status === "Suspended" ? "bg-yellow-500 hover:bg-yellow-600" :
+                            "bg-destructive hover:bg-destructive/90"
+                          }
+                        >
+                          {member.account_status || "Active"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={member.membership_status === "Active" ? "default" : "secondary"}
+                          className={member.membership_status === "Active" ? "bg-green-500 hover:bg-green-600" : ""}
+                        >
+                          {member.membership_status}
+                        </Badge>
+                      </TableCell>
+                      <RowActionCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <RowActionButton aria-label="Azioni tesserato">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </RowActionButton>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setSelectedMember(member)}>
+                              <Eye className="h-4 w-4 mr-2" /> Visualizza dati tesseramento
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => navigate(`/users/${member.id}`)}>
+                              <UserRound className="h-4 w-4 mr-2" /> Apri dettaglio utente
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openEdit(member)}>
+                              <Edit2 className="h-4 w-4 mr-2" /> {t("members.editMembership")}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </RowActionCell>
+                    </TableRow>
+                  );
+                })}
                 {sortedMembers.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                       {t("members.noMembersFound")}
                     </TableCell>
                   </TableRow>
@@ -615,6 +730,24 @@ export default function MembersPage() {
       </Card>
 
       <PrepaidMembershipImport members={members} />
+
+      <Sheet open={!!selectedMember} onOpenChange={(open) => !open && setSelectedMember(null)}>
+        <SheetContent className="w-full overflow-y-auto sm:max-w-3xl">
+          <SheetHeader className="mb-4 pr-8">
+            <SheetTitle>Dati tesseramento</SheetTitle>
+            <SheetDescription>
+              Stato tessera, dati AICS, completezza e pagamenti collegati.
+            </SheetDescription>
+          </SheetHeader>
+          {selectedMember && (
+            <MembershipDossier
+              profile={selectedMember}
+              payments={selectedMemberPayments}
+              paymentsLoading={selectedMemberPaymentsLoading}
+            />
+          )}
+        </SheetContent>
+      </Sheet>
 
       {/* Edit Membership Dialog */}
       <Dialog open={!!editMember} onOpenChange={(o) => !o && setEditMember(null)}>
